@@ -620,7 +620,7 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
       previewRef.current?.pause();
       setSelectedClipId("");
       activeClipRef.current = "";
-      return;
+      return false;
     }
 
     setSelectedClipId(activeClip.id);
@@ -640,6 +640,7 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
       previewRef.current.currentTime = boundedTime;
     }
     setPreviewTime(previewRef.current.currentTime);
+    return true;
   }
 
   function playTimeline() {
@@ -682,8 +683,8 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
   function seekTimelineFromEvent(event) {
     if (isTimelineInteractiveTarget(event)) return false;
     const nextTime = Math.round(timeFromTimelineEvent(event) * 10) / 10;
-    syncTimelinePreview(nextTime);
-    if (timelinePlaying) {
+    const hasActiveClip = syncTimelinePreview(nextTime);
+    if (timelinePlaying && hasActiveClip) {
       previewRef.current?.play().catch(() => {});
     }
     return true;
@@ -721,12 +722,12 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
       const delta = (now - last) / 1000;
       last = now;
       const next = Math.min(timelineDuration, timelineTimeRef.current + delta);
-      syncTimelinePreview(next);
+      const hasActiveClip = syncTimelinePreview(next);
       if (next >= timelineDuration) {
         setTimelinePlaying(false);
         return;
       }
-      previewRef.current?.play().catch(() => {});
+      if (hasActiveClip) previewRef.current?.play().catch(() => {});
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);

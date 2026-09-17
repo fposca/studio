@@ -1016,6 +1016,26 @@ label {
   color: #15001f;
 }
 
+.image-filter-presets {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.image-filter-presets button {
+  min-width: 0;
+  overflow: hidden;
+  padding: 8px 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.image-filter-presets .active-tool {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: #15001f;
+}
+
 .align-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -389,6 +389,51 @@ async function createPdfFromCanvases(canvases, options) {
   return new Blob(chunks, { type: "application/pdf" });
 }
 
+const IMAGE_FILTER_DEFAULTS = {
+  brightness: 100,
+  contrast: 100,
+  saturate: 100,
+  grayscale: 0,
+  sepia: 0,
+  hueRotate: 0,
+  invert: 0,
+  blur: 0
+};
+
+const IMAGE_FILTER_CONTROLS = {
+  brightness: { label: "Brillo", max: 200 },
+  contrast: { label: "Contraste", max: 200 },
+  saturate: { label: "Saturacion", max: 200 },
+  grayscale: { label: "Grises", max: 100 },
+  sepia: { label: "Sepia", max: 100 },
+  hueRotate: { label: "Matiz", max: 360 },
+  invert: { label: "Invertir", max: 100 },
+  blur: { label: "Desenfoque", max: 12 }
+};
+
+const IMAGE_FILTER_PRESETS = [
+  { name: "Original", values: {} },
+  { name: "Vivo", values: { brightness: 106, contrast: 112, saturate: 145 } },
+  { name: "Calido", values: { brightness: 104, contrast: 104, saturate: 118, sepia: 22, hueRotate: 350 } },
+  { name: "Frio", values: { brightness: 103, contrast: 108, saturate: 112, hueRotate: 185 } },
+  { name: "Blanco y negro", values: { contrast: 112, grayscale: 100 } },
+  { name: "Vintage", values: { brightness: 96, contrast: 108, saturate: 78, sepia: 38 } },
+  { name: "Mate", values: { brightness: 108, contrast: 82, saturate: 88, sepia: 8 } },
+  { name: "Dramatico", values: { brightness: 92, contrast: 145, saturate: 118 } },
+  { name: "Suave", values: { brightness: 108, contrast: 88, saturate: 92, blur: 0.4 } },
+  { name: "Negativo", values: { invert: 100 } },
+  { name: "Desaturado", values: { brightness: 102, contrast: 108, saturate: 38 } },
+  { name: "Sepia", values: { brightness: 102, contrast: 106, saturate: 82, sepia: 76 } },
+  { name: "Neon", values: { brightness: 108, contrast: 132, saturate: 190, hueRotate: 18 } },
+  { name: "Bosque", values: { brightness: 94, contrast: 116, saturate: 124, sepia: 12, hueRotate: 72 } },
+  { name: "Oceano", values: { brightness: 98, contrast: 118, saturate: 132, hueRotate: 168 } },
+  { name: "Atardecer", values: { brightness: 104, contrast: 112, saturate: 142, sepia: 28, hueRotate: 338 } },
+  { name: "Polaroid", values: { brightness: 112, contrast: 92, saturate: 82, sepia: 16 } },
+  { name: "Carbon", values: { brightness: 84, contrast: 158, saturate: 22, grayscale: 72 } },
+  { name: "Lavado", values: { brightness: 116, contrast: 72, saturate: 68 } },
+  { name: "Solar", values: { brightness: 118, contrast: 122, saturate: 154, sepia: 18, hueRotate: 8 } }
+];
+
 function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
   const canvasRef = useRef(null);
   const dragRef = useRef(null);
@@ -402,13 +447,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
   const [vectorUrl, setVectorUrl] = useState("");
   const [clipboard, setClipboard] = useState("");
   const [projectStatus, setProjectStatus] = useState("");
-  const [filters, setFilters] = useState({
-    brightness: 100,
-    contrast: 100,
-    saturate: 100,
-    grayscale: 0,
-    blur: 0
-  });
+  const [filters, setFilters] = useState(IMAGE_FILTER_DEFAULTS);
   const [cropBox, setCropBox] = useState({ x: 0, y: 0, w: 600, h: 360 });
   const [exportSize, setExportSize] = useState({ w: 0, h: 0 });
   const [boardSize, setBoardSize] = useState({ w: 960, h: 540 });
@@ -431,7 +470,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
 
   const filterString = useMemo(
     () =>
-      `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturate}%) grayscale(${filters.grayscale}%) blur(${filters.blur}px)`,
+      `brightness(${filters.brightness}%) contrast(${filters.contrast}%) saturate(${filters.saturate}%) grayscale(${filters.grayscale}%) sepia(${filters.sepia}%) hue-rotate(${filters.hueRotate}deg) invert(${filters.invert}%) blur(${filters.blur}px)`,
     [filters]
   );
 
@@ -649,7 +688,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
     setSelectionShape(state.selectionShape || "rect");
     setFreePath(state.freePath || []);
     setExportSize(state.exportSize);
-    setFilters(state.filters);
+    setFilters({ ...IMAGE_FILTER_DEFAULTS, ...state.filters });
     setCanvasBackground(state.canvasBackground);
     setImageSelected(state.imageSelected);
     setImageVisible(state.imageVisible);
@@ -1721,12 +1760,29 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
         </label>
 
         <h3>Retoque</h3>
+        <div className="image-filter-presets">
+          {IMAGE_FILTER_PRESETS.map((preset) => {
+            const presetValues = { ...IMAGE_FILTER_DEFAULTS, ...preset.values };
+            const active = Object.keys(IMAGE_FILTER_DEFAULTS).every((key) => filters[key] === presetValues[key]);
+            return (
+              <button
+                className={active ? "active-tool" : ""}
+                key={preset.name}
+                onClick={() => setFilters(presetValues)}
+                type="button"
+              >
+                {preset.name}
+              </button>
+            );
+          })}
+        </div>
         {Object.entries(filters).map(([key, value]) => (
           <label className="range-row" key={key}>
-            {key}
+            {IMAGE_FILTER_CONTROLS[key].label}
             <input
-              max={key === "blur" ? 12 : 200}
+              max={IMAGE_FILTER_CONTROLS[key].max}
               min={0}
+              step={key === "blur" ? 0.1 : 1}
               onChange={(event) => setFilters((current) => ({ ...current, [key]: Number(event.target.value) }))}
               type="range"
               value={value}
