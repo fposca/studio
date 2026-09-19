@@ -10,9 +10,11 @@ import potrace from "potrace";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
-const workDir = path.join(root, "server", "work");
+const workDir = process.env.STUDIO_WORK_DIR || path.join(root, "server", "work");
 const uploadDir = path.join(workDir, "uploads");
 const outputDir = path.join(workDir, "outputs");
+const clientDir = path.join(root, "dist");
+let serverOrigin = "http://127.0.0.1:5174";
 
 fs.mkdirSync(uploadDir, { recursive: true });
 fs.mkdirSync(outputDir, { recursive: true });
@@ -31,7 +33,7 @@ const cleanName = (value) =>
     .replace(/[^a-z0-9._-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-const outputUrl = (fileName) => `http://127.0.0.1:5174/outputs/${fileName}`;
+const outputUrl = (fileName) => `${serverOrigin}/outputs/${fileName}`;
 
 function videoEffectFilter(effect, pixelSize = 12, effectAmount = 100, range = null) {
   const strength = Math.max(0, Math.min(2, Number(effectAmount ?? 100) / 100));
@@ -519,6 +521,27 @@ app.use((error, _req, res, next) => {
   return next(error);
 });
 
-app.listen(5174, () => {
-  console.log("API lista en http://127.0.0.1:5174");
-});
+if (fs.existsSync(clientDir)) {
+  app.use(express.static(clientDir));
+  app.use((req, res, next) => {
+    if (req.method !== "GET" || !req.accepts("html")) return next();
+    return res.sendFile(path.join(clientDir, "index.html"));
+  });
+}
+
+export function startServer(port = process.env.STUDIO_PORT === undefined ? 5174 : Number(process.env.STUDIO_PORT)) {
+  return new Promise((resolve, reject) => {
+    const server = app.listen(port, "127.0.0.1");
+    server.once("error", reject);
+    server.once("listening", () => {
+      const address = server.address();
+      const activePort = typeof address === "object" && address ? address.port : port;
+      serverOrigin = `http://127.0.0.1:${activePort}`;
+      console.log(`Studio listo en ${serverOrigin}`);
+      resolve({ origin: serverOrigin, server });
+    });
+  });
+}
+
+const launchedDirectly = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (launchedDirectly) startServer();

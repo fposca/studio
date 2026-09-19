@@ -1,9 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo.png";
-import { Dashboard as DashboardView, isAllowedEmail, Login as LoginView, ProjectSaveDialog as ProjectSaveDialogView } from "./components/AppInterfaces";
+import { AuthLoading, Dashboard as DashboardView, DesktopAccessDenied, Login as LoginView, ProjectSaveDialog as ProjectSaveDialogView, ViewerDemo } from "./components/AppInterfaces";
+import AdminUsers from "./components/AdminUsers.jsx";
+import { useAuth } from "./auth/AuthProvider.jsx";
+import { canManageUsers, canUseDesktop, canUseFullWeb } from "./auth/permissions.js";
 import { CustomTooltip, Wizard } from "./components/Guidance";
 import VideoEditor from "./editors/VideoEditor";
+import ThreeDEditor from "./editors/ThreeDEditor";
+import DesignLayersPanel from "./editors/design/DesignLayersPanel.jsx";
+import DesignViewportControls from "./editors/design/DesignViewportControls.jsx";
+import useDesignHistory from "./editors/design/useDesignHistory.js";
+import { runDesignBoolean } from "./editors/design/designBoolean.js";
 import {
+  Box,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -17,8 +26,12 @@ import {
   FileText,
   FlipHorizontal,
   AlignCenter,
+  AlignHorizontalDistributeCenter,
   AlignLeft,
   AlignRight,
+  AlignVerticalDistributeCenter,
+  AlignVerticalDistributeEnd,
+  AlignVerticalDistributeStart,
   ArrowRight,
   Circle,
   Image as ImageIcon,
@@ -41,15 +54,23 @@ import {
   Stamp,
   Square,
   Type,
+  Users,
   Trash2,
   Undo2,
   Upload,
   VolumeX,
   Wand2,
+  Group,
+  Ungroup,
+  Combine,
+  Diff,
+  SquaresIntersect,
   X
 } from "lucide-react";
 
-const API = "http://127.0.0.1:5174";
+const API = window.location.port === "5173" ? "http://127.0.0.1:5174" : window.location.origin;
+const IS_DESKTOP_APP = navigator.userAgent.includes("Electron");
+const WINDOWS_DOWNLOAD_URL = import.meta.env.VITE_WINDOWS_DOWNLOAD_URL || "https://github.com/fposca/studio/releases/latest/download/Studio-Setup-Windows.exe";
 const MAX_VIDEO_MB = 100;
 const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024;
 const IMAGE_PROJECT_KEY = "studio:image-project:v1";
@@ -65,7 +86,7 @@ const WIZARD_SEEN_PREFIX = "studio:wizard-seen:";
 
 const WIZARD_STEPS = {
   home: [
-    { title: "Inicio", body: "Desde aca elegis si vas a trabajar con imagenes, diseno, PDF o video." },
+    { title: "Inicio", body: "Desde aca elegis si vas a trabajar con imagenes, diseno, PDF, video o 3D." },
     { title: "Recientes", body: "Si guardaste un proyecto, podes abrirlo directo desde la seccion Recientes." },
     { title: "Plantillas", body: "Las plantillas preparan tamanos y ajustes comunes para empezar rapido." }
   ],
@@ -88,6 +109,11 @@ const WIZARD_STEPS = {
     { title: "Importar clips", body: "Arrastra videos a la preview o timeline. Cada archivo tiene limite de 100 MB." },
     { title: "Timeline", body: "Move clips entre pistas, recorta inicio/fin y usa zoom para cortes finos." },
     { title: "Exportacion", body: "El play general reproduce la timeline y exporta todos los clips juntos." }
+  ],
+  three: [
+    { title: "Escena 3D", body: "Orbita con el mouse, selecciona objetos y usa los gizmos para transformarlos." },
+    { title: "Objetos", body: "Agrega primitivas, luces o modelos GLB y GLTF desde el panel izquierdo." },
+    { title: "Exportar", body: "Guarda el proyecto o exporta la vista como PNG y la escena como GLB." }
   ]
 };
 
@@ -96,7 +122,8 @@ const WIZARD_TARGETS = {
   image: ["image-canvas", "image-tools", "image-properties"],
   design: ["design-canvas", "design-add", "design-properties"],
   pdf: ["pdf-pages", "pdf-properties", "pdf-properties"],
-  video: ["video-preview", "video-timeline", "video-export"]
+  video: ["video-preview", "video-timeline", "video-export"],
+  three: ["three-viewport", "three-objects", "three-properties"]
 };
 
 const VIDEO_FONTS = [
@@ -1898,7 +1925,10 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
 
 function DesignEditor({ templateRequest = null }) {
   const svgRef = useRef(null);
+  const designStageRef = useRef(null);
   const dragRef = useRef(null);
+  const designPenDragRef = useRef(null);
+  const designPanRef = useRef(null);
   const designFonts = [
     { name: "Inter", value: "Inter, Arial, sans-serif" },
     { name: "Arial", value: "Arial, sans-serif" },
@@ -1916,8 +1946,29 @@ function DesignEditor({ templateRequest = null }) {
   const [backgroundImage, setBackgroundImage] = useState("");
   const [elements, setElements] = useState([]);
   const [selectedId, setSelectedId] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
   const [projectStatus, setProjectStatus] = useState("");
+  const [designFitScale, setDesignFitScale] = useState(1);
+  const [designZoom, setDesignZoom] = useState(1);
+  const [designGrid, setDesignGrid] = useState(true);
+  const [designGridSize, setDesignGridSize] = useState(20);
+  const [designSnap, setDesignSnap] = useState(true);
+  const [designGuides, setDesignGuides] = useState([]);
+  const [designMode, setDesignMode] = useState("select");
+  const [designPathDraftId, setDesignPathDraftId] = useState("");
+  const designHistory = useDesignHistory(elements, setElements);
   const selected = elements.find((item) => item.id === selectedId);
+
+  useEffect(() => {
+    const stage = designStageRef.current;
+    if (!stage) return undefined;
+    const updateFit = () => setDesignFitScale(Math.min((stage.clientWidth - 56) / board.w, (stage.clientHeight - 56) / board.h, 1));
+    updateFit();
+    const observer = new ResizeObserver(updateFit);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [board.h, board.w]);
+
 
   useEffect(() => {
     if (!templateRequest) return;
@@ -1925,21 +1976,67 @@ function DesignEditor({ templateRequest = null }) {
     setBackground(templateRequest.backgroundColor || "#ffffff");
     setBackgroundImage("");
     setElements([]);
+    designHistory.reset();
     setSelectedId("");
+    setSelectedIds([]);
   }, [templateRequest?.id]);
 
   useEffect(() => {
     function handleKeyDown(event) {
       const tag = event.target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if ((event.key === "Delete" || event.key === "Backspace") && selectedId) {
+      if ((event.key === "Delete" || event.key === "Backspace") && selectedIds.length) {
         event.preventDefault();
         deleteSelected();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        event.shiftKey ? designHistory.redo() : designHistory.undo();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y") {
+        event.preventDefault();
+        designHistory.redo();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d" && selectedIds.length) {
+        event.preventDefault();
+        duplicateSelected();
+      }
+      if (event.key === "Enter" && designPathDraftId) {
+        event.preventDefault();
+        finishDesignPath();
+      }
+      if (event.key === "Escape" && designMode === "pen") {
+        event.preventDefault();
+        finishDesignPath();
+        setDesignMode("select");
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedId]);
+  }, [selectedId, selectedIds, elements, designMode, designPathDraftId]);
+
+  useEffect(() => {
+    if (selectedId && !elements.some((item) => item.id === selectedId)) {
+      setSelectedId("");
+    }
+  }, [elements, selectedId]);
+
+  useEffect(() => {
+    setSelectedIds((current) => current.filter((id) => elements.some((item) => item.id === id)));
+  }, [elements]);
+
+  function selectDesignItem(id, additive = false) {
+    const item = elements.find((entry) => entry.id === id);
+    const related = item?.groupId ? elements.filter((entry) => entry.groupId === item.groupId).map((entry) => entry.id) : [id];
+    setSelectedId(id);
+    setSelectedIds((current) => {
+      if (!additive) return related;
+      const allSelected = related.every((relatedId) => current.includes(relatedId));
+      const next = allSelected ? current.filter((currentId) => !related.includes(currentId)) : [...new Set([...current, ...related])];
+      if (!next.length) setSelectedId("");
+      return next;
+    });
+  }
 
   function pointFromDesignEvent(event) {
     const rect = svgRef.current.getBoundingClientRect();
@@ -1949,9 +2046,63 @@ function DesignEditor({ templateRequest = null }) {
     };
   }
 
+  function snapDesignPoint(point) {
+    if (!designSnap) return point;
+    return {
+      x: Math.round(point.x / designGridSize) * designGridSize,
+      y: Math.round(point.y / designGridSize) * designGridSize
+    };
+  }
+
+  function beginDesignCanvas(event) {
+    if (designMode !== "pen" || event.button !== 0) {
+      setSelectedId("");
+      setSelectedIds([]);
+      return;
+    }
+    event.preventDefault();
+    const point = pointFromDesignEvent(event);
+    const item = {
+      id: `path-${Date.now()}`,
+      type: "path",
+      name: "Trazo libre",
+      x: point.x,
+      y: point.y,
+      points: [{ x: 0, y: 0, inX: 0, inY: 0, outX: 0, outY: 0, manualIn: false, manualOut: false }],
+      closed: false,
+      smooth: true,
+      fill: "#a100ff",
+      fill2: "#ff6a00",
+      fillType: "none",
+      stroke: "#a100ff",
+      strokeWidth: 8,
+      opacity: 1,
+      rotation: 0,
+      shadow: false,
+      labelText: ""
+    };
+    designHistory.commit((current) => [...current, item]);
+    setDesignPathDraftId(item.id);
+    setSelectedId(item.id);
+    setSelectedIds([item.id]);
+    designPenDragRef.current = { id: item.id, origin: point, last: point, count: 1, freehand: true };
+  }
+
+  function finishDesignPath() {
+    if (!designPathDraftId) return;
+    const draft = elements.find((item) => item.id === designPathDraftId);
+    if (draft?.points?.length < 2) {
+      designHistory.commit((current) => current.filter((item) => item.id !== designPathDraftId));
+      setSelectedId("");
+      setSelectedIds([]);
+    }
+    setDesignPathDraftId("");
+    setDesignMode("select");
+  }
+
   function updateSelected(patch) {
     if (!selectedId) return;
-    setElements((current) => current.map((item) => (item.id === selectedId ? { ...item, ...patch } : item)));
+    designHistory.commit((current) => current.map((item) => (item.id === selectedId ? { ...item, ...patch } : item)));
   }
 
   function addText() {
@@ -1981,8 +2132,10 @@ function DesignEditor({ templateRequest = null }) {
       rotation: 0,
       align: "left"
     };
-    setElements((current) => [...current, item]);
+    item.name = "Texto";
+    designHistory.commit((current) => [...current, item]);
     setSelectedId(item.id);
+    setSelectedIds([item.id]);
   }
 
   function addShape(type) {
@@ -2020,6 +2173,7 @@ function DesignEditor({ templateRequest = null }) {
       labelPathSide: "outside",
       labelPathDistance: 12
     };
+    item.name = type === "rect" ? "Rectangulo" : type === "circle" ? "Circulo" : type === "line" ? "Linea" : type === "curve" ? "Curva" : "Estrella";
     if (type === "circle") {
       const diameter = Math.round(Math.min(board.w, board.h) * 0.28);
       item.w = diameter;
@@ -2028,21 +2182,29 @@ function DesignEditor({ templateRequest = null }) {
     if (type === "line") item.h = Math.round(board.h * 0.08);
     if (type === "curve") item.h = Math.round(board.h * 0.18);
     if (type === "star") item.fill = "#a100ff";
-    setElements((current) => [...current, item]);
+    designHistory.commit((current) => [...current, item]);
     setSelectedId(item.id);
+    setSelectedIds([item.id]);
   }
 
   function deleteSelected() {
-    if (!selectedId) return;
-    setElements((current) => current.filter((item) => item.id !== selectedId));
+    if (!selectedIds.length) return;
+    designHistory.commit((current) => current.filter((item) => !selectedIds.includes(item.id)));
     setSelectedId("");
+    setSelectedIds([]);
   }
 
   function duplicateSelected() {
-    if (!selected) return;
-    const copy = { ...selected, id: `${selected.type}-${Date.now()}`, x: selected.x + 32, y: selected.y + 32 };
-    setElements((current) => [...current, copy]);
-    setSelectedId(copy.id);
+    const source = elements.filter((item) => selectedIds.includes(item.id));
+    if (!source.length) return;
+    const groupMap = new Map();
+    const copies = source.map((item, index) => {
+      if (item.groupId && !groupMap.has(item.groupId)) groupMap.set(item.groupId, `group-${Date.now()}-${index}`);
+      return { ...item, id: `${item.type}-${Date.now()}-${index}`, groupId: item.groupId ? groupMap.get(item.groupId) : undefined, name: `${item.name || item.type} copia`, x: item.x + 32, y: item.y + 32 };
+    });
+    designHistory.commit((current) => [...current, ...copies]);
+    setSelectedId(copies[0].id);
+    setSelectedIds(copies.map((item) => item.id));
   }
 
   async function loadDesignBackground(file) {
@@ -2052,15 +2214,27 @@ function DesignEditor({ templateRequest = null }) {
 
   function beginElementDrag(event, item) {
     event.stopPropagation();
-    setSelectedId(item.id);
+    const movingIds = selectedIds.includes(item.id)
+      ? selectedIds
+      : item.groupId ? elements.filter((entry) => entry.groupId === item.groupId).map((entry) => entry.id) : [item.id];
+    if (!selectedIds.includes(item.id) || event.shiftKey) selectDesignItem(item.id, event.shiftKey);
+    if (event.shiftKey) return;
+    if (item.locked) return;
+    designHistory.record();
     const point = pointFromDesignEvent(event);
-    dragRef.current = { id: item.id, mode: "move", start: point, item: { ...item }, x: item.x, y: item.y };
+    const origins = Object.fromEntries(elements.filter((entry) => movingIds.includes(entry.id) && !entry.locked).map((entry) => [entry.id, { x: entry.x, y: entry.y }]));
+    dragRef.current = { id: item.id, ids: Object.keys(origins), mode: "move", start: point, item: { ...item }, origins };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   function beginDesignHandle(event, item, handle) {
+    event.preventDefault();
     event.stopPropagation();
     setSelectedId(item.id);
+    setSelectedIds([item.id]);
+    if (item.type === "path" && designPathDraftId !== item.id) setDesignMode("select");
+    if (item.locked) return;
+    designHistory.record();
     const box = selectionBox(item);
     const center = { x: box.x + box.w / 2, y: box.y + box.h / 2 };
     const start = pointFromDesignEvent(event);
@@ -2125,6 +2299,25 @@ function DesignEditor({ templateRequest = null }) {
       return { y: Math.round(localPoint.y), w: Math.round(localPoint.x - item.x), h: Math.round(startY - localPoint.y) };
     }
 
+    if (item.type === "path" && drag.handle.startsWith("node-")) {
+      const index = Number(drag.handle.slice(5));
+      return {
+        points: item.points.map((node, nodeIndex) => nodeIndex === index
+          ? { ...node, x: Math.round(localPoint.x - item.x), y: Math.round(localPoint.y - item.y) }
+          : node)
+      };
+    }
+
+    if (item.type === "path" && drag.handle.startsWith("control-")) {
+      const [, indexValue, direction] = drag.handle.split("-");
+      const index = Number(indexValue);
+      return {
+        points: item.points.map((node, nodeIndex) => nodeIndex === index
+          ? { ...node, [`${direction}X`]: Math.round(localPoint.x - item.x - node.x), [`${direction}Y`]: Math.round(localPoint.y - item.y - node.y), [`manual${direction[0].toUpperCase()}${direction.slice(1)}`]: true }
+          : node)
+      };
+    }
+
     if (item.type === "text") {
       const scale = Math.max(0.2, Math.max((drag.box.w + dx) / Math.max(1, drag.box.w), (drag.box.h + dy) / Math.max(1, drag.box.h)));
       return { fontSize: Math.max(6, Math.round(item.fontSize * scale)) };
@@ -2162,25 +2355,110 @@ function DesignEditor({ templateRequest = null }) {
   }
 
   function moveElementDrag(event) {
+    const penDrag = designPenDragRef.current;
+    if (penDrag) {
+      const point = pointFromDesignEvent(event);
+      const minimumDistance = 5 / Math.max(0.05, designFitScale * designZoom);
+      if (Math.hypot(point.x - penDrag.last.x, point.y - penDrag.last.y) < minimumDistance) return;
+      penDrag.last = point;
+      penDrag.count += 1;
+      setElements((current) => current.map((item) => item.id === penDrag.id
+        ? { ...item, points: [...item.points, { x: point.x - penDrag.origin.x, y: point.y - penDrag.origin.y, inX: 0, inY: 0, outX: 0, outY: 0, manualIn: false, manualOut: false }] }
+        : item));
+      return;
+    }
     const drag = dragRef.current;
     if (!drag) return;
     const point = pointFromDesignEvent(event);
-    setElements((current) =>
-      current.map((item) =>
-        item.id === drag.id
-          ? drag.mode === "handle"
-            ? { ...item, ...transformDesignItem(drag, point, event.shiftKey) }
-            : { ...item, x: Math.round(drag.x + point.x - drag.start.x), y: Math.round(drag.y + point.y - drag.start.y) }
-          : item
-      )
-    );
+    let moveX = point.x - drag.start.x;
+    let moveY = point.y - drag.start.y;
+    if (drag.mode === "move" && designSnap) {
+      const origin = drag.origins[drag.id];
+      const proposed = { ...drag.item, x: origin.x + moveX, y: origin.y + moveY };
+      const movingBox = selectionBox(proposed);
+      const tolerance = 8 / Math.max(0.05, designFitScale * designZoom);
+      const verticalTargets = [0, board.w / 2, board.w];
+      const horizontalTargets = [0, board.h / 2, board.h];
+      elements.filter((item) => !drag.ids.includes(item.id) && item.visible !== false).forEach((item) => {
+        const box = selectionBox(item);
+        verticalTargets.push(box.x, box.x + box.w / 2, box.x + box.w);
+        horizontalTargets.push(box.y, box.y + box.h / 2, box.y + box.h);
+      });
+      const movingX = [movingBox.x, movingBox.x + movingBox.w / 2, movingBox.x + movingBox.w];
+      const movingY = [movingBox.y, movingBox.y + movingBox.h / 2, movingBox.y + movingBox.h];
+      let bestX = null;
+      let bestY = null;
+      verticalTargets.forEach((target) => movingX.forEach((value) => {
+        const delta = target - value;
+        if (Math.abs(delta) <= tolerance && (!bestX || Math.abs(delta) < Math.abs(bestX.delta))) bestX = { delta, value: target };
+      }));
+      horizontalTargets.forEach((target) => movingY.forEach((value) => {
+        const delta = target - value;
+        if (Math.abs(delta) <= tolerance && (!bestY || Math.abs(delta) < Math.abs(bestY.delta))) bestY = { delta, value: target };
+      }));
+      if (bestX) moveX += bestX.delta;
+      else moveX += Math.round((origin.x + moveX) / designGridSize) * designGridSize - (origin.x + moveX);
+      if (bestY) moveY += bestY.delta;
+      else moveY += Math.round((origin.y + moveY) / designGridSize) * designGridSize - (origin.y + moveY);
+      setDesignGuides([
+        ...(bestX ? [{ axis: "x", value: bestX.value }] : []),
+        ...(bestY ? [{ axis: "y", value: bestY.value }] : [])
+      ]);
+    }
+    setElements((current) => current.map((item) => {
+      if (drag.mode === "move" && drag.ids?.includes(item.id)) {
+        return { ...item, x: Math.round(drag.origins[item.id].x + moveX), y: Math.round(drag.origins[item.id].y + moveY) };
+      }
+      if (drag.mode === "handle" && item.id === drag.id) return { ...item, ...transformDesignItem(drag, point, event.shiftKey) };
+      return item;
+    }));
   }
 
   function endElementDrag(event) {
     if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+    const penDrag = designPenDragRef.current;
     dragRef.current = null;
+    designPenDragRef.current = null;
+    if (penDrag?.freehand) {
+      if (penDrag.count < 2) {
+        setElements((current) => current.filter((item) => item.id !== penDrag.id));
+        setSelectedId("");
+        setSelectedIds([]);
+      }
+      setDesignPathDraftId("");
+    }
+    setDesignGuides([]);
+  }
+
+  function beginDesignPan(event) {
+    if (event.button !== 1 && !event.altKey) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const stage = designStageRef.current;
+    designPanRef.current = { x: event.clientX, y: event.clientY, left: stage.scrollLeft, top: stage.scrollTop };
+    stage.setPointerCapture(event.pointerId);
+  }
+
+  function moveDesignPan(event) {
+    const pan = designPanRef.current;
+    if (!pan) return;
+    const stage = designStageRef.current;
+    stage.scrollLeft = pan.left - (event.clientX - pan.x);
+    stage.scrollTop = pan.top - (event.clientY - pan.y);
+  }
+
+  function endDesignPan(event) {
+    const stage = designStageRef.current;
+    if (stage?.hasPointerCapture?.(event.pointerId)) stage.releasePointerCapture(event.pointerId);
+    designPanRef.current = null;
+  }
+
+  function zoomDesignFromWheel(event) {
+    if (!event.ctrlKey && !event.metaKey) return;
+    event.preventDefault();
+    setDesignZoom((current) => clamp(current * (event.deltaY > 0 ? 0.9 : 1.1), 0.25, 4));
   }
 
   function renderText(item) {
@@ -2208,7 +2486,7 @@ function DesignEditor({ templateRequest = null }) {
   }
 
   function fillFor(item) {
-    if (item.fillType === "none" || item.type === "line" || item.type === "curve") return "none";
+    if (item.fillType === "none" || item.type === "line" || item.type === "curve" || (item.type === "path" && !item.closed)) return "none";
     if (item.fillType === "linear") return `url(#fill-linear-${item.id})`;
     if (item.fillType === "radial") return `url(#fill-radial-${item.id})`;
     return item.fill || "#a100ff";
@@ -2246,6 +2524,66 @@ function DesignEditor({ templateRequest = null }) {
     return `M ${x1} ${y1} C ${item.x + item.w * 0.28} ${item.y - item.h * bend}, ${item.x + item.w * 0.72} ${item.y + item.h * (1 + bend)}, ${x2} ${y2}`;
   }
 
+  function pathNodeControls(item, index) {
+    const points = item.points || [];
+    const node = points[index];
+    if (!node) return { inX: 0, inY: 0, outX: 0, outY: 0 };
+    let autoOutX = 0;
+    let autoOutY = 0;
+    if (item.smooth && points.length > 1) {
+      const previous = item.closed ? points[(index - 1 + points.length) % points.length] : points[Math.max(0, index - 1)];
+      const next = item.closed ? points[(index + 1) % points.length] : points[Math.min(points.length - 1, index + 1)];
+      autoOutX = (next.x - previous.x) / 6;
+      autoOutY = (next.y - previous.y) / 6;
+      if (points.length === 2) {
+        const first = points[0];
+        const second = points[1];
+        const dx = second.x - first.x;
+        const dy = second.y - first.y;
+        if (index === 0) {
+          autoOutX = dx / 3 - dy * 0.16;
+          autoOutY = dy / 3 + dx * 0.16;
+        } else {
+          autoOutX = dx / 3 + dy * 0.16;
+          autoOutY = dy / 3 - dx * 0.16;
+        }
+      }
+    }
+    const manualIn = node.manualIn || node.inX || node.inY;
+    const manualOut = node.manualOut || node.outX || node.outY;
+    return {
+      inX: manualIn ? node.inX || 0 : -autoOutX,
+      inY: manualIn ? node.inY || 0 : -autoOutY,
+      outX: manualOut ? node.outX || 0 : autoOutX,
+      outY: manualOut ? node.outY || 0 : autoOutY
+    };
+  }
+
+  function customPath(item) {
+    const points = item.points || [];
+    if (!points.length) return "";
+    const absolute = points.map((point) => ({ ...point, x: item.x + point.x, y: item.y + point.y }));
+    const hasBezierHandles = absolute.some((point) => point.inX || point.inY || point.outX || point.outY);
+    if (item.smooth || hasBezierHandles) {
+      let path = `M ${absolute[0].x} ${absolute[0].y}`;
+      const segmentCount = item.closed ? absolute.length : absolute.length - 1;
+      for (let index = 0; index < segmentCount; index += 1) {
+        const current = absolute[index];
+        const next = absolute[(index + 1) % absolute.length];
+        const currentControls = pathNodeControls(item, index);
+        const nextControls = pathNodeControls(item, (index + 1) % absolute.length);
+        const c1 = { x: current.x + currentControls.outX, y: current.y + currentControls.outY };
+        const c2 = { x: next.x + nextControls.inX, y: next.y + nextControls.inY };
+        const hasCurve = item.smooth || current.outX || current.outY || next.inX || next.inY;
+        path += hasCurve
+          ? ` C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${next.x} ${next.y}`
+          : ` L ${next.x} ${next.y}`;
+      }
+      return path + (item.closed ? " Z" : "");
+    }
+    return absolute.map((point, index) => `${index ? "L" : "M"} ${point.x} ${point.y}`).join(" ") + (item.closed ? " Z" : "");
+  }
+
   function shapeTextPath(item) {
     if (item.type === "circle") {
       const cx = item.x + item.w / 2;
@@ -2257,6 +2595,8 @@ function DesignEditor({ templateRequest = null }) {
     if (item.type === "star") return starPath(item);
     if (item.type === "line") return `M ${item.x} ${item.y} L ${item.x + item.w} ${item.y + item.h}`;
     if (item.type === "curve") return curvePath(item);
+    if (item.type === "path") return customPath(item);
+    if (item.type === "svgPath") return item.d;
     const radius = Math.max(0, Math.min(item.radius || 0, item.w / 2, item.h / 2));
     return `M ${item.x + radius} ${item.y} H ${item.x + item.w - radius} Q ${item.x + item.w} ${item.y} ${item.x + item.w} ${item.y + radius} V ${item.y + item.h - radius} Q ${item.x + item.w} ${item.y + item.h} ${item.x + item.w - radius} ${item.y + item.h} H ${item.x + radius} Q ${item.x} ${item.y + item.h} ${item.x} ${item.y + item.h - radius} V ${item.y + radius} Q ${item.x} ${item.y} ${item.x + radius} ${item.y}`;
   }
@@ -2300,6 +2640,20 @@ function DesignEditor({ templateRequest = null }) {
         rotateHandle
       ];
     }
+    if (item.type === "path") {
+      return [
+        ...(item.points || []).flatMap((point, index) => {
+          const controls = pathNodeControls(item, index);
+          return [
+            { id: `node-${index}`, x: item.x + point.x, y: item.y + point.y, kind: "round" },
+            ...((controls.inX || controls.inY) ? [{ id: `control-${index}-in`, x: item.x + point.x + controls.inX, y: item.y + point.y + controls.inY, kind: "control" }] : []),
+            ...((controls.outX || controls.outY) ? [{ id: `control-${index}-out`, x: item.x + point.x + controls.outX, y: item.y + point.y + controls.outY, kind: "control" }] : [])
+          ];
+        }),
+        rotateHandle
+      ];
+    }
+    if (item.type === "svgPath") return [rotateHandle];
     return [
       { id: "nw", x: box.x, y: box.y },
       { id: "ne", x: box.x + box.w, y: box.y },
@@ -2321,24 +2675,173 @@ function DesignEditor({ templateRequest = null }) {
         h: Math.max(item.fontSize * 1.25, lines.length * item.fontSize * (item.lineHeight || 1.16))
       };
     }
+    if (item.type === "path") {
+      const points = item.points?.length ? item.points : [{ x: 0, y: 0 }];
+      const xs = points.flatMap((point, index) => {
+        const controls = pathNodeControls(item, index);
+        return [item.x + point.x, item.x + point.x + controls.inX, item.x + point.x + controls.outX];
+      });
+      const ys = points.flatMap((point, index) => {
+        const controls = pathNodeControls(item, index);
+        return [item.y + point.y, item.y + point.y + controls.inY, item.y + point.y + controls.outY];
+      });
+      const x = Math.min(...xs);
+      const y = Math.min(...ys);
+      return { x, y, w: Math.max(1, Math.max(...xs) - x), h: Math.max(1, Math.max(...ys) - y) };
+    }
+    if (item.type === "svgPath") {
+      return { x: item.x + item.pathBounds.x, y: item.y + item.pathBounds.y, w: item.pathBounds.w, h: item.pathBounds.h };
+    }
     return {
-      x: item.x,
+      x: Math.min(item.x, item.x + (item.w || 1)),
       y: Math.min(item.y, item.y + item.h),
       w: Math.abs(item.w || 1),
       h: Math.abs(item.h || 1)
     };
   }
 
+  function alignDesignSelection(mode) {
+    const items = elements.filter((item) => selectedIds.includes(item.id) && !item.locked);
+    if (items.length < 2) return;
+    const boxes = items.map((item) => ({ item, box: selectionBox(item) }));
+    const bounds = {
+      left: Math.min(...boxes.map(({ box }) => box.x)),
+      right: Math.max(...boxes.map(({ box }) => box.x + box.w)),
+      top: Math.min(...boxes.map(({ box }) => box.y)),
+      bottom: Math.max(...boxes.map(({ box }) => box.y + box.h))
+    };
+    designHistory.commit((current) => current.map((item) => {
+      const entry = boxes.find(({ item: selectedItem }) => selectedItem.id === item.id);
+      if (!entry) return item;
+      const { box } = entry;
+      let dx = 0;
+      let dy = 0;
+      if (mode === "left") dx = bounds.left - box.x;
+      if (mode === "center") dx = (bounds.left + bounds.right) / 2 - (box.x + box.w / 2);
+      if (mode === "right") dx = bounds.right - (box.x + box.w);
+      if (mode === "top") dy = bounds.top - box.y;
+      if (mode === "middle") dy = (bounds.top + bounds.bottom) / 2 - (box.y + box.h / 2);
+      if (mode === "bottom") dy = bounds.bottom - (box.y + box.h);
+      return { ...item, x: Math.round(item.x + dx), y: Math.round(item.y + dy) };
+    }));
+  }
+
+  function distributeDesignSelection(axis) {
+    const items = elements.filter((item) => selectedIds.includes(item.id) && !item.locked);
+    if (items.length < 3) return;
+    const entries = items.map((item) => ({ item, box: selectionBox(item) })).sort((a, b) => {
+      const aCenter = axis === "x" ? a.box.x + a.box.w / 2 : a.box.y + a.box.h / 2;
+      const bCenter = axis === "x" ? b.box.x + b.box.w / 2 : b.box.y + b.box.h / 2;
+      return aCenter - bCenter;
+    });
+    const first = axis === "x" ? entries[0].box.x + entries[0].box.w / 2 : entries[0].box.y + entries[0].box.h / 2;
+    const lastEntry = entries.at(-1);
+    const last = axis === "x" ? lastEntry.box.x + lastEntry.box.w / 2 : lastEntry.box.y + lastEntry.box.h / 2;
+    const positions = new Map(entries.map((entry, index) => [entry.item.id, first + ((last - first) * index) / (entries.length - 1)]));
+    designHistory.commit((current) => current.map((item) => {
+      if (!positions.has(item.id)) return item;
+      const box = selectionBox(item);
+      const center = axis === "x" ? box.x + box.w / 2 : box.y + box.h / 2;
+      const delta = positions.get(item.id) - center;
+      return axis === "x" ? { ...item, x: Math.round(item.x + delta) } : { ...item, y: Math.round(item.y + delta) };
+    }));
+  }
+
+  function groupDesignSelection() {
+    if (selectedIds.length < 2) return;
+    const groupId = `group-${Date.now()}`;
+    designHistory.commit((current) => current.map((item) => selectedIds.includes(item.id) ? { ...item, groupId } : item));
+  }
+
+  function booleanDesignSelection(operation) {
+    const selectedShapes = elements.filter((item) => selectedIds.includes(item.id));
+    const eligible = selectedShapes.length >= 2 && selectedShapes.every((item) => ["circle", "rect", "star", "svgPath"].includes(item.type) || (item.type === "path" && item.closed));
+    if (!eligible) {
+      setProjectStatus("Selecciona al menos dos figuras o trazados cerrados");
+      return;
+    }
+    try {
+      const result = runDesignBoolean(selectedShapes.map((item) => {
+        const box = selectionBox(item);
+        return {
+          center: { x: box.x + box.w / 2, y: box.y + box.h / 2 },
+          d: item.type === "svgPath" || item.type === "path" ? shapeTextPath(item) : `${shapeTextPath(item)} Z`,
+          offset: item.type === "svgPath" ? { x: item.x, y: item.y } : { x: 0, y: 0 },
+          rotation: item.rotation || 0
+        };
+      }), operation);
+      const source = selectedShapes[0];
+      const item = {
+        ...source,
+        id: `svg-path-${Date.now()}`,
+        type: "svgPath",
+        name: "Forma combinada",
+        d: result.d,
+        pathBounds: result.bounds,
+        x: 0,
+        y: 0,
+        rotation: 0,
+        groupId: undefined,
+        labelText: ""
+      };
+      designHistory.commit((current) => [...current.filter((entry) => !selectedIds.includes(entry.id)), item]);
+      setSelectedId(item.id);
+      setSelectedIds([item.id]);
+      setProjectStatus("Operacion vectorial aplicada");
+    } catch (error) {
+      console.error(error);
+      setProjectStatus("No se pudo combinar esa geometria");
+    }
+  }
+
+  function ungroupDesignSelection() {
+    if (!selectedIds.some((id) => elements.find((item) => item.id === id)?.groupId)) return;
+    designHistory.commit((current) => current.map((item) => selectedIds.includes(item.id) ? { ...item, groupId: undefined } : item));
+  }
+
+  function renameDesignLayer(id, name) {
+    designHistory.commit((current) => current.map((item) => item.id === id ? { ...item, name } : item));
+  }
+
+  function toggleDesignLayer(id, key) {
+    designHistory.commit((current) => current.map((item) => {
+      if (item.id !== id) return item;
+      const currentValue = key === "visible" ? item.visible !== false : Boolean(item[key]);
+      return { ...item, [key]: !currentValue };
+    }));
+  }
+
+  function moveDesignLayer(id, direction) {
+    designHistory.commit((current) => {
+      const index = current.findIndex((item) => item.id === id);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function cloneCleanDesignSvg() {
+    const svg = svgRef.current?.cloneNode(true);
+    if (!svg) return null;
+    svg.querySelectorAll(".design-selection, .design-helper").forEach((node) => node.remove());
+    svg.removeAttribute("style");
+    svg.setAttribute("width", board.w);
+    svg.setAttribute("height", board.h);
+    return svg;
+  }
+
   function exportDesignSvg() {
-    const svg = svgRef.current.cloneNode(true);
-    svg.querySelectorAll(".design-selection").forEach((node) => node.remove());
+    const svg = cloneCleanDesignSvg();
+    if (!svg) return;
     const source = new XMLSerializer().serializeToString(svg);
     downloadBlob(new Blob([source], { type: "image/svg+xml" }), "diseno.svg");
   }
 
   async function exportDesignPng() {
-    const svg = svgRef.current.cloneNode(true);
-    svg.querySelectorAll(".design-selection").forEach((node) => node.remove());
+    const svg = cloneCleanDesignSvg();
+    if (!svg) return;
     const source = new XMLSerializer().serializeToString(svg);
     const url = URL.createObjectURL(new Blob([source], { type: "image/svg+xml" }));
     const image = new Image();
@@ -2363,9 +2866,8 @@ function DesignEditor({ templateRequest = null }) {
       selectedId
     });
     setProjectStatus("Diseno guardado");
-    const svg = svgRef.current?.cloneNode(true);
+    const svg = cloneCleanDesignSvg();
     if (!svg) return { kind: "design", thumbnail: "" };
-    svg.querySelectorAll(".design-selection").forEach((node) => node.remove());
     const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], { type: "image/svg+xml" }));
     const image = new Image();
     image.src = url;
@@ -2384,8 +2886,10 @@ function DesignEditor({ templateRequest = null }) {
     setBoard(saved.board || { w: 1080, h: 1080 });
     setBackground(saved.background || "#ffffff");
     setBackgroundImage(saved.backgroundImage || "");
-    setElements(saved.elements || []);
+    setElements((saved.elements || []).map((item) => ({ ...item, name: item.name || (item.type === "text" ? "Texto" : item.type) })));
     setSelectedId(saved.selectedId || "");
+    setSelectedIds(saved.selectedId ? [saved.selectedId] : []);
+    designHistory.reset();
     setProjectStatus("Diseno abierto");
   }
 
@@ -2393,17 +2897,56 @@ function DesignEditor({ templateRequest = null }) {
 
   return (
     <section className="design-workspace">
-      <div className="design-stage" data-wizard="design-canvas">
+      <DesignLayersPanel
+        elements={elements}
+        onMove={moveDesignLayer}
+        onRename={renameDesignLayer}
+        onSelect={selectDesignItem}
+        onToggleLocked={(id) => toggleDesignLayer(id, "locked")}
+        onToggleVisible={(id) => toggleDesignLayer(id, "visible")}
+        selectedId={selectedId}
+        selectedIds={selectedIds}
+      />
+      <div
+        className={`design-stage design-mode-${designMode} ${designPanRef.current ? "is-panning" : ""}`}
+        data-wizard="design-canvas"
+        onPointerDownCapture={beginDesignPan}
+        onWheel={zoomDesignFromWheel}
+        ref={designStageRef}
+      >
+        <DesignViewportControls
+          drawingPath={Boolean(designPathDraftId)}
+          gridEnabled={designGrid}
+          gridSize={designGridSize}
+          mode={designMode}
+          onFinishPath={finishDesignPath}
+          onFit={() => setDesignZoom(1)}
+          onGridChange={setDesignGrid}
+          onGridSizeChange={setDesignGridSize}
+          onModeChange={(mode) => { if (designPathDraftId) finishDesignPath(); setDesignMode(mode); }}
+          onSnapChange={setDesignSnap}
+          onZoomChange={setDesignZoom}
+          snapEnabled={designSnap}
+          zoom={designZoom}
+        />
         <svg
           ref={svgRef}
+          height={board.h}
+          style={{ height: board.h * designFitScale * designZoom, width: board.w * designFitScale * designZoom }}
           viewBox={`0 0 ${board.w} ${board.h}`}
+          width={board.w}
           xmlns="http://www.w3.org/2000/svg"
+          onMouseMove={moveElementDrag}
+          onMouseUp={endElementDrag}
           onPointerMove={moveElementDrag}
           onPointerUp={endElementDrag}
           onPointerCancel={endElementDrag}
-          onPointerDown={() => setSelectedId("")}
+          onPointerDown={beginDesignCanvas}
         >
           <defs>
+            <pattern className="design-helper" height={designGridSize} id="design-grid-pattern" patternUnits="userSpaceOnUse" width={designGridSize}>
+              <path d={`M ${designGridSize} 0 L 0 0 0 ${designGridSize}`} fill="none" stroke="rgba(35, 49, 62, 0.24)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+            </pattern>
             {elements.map((item) => (
               <React.Fragment key={`defs-${item.id}`}>
                 <linearGradient id={`fill-linear-${item.id}`} x1="0%" x2="100%" y1="0%" y2="100%">
@@ -2423,7 +2966,8 @@ function DesignEditor({ templateRequest = null }) {
           </defs>
           <rect width={board.w} height={board.h} fill={background} />
           {backgroundImage && <image href={backgroundImage} width={board.w} height={board.h} preserveAspectRatio="xMidYMid meet" />}
-          {elements.map((item) => {
+          {designGrid && <rect className="design-helper" fill="url(#design-grid-pattern)" height={board.h} pointerEvents="none" width={board.w} />}
+          {elements.filter((item) => item.visible !== false).map((item) => {
             const box = selectionBox(item);
             return (
               <g key={item.id} onPointerDown={(event) => beginElementDrag(event, item)} className="design-item" filter={filterFor(item)} opacity={item.opacity ?? 1} transform={`rotate(${item.rotation || 0} ${box.x + box.w / 2} ${box.y + box.h / 2})`}>
@@ -2433,12 +2977,21 @@ function DesignEditor({ templateRequest = null }) {
                 {item.type === "star" && <path d={starPath(item)} fill={fillFor(item)} stroke={strokeFor(item)} strokeLinejoin="round" strokeWidth={item.strokeWidth || 0} />}
                 {item.type === "line" && <line x1={item.x} y1={item.y} x2={item.x + item.w} y2={item.y + item.h} stroke={strokeFor(item)} strokeLinecap="round" strokeWidth={item.strokeWidth || 8} />}
                 {item.type === "curve" && <path d={curvePath(item)} fill="none" stroke={strokeFor(item)} strokeLinecap="round" strokeWidth={item.strokeWidth || 8} />}
+                {item.type === "path" && <path d={customPath(item)} fill={fillFor(item)} fillRule="evenodd" stroke={strokeFor(item)} strokeLinecap="round" strokeLinejoin="round" strokeWidth={item.strokeWidth || 8} />}
+                {item.type === "svgPath" && <path d={item.d} fill={fillFor(item)} fillRule="evenodd" stroke={strokeFor(item)} strokeLinejoin="round" strokeWidth={item.strokeWidth || 0} transform={`translate(${item.x} ${item.y})`} />}
                 {item.type !== "text" && renderShapeLabel(item, box)}
-                {selectedId === item.id && (
+                {selectedIds.includes(item.id) && (
                   <>
                     <rect className="design-selection" x={box.x - 6} y={box.y - 6} width={box.w + 12} height={box.h + 12} fill="none" stroke="#a100ff" strokeDasharray="6 4" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-                    <line className="design-selection" x1={box.x + box.w / 2} y1={box.y - 6} x2={box.x + box.w / 2} y2={box.y - 42} stroke="#a100ff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-                    {designHandles(item, box).map((handle) => (
+                    {selectedIds.length === 1 && <line className="design-selection" x1={box.x + box.w / 2} y1={box.y - 6} x2={box.x + box.w / 2} y2={box.y - 42} stroke="#a100ff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />}
+                    {selectedIds.length === 1 && item.type === "path" && (item.points || []).flatMap((point, index) => ["in", "out"].map((direction) => {
+                      const controls = pathNodeControls(item, index);
+                      const dx = controls[`${direction}X`] || 0;
+                      const dy = controls[`${direction}Y`] || 0;
+                      if (!dx && !dy) return null;
+                      return <line className="design-selection" key={`arm-${index}-${direction}`} stroke="#00bfe8" strokeWidth="1.5" vectorEffect="non-scaling-stroke" x1={item.x + point.x} x2={item.x + point.x + dx} y1={item.y + point.y} y2={item.y + point.y + dy} />;
+                    }))}
+                    {selectedIds.length === 1 && designHandles(item, box).map((handle) => (
                       handle.kind === "rotate" ? (
                         <circle
                           className="design-selection design-handle design-rotate-handle"
@@ -2447,7 +3000,8 @@ function DesignEditor({ templateRequest = null }) {
                           fill="#ffffff"
                           key={handle.id}
                           onPointerDown={(event) => beginDesignHandle(event, item, handle.id)}
-                          r="7"
+                          pointerEvents="all"
+                          r={Math.max(7, 7 / Math.max(0.25, designFitScale * designZoom))}
                           stroke="#a100ff"
                           strokeWidth="2"
                           vectorEffect="non-scaling-stroke"
@@ -2460,9 +3014,24 @@ function DesignEditor({ templateRequest = null }) {
                           fill="#ffffff"
                           key={handle.id}
                           onPointerDown={(event) => beginDesignHandle(event, item, handle.id)}
-                          r="6"
+                          pointerEvents="all"
+                          r={Math.max(6, 7 / Math.max(0.25, designFitScale * designZoom))}
                           stroke="#a100ff"
                           strokeWidth="2"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      ) : handle.kind === "control" ? (
+                        <circle
+                          className="design-selection design-handle design-control-handle"
+                          cx={handle.x}
+                          cy={handle.y}
+                          fill="#00bfe8"
+                          key={handle.id}
+                          onPointerDown={(event) => beginDesignHandle(event, item, handle.id)}
+                          pointerEvents="all"
+                          r={Math.max(5, 6 / Math.max(0.25, designFitScale * designZoom))}
+                          stroke="#ffffff"
+                          strokeWidth="1.5"
                           vectorEffect="non-scaling-stroke"
                         />
                       ) : handle.kind === "diamond" ? (
@@ -2472,6 +3041,7 @@ function DesignEditor({ templateRequest = null }) {
                           height="12"
                           key={handle.id}
                           onPointerDown={(event) => beginDesignHandle(event, item, handle.id)}
+                          pointerEvents="all"
                           stroke="#a100ff"
                           strokeWidth="2"
                           transform={`translate(${handle.x - 6} ${handle.y - 6}) rotate(45 6 6)`}
@@ -2485,6 +3055,7 @@ function DesignEditor({ templateRequest = null }) {
                           height="12"
                           key={handle.id}
                           onPointerDown={(event) => beginDesignHandle(event, item, handle.id)}
+                          pointerEvents="all"
                           stroke="#a100ff"
                           strokeWidth="2"
                           vectorEffect="non-scaling-stroke"
@@ -2499,11 +3070,39 @@ function DesignEditor({ templateRequest = null }) {
               </g>
             );
           })}
+          {designGuides.map((guide, index) => guide.axis === "x"
+            ? <line className="design-helper" key={`guide-${index}`} pointerEvents="none" stroke="#00bfe8" strokeDasharray="5 4" strokeWidth="1.5" vectorEffect="non-scaling-stroke" x1={guide.value} x2={guide.value} y1="0" y2={board.h} />
+            : <line className="design-helper" key={`guide-${index}`} pointerEvents="none" stroke="#00bfe8" strokeDasharray="5 4" strokeWidth="1.5" vectorEffect="non-scaling-stroke" x1="0" x2={board.w} y1={guide.value} y2={guide.value} />)}
         </svg>
       </div>
 
       <aside className="control-panel" data-wizard="design-properties">
         <h2>Diseno</h2>
+        <div className="button-row design-history-controls">
+          <button data-tooltip="Deshacer" disabled={!designHistory.canUndo} onClick={designHistory.undo} type="button"><Undo2 size={16} /></button>
+          <button data-tooltip="Rehacer" disabled={!designHistory.canRedo} onClick={designHistory.redo} type="button"><Redo2 size={16} /></button>
+        </div>
+        <h3>Organizar</h3>
+        <div className="design-organize-tools">
+          <button data-tooltip="Alinear a la izquierda" disabled={selectedIds.length < 2} onClick={() => alignDesignSelection("left")} type="button"><AlignLeft size={16} /></button>
+          <button data-tooltip="Centrar horizontalmente" disabled={selectedIds.length < 2} onClick={() => alignDesignSelection("center")} type="button"><AlignCenter size={16} /></button>
+          <button data-tooltip="Alinear a la derecha" disabled={selectedIds.length < 2} onClick={() => alignDesignSelection("right")} type="button"><AlignRight size={16} /></button>
+          <button data-tooltip="Alinear arriba" disabled={selectedIds.length < 2} onClick={() => alignDesignSelection("top")} type="button"><AlignVerticalDistributeStart size={16} /></button>
+          <button data-tooltip="Centrar verticalmente" disabled={selectedIds.length < 2} onClick={() => alignDesignSelection("middle")} type="button"><AlignVerticalDistributeCenter size={16} /></button>
+          <button data-tooltip="Alinear abajo" disabled={selectedIds.length < 2} onClick={() => alignDesignSelection("bottom")} type="button"><AlignVerticalDistributeEnd size={16} /></button>
+          <button data-tooltip="Distribuir horizontalmente" disabled={selectedIds.length < 3} onClick={() => distributeDesignSelection("x")} type="button"><AlignHorizontalDistributeCenter size={16} /></button>
+          <button data-tooltip="Distribuir verticalmente" disabled={selectedIds.length < 3} onClick={() => distributeDesignSelection("y")} type="button"><AlignVerticalDistributeCenter size={16} /></button>
+          <button data-tooltip="Agrupar" disabled={selectedIds.length < 2} onClick={groupDesignSelection} type="button"><Group size={16} /></button>
+          <button data-tooltip="Desagrupar" disabled={!selectedIds.some((id) => elements.find((item) => item.id === id)?.groupId)} onClick={ungroupDesignSelection} type="button"><Ungroup size={16} /></button>
+        </div>
+        {selectedIds.length > 1 && <p className="design-selection-count">{selectedIds.length} elementos seleccionados</p>}
+        <h3>Operaciones vectoriales</h3>
+        <div className="design-boolean-tools">
+          <button data-tooltip="Unir formas" disabled={selectedIds.length < 2} onClick={() => booleanDesignSelection("unite")} type="button"><Combine size={16} /><span>Unir</span></button>
+          <button data-tooltip="Restar formas superiores" disabled={selectedIds.length < 2} onClick={() => booleanDesignSelection("subtract")} type="button"><Minus size={16} /><span>Restar</span></button>
+          <button data-tooltip="Conservar interseccion" disabled={selectedIds.length < 2} onClick={() => booleanDesignSelection("intersect")} type="button"><SquaresIntersect size={16} /><span>Intersecar</span></button>
+          <button data-tooltip="Excluir superposicion" disabled={selectedIds.length < 2} onClick={() => booleanDesignSelection("exclude")} type="button"><Diff size={16} /><span>Excluir</span></button>
+        </div>
         <label className="drop-zone compact">
           <Upload size={18} />
           Foto de fondo
@@ -2531,7 +3130,7 @@ function DesignEditor({ templateRequest = null }) {
             <div className="field-grid">
               <label>X<input value={selected.x} onChange={(event) => updateSelected({ x: Number(event.target.value) || 0 })} type="number" /></label>
               <label>Y<input value={selected.y} onChange={(event) => updateSelected({ y: Number(event.target.value) || 0 })} type="number" /></label>
-              {selected.type !== "text" && (
+              {selected.type !== "text" && selected.type !== "path" && selected.type !== "svgPath" && (
                 <>
                   <label>Ancho<input value={selected.w} onChange={(event) => {
                     const value = Number(event.target.value) || 1;
@@ -2590,7 +3189,15 @@ function DesignEditor({ templateRequest = null }) {
                 <span>{Number(selected.curveBend ?? 0.65).toFixed(2)}</span>
               </label>
             )}
-            {selected.type !== "text" && (
+            {selected.type === "path" && (
+              <>
+                <h3>Trazado</h3>
+                <label className="check-row"><input checked={Boolean(selected.closed)} onChange={(event) => updateSelected({ closed: event.target.checked, fillType: event.target.checked && selected.fillType === "none" ? "solid" : selected.fillType })} type="checkbox" /> Cerrar trazado</label>
+                <label className="check-row"><input checked={Boolean(selected.smooth)} onChange={(event) => updateSelected({ smooth: event.target.checked })} type="checkbox" /> Suavizar nodos</label>
+                <p className="file-hint">{selected.points?.length || 0} nodos. Arrastra los puntos blancos para editar.</p>
+              </>
+            )}
+            {selected.type !== "text" && selected.type !== "svgPath" && (
               <>
                 <h3>Texto en figura</h3>
                 <label>Contenido<textarea value={selected.labelText || ""} onChange={(event) => updateSelected({ labelText: event.target.value })} placeholder="Escribi sobre la figura" rows="2" /></label>
@@ -3181,12 +3788,9 @@ function PdfEditor({ openProjectSignal = 0, templateRequest = null }) {
 }
 
 export default function App() {
-  const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem("studio:user") || "";
-    return isAllowedEmail(saved) ? saved : "";
-  });
+  const { loading, login, logout, resetPassword, role, user } = useAuth();
   const [tab, setTab] = useState("home");
-  const [openSignals, setOpenSignals] = useState({ image: 0, pdf: 0, video: 0 });
+  const [openSignals, setOpenSignals] = useState({ image: 0, pdf: 0, video: 0, three: 0 });
   const [imageTemplate, setImageTemplate] = useState(null);
   const [designTemplate, setDesignTemplate] = useState(null);
   const [pdfTemplate, setPdfTemplate] = useState(null);
@@ -3216,7 +3820,10 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [workspaceStatus]);
 
-  if (!user) return <LoginView onLogin={setUser} />;
+  if (loading) return <AuthLoading />;
+  if (!user) return <LoginView downloadUrl={IS_DESKTOP_APP ? "" : WINDOWS_DOWNLOAD_URL} onLogin={login} onResetPassword={resetPassword} />;
+  if (IS_DESKTOP_APP && !canUseDesktop(role)) return <DesktopAccessDenied onLogout={logout} user={user} />;
+  if (!IS_DESKTOP_APP && !canUseFullWeb(role)) return <ViewerDemo downloadUrl={WINDOWS_DOWNLOAD_URL} onLogout={logout} user={user} />;
 
   function openRecent(kind) {
     setTab(kind);
@@ -3285,7 +3892,7 @@ export default function App() {
 
   async function duplicateWorkspace(project) {
     const id = crypto.randomUUID?.() || `project-${Date.now()}`;
-    await Promise.all(["image", "design", "pdf", "video"].map(async (kind) => {
+    await Promise.all(["image", "design", "pdf", "video", "three"].map(async (kind) => {
       const value = await getProject(`workspace:${project.id}:${kind}`);
       if (value) await putProject(`workspace:${id}:${kind}`, value);
     }));
@@ -3295,7 +3902,7 @@ export default function App() {
 
   async function deleteWorkspace(project) {
     if (!window.confirm(`Eliminar el proyecto "${project.name}"?`)) return;
-    await Promise.all(["image", "design", "pdf", "video"].map((kind) => deleteProject(`workspace:${project.id}:${kind}`)));
+    await Promise.all(["image", "design", "pdf", "video", "three"].map((kind) => deleteProject(`workspace:${project.id}:${kind}`)));
     storeProjects(projects.filter((item) => item.id !== project.id));
     if (currentProjectId === project.id) setCurrentProjectId("");
     setWorkspaceStatus("Proyecto eliminado");
@@ -3309,7 +3916,7 @@ export default function App() {
             <img alt="" src={logo} />
             Interbanking Studio
           </strong>
-          <span>{user}</span>
+          <span>{user.email} | {role}</span>
         </div>
         <nav className="tabs">
           <button className={tab === "home" ? "active" : ""} onClick={() => setTab("home")}>
@@ -3327,6 +3934,14 @@ export default function App() {
           <button className={tab === "video" ? "active" : ""} onClick={() => setTab("video")}>
             <Film size={17} /> Video
           </button>
+          <button className={tab === "three" ? "active" : ""} onClick={() => setTab("three")}>
+            <Box size={17} /> 3D
+          </button>
+          {canManageUsers(role) && (
+            <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>
+              <Users size={17} /> Usuarios
+            </button>
+          )}
         </nav>
         <div className="header-actions">
           <button className="icon-button" data-tooltip="Guardar proyecto" onClick={() => setSaveDialogOpen(true)}>
@@ -3345,10 +3960,7 @@ export default function App() {
           <button
             className="icon-button"
             data-tooltip="Salir"
-            onClick={() => {
-              localStorage.removeItem("studio:user");
-              setUser("");
-            }}
+            onClick={logout}
           >
             <LogOut size={18} />
           </button>
@@ -3358,6 +3970,7 @@ export default function App() {
       <div className="editor-stack">
         <div className={tab === "home" ? "editor-pane" : "editor-pane is-hidden"}>
           <DashboardView
+            downloadUrl={IS_DESKTOP_APP ? "" : WINDOWS_DOWNLOAD_URL}
             onCreate={createProject}
             onDeleteProject={deleteWorkspace}
             onDuplicateProject={duplicateWorkspace}
@@ -3385,6 +3998,18 @@ export default function App() {
             templateRequest={videoTemplate}
           />
         </div>
+        <div className={tab === "three" ? "editor-pane" : "editor-pane is-hidden"}>
+          <ThreeDEditor
+            active={tab === "three"}
+            onRequestProjectSave={() => setSaveDialogOpen(true)}
+            openProjectSignal={openSignals.three}
+          />
+        </div>
+        {canManageUsers(role) && (
+          <div className={tab === "users" ? "editor-pane" : "editor-pane is-hidden"}>
+            <AdminUsers currentUser={user} />
+          </div>
+        )}
       </div>
       <CustomTooltip />
       {saveDialogOpen && (

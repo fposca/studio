@@ -1,3 +1,10 @@
+packages:
+  - functions
+
 allowBuilds:
+  '@firebase/util': true
+  electron: true
+  electron-winstaller: true
   esbuild: true
   ffmpeg-static: true
+  protobufjs: true

@@ -7,9 +7,10 @@ const WIZARD_STEPS = {
   image: [{ title: "Lienzo e imagen", body: "Subi una imagen, movela en el canvas y ajusta su tamano con las manijas." }, { title: "Herramientas", body: "Tenes seleccion, borrar, clonar, cortar por formas, varita y quitar fondo." }, { title: "Exportar y proyecto", body: "Podes exportar PNG/JPG/WebP o guardar el proyecto para volver despues." }],
   design: [{ title: "Diseno vectorial", body: "Combina foto de fondo, textos y formas sobre un lienzo editable." }, { title: "Texto", body: "Agrega textos, elegi fuente, color, alineacion y tamano desde el panel derecho." }, { title: "Exportar", body: "Exporta como SVG para seguir editando o PNG para usar como imagen final." }],
   pdf: [{ title: "Cargar hojas", body: "Arrastra JPG, PNG o WebP sobre esta pantalla para sumarlos al PDF." }, { title: "Ordenar", body: "Reordena las hojas arrastrandolas, o usa subir/bajar en la lista lateral." }, { title: "Preparar salida", body: "Rota, duplica, optimiza y elegi tamano de pagina antes de crear el PDF." }],
-  video: [{ title: "Importar clips", body: "Arrastra videos a la preview o timeline. Cada archivo tiene limite de 100 MB." }, { title: "Timeline", body: "Move clips entre pistas, recorta inicio/fin y usa zoom para cortes finos." }, { title: "Exportacion", body: "El play general reproduce la timeline y exporta todos los clips juntos." }]
+  video: [{ title: "Importar clips", body: "Arrastra videos a la preview o timeline. Cada archivo tiene limite de 100 MB." }, { title: "Timeline", body: "Move clips entre pistas, recorta inicio/fin y usa zoom para cortes finos." }, { title: "Exportacion", body: "El play general reproduce la timeline y exporta todos los clips juntos." }],
+  three: [{ title: "Escena 3D", body: "Orbita con el mouse, selecciona objetos y usa los gizmos para transformarlos." }, { title: "Objetos", body: "Agrega primitivas, luces o modelos GLB y GLTF desde el panel izquierdo." }, { title: "Exportar", body: "Guarda el proyecto o exporta la vista como PNG y la escena como GLB." }]
 };
-const WIZARD_TARGETS = { home: ["home-create", "home-recents", "home-templates"], image: ["image-canvas", "image-tools", "image-properties"], design: ["design-canvas", "design-add", "design-properties"], pdf: ["pdf-pages", "pdf-properties", "pdf-properties"], video: ["video-preview", "video-timeline", "video-export"] };
+const WIZARD_TARGETS = { home: ["home-create", "home-recents", "home-templates"], image: ["image-canvas", "image-tools", "image-properties"], design: ["design-canvas", "design-add", "design-properties"], pdf: ["pdf-pages", "pdf-properties", "pdf-properties"], video: ["video-preview", "video-timeline", "video-export"], three: ["three-viewport", "three-objects", "three-properties"] };
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 export function Wizard({ screen, onClose }) {
@@ -184,4 +185,3 @@ export function CustomTooltip() {
     </div>
   );
 }
-

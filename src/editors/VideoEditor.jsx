@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, FileAudio, Film, Loader2, Merge, Music2, Pause, Play, Redo2, Save, Scissors, SkipBack, SkipForward, SlidersHorizontal, Square, Trash2, Type, Undo2, Upload, VolumeX } from "lucide-react";
 import { deleteProject, getProject, putProject } from "../storage/projectDb";
 
-const API = "http://127.0.0.1:5174";
+const API = window.location.port === "5173" ? "http://127.0.0.1:5174" : window.location.origin;
 const MAX_VIDEO_MB = 100;
 const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024;
 const VIDEO_PROJECT_ID = "video";
