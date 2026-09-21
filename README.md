@@ -1,4 +1,4 @@
-# Interbanking Studio
+# Neon Studio
 
 MVP local para editar imagenes y video desde el navegador.
 
@@ -45,7 +45,7 @@ Si el documento no existe, el rol es desconocido o Firestore falla, se usa `view
 
 ## Aplicacion de escritorio
 
-La aplicacion de escritorio procesa imagenes y videos en la PC del usuario. No necesita conectarse a un servidor de Studio.
+La aplicacion de escritorio procesa imagenes y videos en la PC del usuario. No necesita conectarse a un servidor de Neon Studio.
 
 ```bash
 pnpm run desktop
@@ -63,12 +63,12 @@ El instalador se crea en `release/`.
 
 1. Ejecuta `pnpm run dist:win`.
 2. Crea una nueva version en GitHub Releases.
-3. Adjunta `release/Studio-Setup-Windows.exe` a esa version.
+3. Adjunta `release/Neon-Studio-Setup-Windows.exe` a esa version.
 
 La web apunta por defecto al instalador de la version mas reciente del repositorio `fposca/studio`. Para usar otra ubicacion, configura antes del build:
 
 ```powershell
-$env:VITE_WINDOWS_DOWNLOAD_URL = "https://servidor.example/Studio-Setup-Windows.exe"
+$env:VITE_WINDOWS_DOWNLOAD_URL = "https://servidor.example/Neon-Studio-Setup-Windows.exe"
 pnpm run build
 ```
 

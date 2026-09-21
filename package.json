@@ -1,5 +1,5 @@
 {
-  "name": "interbanking-studio",
+  "name": "neon-studio",
   "version": "0.1.0",
   "description": "Editor local de imagen, video, diseno y PDF.",
   "author": "fposca",
@@ -40,8 +40,8 @@
   },
   "build": {
     "appId": "com.fposca.studio",
-    "artifactName": "Studio-Setup-Windows.${ext}",
-    "productName": "Studio",
+    "artifactName": "Neon-Studio-Setup-Windows.${ext}",
+    "productName": "Neon Studio",
     "asarUnpack": [
       "node_modules/ffmpeg-static/**"
     ],

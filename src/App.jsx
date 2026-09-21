@@ -9,18 +9,29 @@ import VideoEditor from "./editors/VideoEditor";
 import ThreeDEditor from "./editors/ThreeDEditor";
 import DesignLayersPanel from "./editors/design/DesignLayersPanel.jsx";
 import DesignViewportControls from "./editors/design/DesignViewportControls.jsx";
+import DesignDocumentPanel, { documentPixelSize } from "./editors/design/DesignDocumentPanel.jsx";
+import DesignPathfinderPanel from "./editors/design/DesignPathfinderPanel.jsx";
 import useDesignHistory from "./editors/design/useDesignHistory.js";
-import { runDesignBoolean } from "./editors/design/designBoolean.js";
+import { runDesignBoolean, runDesignDivide } from "./editors/design/designBoolean.js";
+import { applyPngDpi } from "./editors/design/pngDpi.js";
+import { importDesignSvg } from "./editors/design/designSvgImport.js";
+import { convertSvgPathToEditable } from "./editors/design/designPathConversion.js";
 import {
   Box,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   CircleHelp,
+  ClipboardPaste,
+  CornerDownRight,
   Copy,
   Crop,
   Download,
   Eraser,
+  Eye,
+  EyeOff,
   Film,
   FileAudio,
   FileText,
@@ -33,10 +44,16 @@ import {
   AlignVerticalDistributeEnd,
   AlignVerticalDistributeStart,
   ArrowRight,
+  ArrowDown,
+  ArrowUp,
+  BringToFront,
   Circle,
   Image as ImageIcon,
   Loader2,
+  Lock,
+  Link2,
   LogOut,
+  Layers3,
   Merge,
   Minus,
   MousePointer2,
@@ -44,33 +61,35 @@ import {
   Palette,
   Pause,
   Play,
+  Plus,
   RotateCw,
   Save,
+  SendToBack,
   Scissors,
   SlidersHorizontal,
   Redo2,
   SkipBack,
   SkipForward,
   Stamp,
+  Spline,
   Square,
   Type,
   Users,
   Trash2,
   Undo2,
   Upload,
+  Unlock,
   VolumeX,
   Wand2,
   Group,
   Ungroup,
-  Combine,
-  Diff,
-  SquaresIntersect,
+  Unlink2,
   X
 } from "lucide-react";
 
 const API = window.location.port === "5173" ? "http://127.0.0.1:5174" : window.location.origin;
 const IS_DESKTOP_APP = navigator.userAgent.includes("Electron");
-const WINDOWS_DOWNLOAD_URL = import.meta.env.VITE_WINDOWS_DOWNLOAD_URL || "https://github.com/fposca/studio/releases/latest/download/Studio-Setup-Windows.exe";
+const WINDOWS_DOWNLOAD_URL = import.meta.env.VITE_WINDOWS_DOWNLOAD_URL || "https://github.com/fposca/studio/releases/latest/download/Neon-Studio-Setup-Windows.exe";
 const MAX_VIDEO_MB = 100;
 const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024;
 const IMAGE_PROJECT_KEY = "studio:image-project:v1";
@@ -461,8 +480,17 @@ const IMAGE_FILTER_PRESETS = [
   { name: "Solar", values: { brightness: 118, contrast: 122, saturate: 154, sepia: 18, hueRotate: 8 } }
 ];
 
+const IMAGE_DOCUMENT_PRESETS = {
+  webHd: { label: "Web HD", width: 1920, height: 1080, unit: "px" },
+  social: { label: "Redes cuadrado", width: 1080, height: 1080, unit: "px" },
+  story: { label: "Historia", width: 1080, height: 1920, unit: "px" },
+  a4: { label: "A4", width: 210, height: 297, unit: "mm" },
+  a3: { label: "A3", width: 297, height: 420, unit: "mm" }
+};
+
 function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
   const canvasRef = useRef(null);
+  const clonePreviewRef = useRef(null);
   const dragRef = useRef(null);
   const historyRef = useRef([]);
   const redoRef = useRef([]);
@@ -481,19 +509,42 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
   const [imageBox, setImageBox] = useState({ x: 0, y: 0, w: 0, h: 0 });
   const [imageSelected, setImageSelected] = useState(false);
   const [imageVisible, setImageVisible] = useState(false);
+  const [imageLocked, setImageLocked] = useState(false);
+  const [imageOpacity, setImageOpacity] = useState(1);
+  const [imageBlendMode, setImageBlendMode] = useState("source-over");
   const [imageLayers, setImageLayers] = useState([]);
   const [selectedLayerId, setSelectedLayerId] = useState("");
+  const [editingLayerId, setEditingLayerId] = useState("");
+  const [imagePanelTab, setImagePanelTab] = useState("edit");
+  const [documentPreset, setDocumentPreset] = useState("webHd");
+  const [documentDpi, setDocumentDpi] = useState(72);
+  const [documentOrientation, setDocumentOrientation] = useState("landscape");
   const [canvasBackground, setCanvasBackground] = useState("checker");
   const [dragging, setDragging] = useState("");
   const [activeTool, setActiveTool] = useState("select");
   const [selectionShape, setSelectionShape] = useState("rect");
   const [freePath, setFreePath] = useState([]);
   const [brushSize, setBrushSize] = useState(28);
+  const [cloneSoftness, setCloneSoftness] = useState(58);
   const [colorTolerance, setColorTolerance] = useState(42);
   const [clonePoint, setClonePoint] = useState(null);
+  const [cloneHover, setCloneHover] = useState(null);
   const [historyCounts, setHistoryCounts] = useState({ undo: 0, redo: 0 });
   const selectedLayer = imageLayers.find((layer) => layer.id === selectedLayerId);
   const editableImageBox = selectedLayer || imageBox;
+
+  useEffect(() => {
+    function leaveImageTool(event) {
+      if (event.key !== "Escape" || activeTool === "select") return;
+      dragRef.current = null;
+      setDragging("");
+      setClonePoint(null);
+      setCloneHover(null);
+      setActiveTool("select");
+    }
+    window.addEventListener("keydown", leaveImageTool);
+    return () => window.removeEventListener("keydown", leaveImageTool);
+  }, [activeTool]);
 
   const filterString = useMemo(
     () =>
@@ -511,15 +562,24 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     paintCanvasBackground(ctx, canvas.width, canvas.height);
     if (imageVisible) {
+      ctx.save();
+      ctx.globalAlpha = imageOpacity;
+      ctx.globalCompositeOperation = imageBlendMode;
       ctx.filter = filterString;
       ctx.drawImage(source, imageBox.x, imageBox.y, imageBox.w, imageBox.h);
       ctx.filter = "none";
+      ctx.restore();
     }
     imageLayers.forEach((layer) => {
+      if (layer.visible === false) return;
+      ctx.save();
+      ctx.globalAlpha = layer.opacity ?? 1;
+      ctx.globalCompositeOperation = layer.blendMode || "source-over";
       ctx.drawImage(layer.source, layer.x, layer.y, layer.w, layer.h);
+      ctx.restore();
     });
     drawSelection(ctx);
-    const selectedBox = selectedLayer || (imageSelected && imageVisible ? imageBox : null);
+    const selectedBox = selectedLayer?.visible === false ? null : selectedLayer || (imageSelected && imageVisible ? imageBox : null);
     if (selectedBox) {
       const handleSize = Math.max(8, Math.round(canvas.width / 120));
       ctx.setLineDash([]);
@@ -533,7 +593,79 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
         ctx.strokeRect(handle.x, handle.y, handle.size, handle.size);
       });
     }
-  }, [filterString, cropBox, freePath, selectionShape, boardSize, imageBox, imageSelected, imageVisible, imageLayers, selectedLayerId, canvasBackground, version]);
+    drawCloneOverlay(ctx);
+  }, [filterString, cropBox, freePath, selectionShape, boardSize, imageBox, imageSelected, imageVisible, imageLocked, imageOpacity, imageBlendMode, imageLayers, selectedLayerId, canvasBackground, version, activeTool, brushSize, clonePoint, cloneHover, dragging]);
+
+  useEffect(() => {
+    const preview = clonePreviewRef.current;
+    const source = sourceRef.current;
+    if (!preview || !source) return;
+    const ctx = preview.getContext("2d");
+    ctx.clearRect(0, 0, preview.width, preview.height);
+    ctx.fillStyle = "#0e1115";
+    ctx.fillRect(0, 0, preview.width, preview.height);
+    if (!clonePoint) return;
+    const radiusX = Math.max(1, (brushSize / imageBox.w) * source.width) / 2;
+    const radiusY = Math.max(1, (brushSize / imageBox.h) * source.height) / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(preview.width / 2, preview.height / 2, preview.width / 2 - 4, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.drawImage(source, clonePoint.x - radiusX, clonePoint.y - radiusY, radiusX * 2, radiusY * 2, 0, 0, preview.width, preview.height);
+    ctx.restore();
+  }, [activeTool, brushSize, clonePoint, imageBox.h, imageBox.w, version]);
+
+  function drawCloneOverlay(ctx) {
+    if (activeTool !== "clone" || !clonePoint) return;
+    const source = sourceRef.current;
+    if (!source) return;
+    const hasHover = cloneHover && pointInRect(cloneHover, imageBox);
+    const hoverSource = hasHover ? sourcePointFromCanvas(cloneHover) : null;
+    const drag = dragRef.current?.mode === "clone" ? dragRef.current : null;
+    const sample = drag && hoverSource
+      ? { x: drag.origin.x + hoverSource.x - drag.startTarget.x, y: drag.origin.y + hoverSource.y - drag.startTarget.y }
+      : clonePoint;
+    const radius = brushSize / 2;
+    const radiusX = Math.max(1, (brushSize / imageBox.w) * source.width) / 2;
+    const radiusY = Math.max(1, (brushSize / imageBox.h) * source.height) / 2;
+    const sampleCanvas = {
+      x: imageBox.x + sample.x / source.width * imageBox.w,
+      y: imageBox.y + sample.y / source.height * imageBox.h
+    };
+
+    if (hasHover) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cloneHover.x, cloneHover.y, radius, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.globalAlpha = 0.78;
+      ctx.drawImage(source, sample.x - radiusX, sample.y - radiusY, radiusX * 2, radiusY * 2, cloneHover.x - radius, cloneHover.y - radius, brushSize, brushSize);
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.lineWidth = Math.max(2, boardSize.w / 600);
+    if (hasHover) {
+      ctx.setLineDash([7, 5]);
+      ctx.strokeStyle = "rgba(0, 210, 255, 0.9)";
+      ctx.beginPath();
+      ctx.moveTo(sampleCanvas.x, sampleCanvas.y);
+      ctx.lineTo(cloneHover.x, cloneHover.y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "#00d2ff";
+    ctx.beginPath();
+    ctx.arc(sampleCanvas.x, sampleCanvas.y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+    if (hasHover) {
+      ctx.strokeStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(cloneHover.x, cloneHover.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 
   function paintCanvasBackground(ctx, width, height) {
     if (canvasBackground === "checker") return;
@@ -550,12 +682,21 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
     const ctx = out.getContext("2d");
     paintCanvasBackground(ctx, out.width, out.height);
     if (imageVisible) {
+      ctx.save();
+      ctx.globalAlpha = imageOpacity;
+      ctx.globalCompositeOperation = imageBlendMode;
       ctx.filter = filterString;
       ctx.drawImage(source, imageBox.x - area.x, imageBox.y - area.y, imageBox.w, imageBox.h);
       ctx.filter = "none";
+      ctx.restore();
     }
     imageLayers.forEach((layer) => {
+      if (layer.visible === false) return;
+      ctx.save();
+      ctx.globalAlpha = layer.opacity ?? 1;
+      ctx.globalCompositeOperation = layer.blendMode || "source-over";
       ctx.drawImage(layer.source, layer.x - area.x, layer.y - area.y, layer.w, layer.h);
+      ctx.restore();
     });
     return out;
   }
@@ -679,6 +820,9 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
       canvasBackground,
       imageSelected,
       imageVisible,
+      imageLocked,
+      imageOpacity,
+      imageBlendMode,
       selectedLayerId,
       imageLayers: imageLayers.map((layer) => ({ ...layer, source: undefined, sourceData: layer.source.toDataURL("image/png") }))
     };
@@ -719,6 +863,9 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
     setCanvasBackground(state.canvasBackground);
     setImageSelected(state.imageSelected);
     setImageVisible(state.imageVisible);
+    setImageLocked(Boolean(state.imageLocked));
+    setImageOpacity(state.imageOpacity ?? 1);
+    setImageBlendMode(state.imageBlendMode || "source-over");
     const restoredLayers = await Promise.all((state.imageLayers || []).map(async (layer) => {
       const image = new Image();
       image.src = layer.sourceData;
@@ -727,7 +874,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
       source.width = image.width;
       source.height = image.height;
       source.getContext("2d").drawImage(image, 0, 0);
-      return { id: layer.id, x: layer.x, y: layer.y, w: layer.w, h: layer.h, source };
+      return { ...layer, sourceData: undefined, name: layer.name || "Capa", visible: layer.visible !== false, locked: Boolean(layer.locked), opacity: layer.opacity ?? 1, blendMode: layer.blendMode || "source-over", source };
     }));
     setImageLayers(restoredLayers);
     setSelectedLayerId(state.selectedLayerId || "");
@@ -807,6 +954,9 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
     setFreePath([]);
     setImageSelected(true);
     setImageVisible(true);
+    setImageLocked(false);
+    setImageOpacity(1);
+    setImageBlendMode("source-over");
     setImageLayers([]);
     setSelectedLayerId("");
     setVectorUrl("");
@@ -962,23 +1112,34 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
       return;
     }
     const ctx = source.getContext("2d");
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.ellipse(target.x, target.y, radiusX, radiusY, 0, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.drawImage(
+    const brush = document.createElement("canvas");
+    brush.width = Math.max(2, Math.ceil(radiusX * 2));
+    brush.height = Math.max(2, Math.ceil(radiusY * 2));
+    const brushCtx = brush.getContext("2d");
+    brushCtx.drawImage(
       drag.cloneCanvas,
       sampleX - radiusX,
       sampleY - radiusY,
       radiusX * 2,
       radiusY * 2,
-      target.x - radiusX,
-      target.y - radiusY,
-      radiusX * 2,
-      radiusY * 2
+      0,
+      0,
+      brush.width,
+      brush.height
     );
-    ctx.restore();
+    brushCtx.globalCompositeOperation = "destination-in";
+    brushCtx.save();
+    brushCtx.translate(brush.width / 2, brush.height / 2);
+    brushCtx.scale(brush.width / 2, brush.height / 2);
+    const feather = brushCtx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    const solidEdge = clamp(1 - cloneSoftness / 100, 0.04, 0.96);
+    feather.addColorStop(0, "rgba(0, 0, 0, 1)");
+    feather.addColorStop(solidEdge, "rgba(0, 0, 0, 1)");
+    feather.addColorStop(1, "rgba(0, 0, 0, 0)");
+    brushCtx.fillStyle = feather;
+    brushCtx.fillRect(-1, -1, 2, 2);
+    brushCtx.restore();
+    ctx.drawImage(brush, target.x - radiusX, target.y - radiusY, radiusX * 2, radiusY * 2);
     setVersion((value) => value + 1);
   }
 
@@ -1106,7 +1267,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
     const point = pointFromEvent(event);
     const selectedBox = selectedLayer || (imageSelected && imageVisible ? imageBox : null);
     const handle = selectedBox ? hitHandle(point, selectedBox) : null;
-    const hitLayer = [...imageLayers].reverse().find((layer) => pointInRect(point, layer));
+    const hitLayer = [...imageLayers].reverse().find((layer) => layer.visible !== false && pointInRect(point, layer));
     const insideImage = imageVisible && pointInRect(point, imageBox);
 
     if (activeTool === "cut") {
@@ -1148,6 +1309,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
       if (!sourcePoint) return;
       if (!clonePoint || event.altKey) {
         setClonePoint(sourcePoint);
+        setCloneHover(point);
         setImageSelected(false);
         return;
       }
@@ -1164,7 +1326,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
       return;
     }
 
-    if (handle) {
+    if (handle && !(selectedLayer?.locked || (!selectedLayer && imageLocked))) {
       pushHistory();
       dragRef.current = {
         mode: selectedLayer ? "resize-layer" : "resize-image",
@@ -1180,6 +1342,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
     if (activeTool === "select" && hitLayer) {
       setSelectedLayerId(hitLayer.id);
       setImageSelected(false);
+      if (hitLayer.locked) return;
       pushHistory();
       dragRef.current = { mode: "move-layer", layerId: hitLayer.id, start: point, box: hitLayer };
       setDragging("move");
@@ -1198,6 +1361,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
     if (insideImage) {
       setImageSelected(true);
       setSelectedLayerId("");
+      if (imageLocked) return;
       pushHistory();
       dragRef.current = { mode: "move-image", start: point, box: imageBox };
       setDragging("move");
@@ -1209,9 +1373,10 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
   }
 
   function handlePointerMove(event) {
+    const point = pointFromEvent(event);
+    if (activeTool === "clone") setCloneHover(pointInRect(point, imageBox) ? point : null);
     const drag = dragRef.current;
     if (!drag) return;
-    const point = pointFromEvent(event);
     if (drag.mode === "crop") {
       setCropBox(drag.lockCircle ? normalizedCircleCrop(drag.start, point) : normalizedCrop(drag.start, point));
       return;
@@ -1282,14 +1447,18 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
     setImageBox({ x: 0, y: 0, w: bitmap.width, h: bitmap.height });
     setImageSelected(true);
     setImageVisible(true);
+    setImageLocked(false);
+    setImageOpacity(1);
+    setImageBlendMode("source-over");
     setImageLayers([]);
     setSelectedLayerId("");
+    setClonePoint(null);
+    setCloneHover(null);
     setCropBox({ x: 0, y: 0, w: bitmap.width, h: bitmap.height });
     setSelectionShape("rect");
     setFreePath([]);
     setExportSize({ w: bitmap.width, h: bitmap.height });
     setVectorUrl("");
-    setClonePoint(null);
     setVersion((value) => value + 1);
   }
 
@@ -1492,11 +1661,16 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
     layerSource.getContext("2d").drawImage(image, 0, 0);
     const layer = {
       id: `image-layer-${Date.now()}`,
+      name: `Capa ${imageLayers.length + 1}`,
       source: layerSource,
       x: cropBox.x,
       y: cropBox.y,
       w: image.width,
-      h: image.height
+      h: image.height,
+      visible: true,
+      locked: false,
+      opacity: 1,
+      blendMode: "source-over"
     };
     setImageLayers((current) => [...current, layer]);
     setSelectedLayerId(layer.id);
@@ -1529,15 +1703,88 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
     source.getContext("2d").drawImage(image, 0, 0);
     const layer = {
       id: `image-layer-${Date.now()}`,
+      name: `Capa ${imageLayers.length + 1}`,
       source,
       x: Math.round((boardSize.w - image.width) / 2),
       y: Math.round((boardSize.h - image.height) / 2),
       w: image.width,
-      h: image.height
+      h: image.height,
+      visible: true,
+      locked: false,
+      opacity: 1,
+      blendMode: "source-over"
     };
     setImageLayers((current) => [...current, layer]);
     setSelectedLayerId(layer.id);
     setImageSelected(false);
+  }
+
+  function updateSelectedImageLayer(patch) {
+    if (selectedLayerId) {
+      setImageLayers((current) => current.map((layer) => layer.id === selectedLayerId ? { ...layer, ...patch } : layer));
+      return;
+    }
+    if (Object.hasOwn(patch, "opacity")) setImageOpacity(patch.opacity);
+    if (Object.hasOwn(patch, "blendMode")) setImageBlendMode(patch.blendMode);
+  }
+
+  function applyDocumentPreset(presetKey = documentPreset, dpi = documentDpi, orientation = documentOrientation) {
+    const preset = IMAGE_DOCUMENT_PRESETS[presetKey];
+    if (!preset) return;
+    let width = preset.unit === "mm" ? Math.round((preset.width / 25.4) * dpi) : preset.width;
+    let height = preset.unit === "mm" ? Math.round((preset.height / 25.4) * dpi) : preset.height;
+    const wantsLandscape = orientation === "landscape";
+    if ((wantsLandscape && height > width) || (!wantsLandscape && width > height)) [width, height] = [height, width];
+    pushHistory();
+    setBoardSize({ w: width, h: height });
+    setCropBox({ x: 0, y: 0, w: width, h: height });
+    setExportSize({ w: width, h: height });
+  }
+
+  function moveImageLayer(id, direction) {
+    pushHistory();
+    setImageLayers((current) => {
+      const index = current.findIndex((layer) => layer.id === id);
+      const target = index + direction;
+      if (index < 0 || target < 0 || target >= current.length) return current;
+      const next = [...current];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function duplicateSelectedImageLayer() {
+    if (!selectedLayer) return;
+    pushHistory();
+    const source = document.createElement("canvas");
+    source.width = selectedLayer.source.width;
+    source.height = selectedLayer.source.height;
+    source.getContext("2d").drawImage(selectedLayer.source, 0, 0);
+    const duplicate = {
+      ...selectedLayer,
+      id: `image-layer-${Date.now()}`,
+      name: `${selectedLayer.name || "Capa"} copia`,
+      source,
+      x: selectedLayer.x + 16,
+      y: selectedLayer.y + 16,
+      locked: false
+    };
+    setImageLayers((current) => {
+      const index = current.findIndex((layer) => layer.id === selectedLayer.id);
+      const next = [...current];
+      next.splice(index + 1, 0, duplicate);
+      return next;
+    });
+    setSelectedLayerId(duplicate.id);
+    setImageSelected(false);
+  }
+
+  function renameImageLayer(id, name) {
+    const nextName = name.trim();
+    setEditingLayerId("");
+    if (!nextName) return;
+    pushHistory();
+    setImageLayers((current) => current.map((layer) => layer.id === id ? { ...layer, name: nextName } : layer));
   }
 
   function deleteSelectedImage() {
@@ -1604,7 +1851,8 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
   async function exportImage(type) {
     const out = composeCanvas({ x: 0, y: 0, w: boardSize.w, h: boardSize.h });
     if (!out) return;
-    const blob = await blobFromCanvas(out, type, 0.92);
+    let blob = await blobFromCanvas(out, type, 0.92);
+    if (type === "image/png") blob = await applyPngDpi(blob, documentDpi);
     downloadBlob(blob, `${name}.${type.split("/")[1]}`);
   }
 
@@ -1693,6 +1941,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
               .join(" ")}
             onPointerCancel={endPointerDrag}
             onPointerDown={handlePointerDown}
+            onPointerLeave={() => { if (!dragRef.current) setCloneHover(null); }}
             onPointerMove={handlePointerMove}
             onPointerUp={endPointerDrag}
             ref={canvasRef}
@@ -1708,6 +1957,13 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
 
       <aside className="control-panel" data-wizard="image-properties">
         <h2>Imagen</h2>
+        <nav className="image-panel-tabs" aria-label="Panel de imagen">
+          <button className={imagePanelTab === "edit" ? "active" : ""} onClick={() => setImagePanelTab("edit")} type="button">Editar</button>
+          <button className={imagePanelTab === "layers" ? "active" : ""} onClick={() => setImagePanelTab("layers")} type="button">Capas</button>
+          <button className={imagePanelTab === "document" ? "active" : ""} onClick={() => setImagePanelTab("document")} type="button">Documento</button>
+          <button className={imagePanelTab === "file" ? "active" : ""} onClick={() => setImagePanelTab("file")} type="button">Archivo</button>
+        </nav>
+        {imagePanelTab === "edit" && <div className="image-panel-section">
         <div className="tool-status">
           <strong>
             {activeTool === "erase"
@@ -1724,6 +1980,93 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
           {activeTool === "cut" && <span>Arrastra para marcar el area</span>}
           {activeTool === "magic" && <span>Click sobre un color para borrarlo</span>}
         </div>
+        {(activeTool === "clone" || activeTool === "erase") && (
+          <div className="image-brush-panel">
+            <label className="range-row">
+              Pincel
+              <input max="160" min="4" onChange={(event) => setBrushSize(Number(event.target.value))} type="range" value={brushSize} />
+              <span>{brushSize}</span>
+            </label>
+            {activeTool === "clone" && (
+              <label className="range-row">
+                Suavidad
+                <input max="95" min="0" onChange={(event) => setCloneSoftness(Number(event.target.value))} type="range" value={cloneSoftness} />
+                <span>{cloneSoftness}%</span>
+              </label>
+            )}
+          </div>
+        )}
+        {activeTool === "magic" && (
+          <label className="range-row image-tool-primary-control">
+            Tolerancia
+            <input max="120" min="1" onChange={(event) => setColorTolerance(Number(event.target.value))} type="range" value={colorTolerance} />
+            <span>{colorTolerance}</span>
+          </label>
+        )}
+        {activeTool === "clone" && (
+          <div className="clone-preview-panel">
+            <canvas aria-label="Vista previa del area de clonado" height="112" ref={clonePreviewRef} width="112" />
+            <div>
+              <strong>{clonePoint ? "Muestra de origen" : "Sin origen"}</strong>
+              <span>{clonePoint ? `${brushSize} px de cobertura` : "Hace click sobre la imagen para elegirla"}</span>
+            </div>
+          </div>
+        )}
+        </div>}
+        {imagePanelTab === "layers" && <div className="image-panel-section">
+        <section className="image-layers-panel">
+          <div className="image-layers-heading"><h3><Layers3 size={16} /> Capas</h3><span>{imageLayers.length + 1}</span></div>
+          <div className="image-layers-list">
+            {[...imageLayers].reverse().map((layer) => {
+              const index = imageLayers.findIndex((entry) => entry.id === layer.id);
+              return (
+                <div className={`image-layer-row ${selectedLayerId === layer.id ? "active" : ""} ${layer.visible === false ? "is-hidden" : ""}`} key={layer.id}>
+                  {editingLayerId === layer.id ? (
+                    <input autoFocus className="image-layer-name-input" defaultValue={layer.name || "Capa"} onBlur={(event) => renameImageLayer(layer.id, event.target.value)} onKeyDown={(event) => {
+                      if (event.key === "Enter") event.currentTarget.blur();
+                      if (event.key === "Escape") setEditingLayerId("");
+                    }} />
+                  ) : (
+                    <button className="image-layer-main" onClick={() => { setSelectedLayerId(layer.id); setImageSelected(false); }} onDoubleClick={() => setEditingLayerId(layer.id)} type="button"><ImageIcon size={15} /><span>{layer.name || "Capa"}</span></button>
+                  )}
+                  <button data-tooltip={layer.visible === false ? "Mostrar capa" : "Ocultar capa"} onClick={() => { pushHistory(); setImageLayers((current) => current.map((entry) => entry.id === layer.id ? { ...entry, visible: entry.visible === false } : entry)); }} type="button">{layer.visible === false ? <EyeOff size={14} /> : <Eye size={14} />}</button>
+                  <button data-tooltip={layer.locked ? "Desbloquear capa" : "Bloquear capa"} onClick={() => { pushHistory(); setImageLayers((current) => current.map((entry) => entry.id === layer.id ? { ...entry, locked: !entry.locked } : entry)); }} type="button">{layer.locked ? <Lock size={14} /> : <Unlock size={14} />}</button>
+                  <button data-tooltip="Subir capa" disabled={index === imageLayers.length - 1} onClick={() => moveImageLayer(layer.id, 1)} type="button"><ChevronUp size={14} /></button>
+                  <button data-tooltip="Bajar capa" disabled={index === 0} onClick={() => moveImageLayer(layer.id, -1)} type="button"><ChevronDown size={14} /></button>
+                </div>
+              );
+            })}
+            <div className={`image-layer-row ${imageSelected && !selectedLayerId ? "active" : ""} ${!imageVisible ? "is-hidden" : ""}`}>
+              <button className="image-layer-main" onClick={() => { setSelectedLayerId(""); setImageSelected(true); }} type="button"><ImageIcon size={15} /><span>Imagen base</span></button>
+              <button data-tooltip={imageVisible ? "Ocultar capa" : "Mostrar capa"} onClick={() => { pushHistory(); setImageVisible((current) => !current); }} type="button">{imageVisible ? <Eye size={14} /> : <EyeOff size={14} />}</button>
+              <button data-tooltip={imageLocked ? "Desbloquear capa" : "Bloquear capa"} onClick={() => { pushHistory(); setImageLocked((current) => !current); }} type="button">{imageLocked ? <Lock size={14} /> : <Unlock size={14} />}</button>
+              <span /><span />
+            </div>
+          </div>
+          {(selectedLayer || imageSelected) && (
+            <div className="image-layer-properties">
+              <label>Opacidad<input max="1" min="0" onChange={(event) => updateSelectedImageLayer({ opacity: Number(event.target.value) })} onPointerDown={pushHistory} step="0.05" type="range" value={selectedLayer?.opacity ?? imageOpacity} /><span>{Math.round((selectedLayer?.opacity ?? imageOpacity) * 100)}%</span></label>
+              <label>Mezcla<select onChange={(event) => { pushHistory(); updateSelectedImageLayer({ blendMode: event.target.value }); }} value={selectedLayer?.blendMode || imageBlendMode}>
+                <option value="source-over">Normal</option>
+                <option value="multiply">Multiplicar</option>
+                <option value="screen">Trama</option>
+                <option value="overlay">Superponer</option>
+                <option value="darken">Oscurecer</option>
+                <option value="lighten">Aclarar</option>
+                <option value="color-dodge">Sobreexponer color</option>
+                <option value="color-burn">Subexponer color</option>
+              </select></label>
+            </div>
+          )}
+          {selectedLayer && (
+            <div className="image-layer-actions">
+              <button onClick={duplicateSelectedImageLayer} type="button"><Copy size={15} /> Duplicar</button>
+              <button className="danger" onClick={deleteSelectedImage} type="button"><Trash2 size={15} /> Eliminar</button>
+            </div>
+          )}
+        </section>
+        </div>}
+        {imagePanelTab === "edit" && <div className="image-panel-section">
         <div className="field-grid">
           <label>
             X
@@ -1763,29 +2106,6 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
             Quitar fondo
           </button>
         </div>
-        <label className="range-row">
-          Pincel
-          <input
-            max="160"
-            min="4"
-            onChange={(event) => setBrushSize(Number(event.target.value))}
-            type="range"
-            value={brushSize}
-          />
-          <span>{brushSize}</span>
-        </label>
-        <label className="range-row">
-          Tolerancia
-          <input
-            max="120"
-            min="1"
-            onChange={(event) => setColorTolerance(Number(event.target.value))}
-            type="range"
-            value={colorTolerance}
-          />
-          <span>{colorTolerance}</span>
-        </label>
-
         <h3>Retoque</h3>
         <div className="image-filter-presets">
           {IMAGE_FILTER_PRESETS.map((preset) => {
@@ -1817,7 +2137,34 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
             <span>{value}</span>
           </label>
         ))}
+        </div>}
 
+        {imagePanelTab === "document" && <div className="image-panel-section">
+        <h3>Formato</h3>
+        <label className="image-document-field">Preset
+          <select value={documentPreset} onChange={(event) => setDocumentPreset(event.target.value)}>
+            {Object.entries(IMAGE_DOCUMENT_PRESETS).map(([key, preset]) => <option key={key} value={key}>{preset.label}</option>)}
+          </select>
+        </label>
+        <div className="image-document-options">
+          <label>DPI
+            <select value={documentDpi} onChange={(event) => setDocumentDpi(Number(event.target.value))}>
+              <option value="72">72</option>
+              <option value="150">150</option>
+              <option value="300">300</option>
+            </select>
+          </label>
+          <label>Orientacion
+            <select value={documentOrientation} onChange={(event) => setDocumentOrientation(event.target.value)}>
+              <option value="portrait">Vertical</option>
+              <option value="landscape">Horizontal</option>
+            </select>
+          </label>
+        </div>
+        <button className="primary-button" onClick={() => applyDocumentPreset()} type="button">Aplicar formato</button>
+        <p className="image-document-summary">
+          {IMAGE_DOCUMENT_PRESETS[documentPreset].unit === "mm" ? `${IMAGE_DOCUMENT_PRESETS[documentPreset].width} x ${IMAGE_DOCUMENT_PRESETS[documentPreset].height} mm · ${documentDpi} DPI` : `${IMAGE_DOCUMENT_PRESETS[documentPreset].width} x ${IMAGE_DOCUMENT_PRESETS[documentPreset].height} px · Web`}
+        </p>
         <h3>Resolucion</h3>
         <div className="field-grid">
           <label>
@@ -1880,7 +2227,9 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
             Negro
           </button>
         </div>
+        </div>}
 
+        {imagePanelTab === "file" && <div className="image-panel-section">
         <h3>Proyecto</h3>
         <div className="button-row project-actions">
           <button onClick={saveImageProject} disabled={!sourceRef.current}>
@@ -1918,6 +2267,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
             Descargar SVG
           </a>
         )}
+        </div>}
       </aside>
     </section>
   );
@@ -1928,7 +2278,10 @@ function DesignEditor({ templateRequest = null }) {
   const designStageRef = useRef(null);
   const dragRef = useRef(null);
   const designPenDragRef = useRef(null);
+  const designBezierDragRef = useRef(null);
   const designPanRef = useRef(null);
+  const designMarqueeRef = useRef(null);
+  const designClipboardRef = useRef({ items: [], pasteCount: 0 });
   const designFonts = [
     { name: "Inter", value: "Inter, Arial, sans-serif" },
     { name: "Arial", value: "Arial, sans-serif" },
@@ -1942,11 +2295,15 @@ function DesignEditor({ templateRequest = null }) {
     { name: "Impact", value: "Impact, sans-serif" }
   ];
   const [board, setBoard] = useState({ w: 1080, h: 1080 });
+  const [designDocument, setDesignDocument] = useState({ preset: "instagram", orientation: "portrait", dpi: 72 });
+  const [designPanelTab, setDesignPanelTab] = useState("create");
   const [background, setBackground] = useState("#ffffff");
   const [backgroundImage, setBackgroundImage] = useState("");
   const [elements, setElements] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
+  const [designNodeEditingId, setDesignNodeEditingId] = useState("");
+  const [selectedDesignNode, setSelectedDesignNode] = useState(null);
   const [projectStatus, setProjectStatus] = useState("");
   const [designFitScale, setDesignFitScale] = useState(1);
   const [designZoom, setDesignZoom] = useState(1);
@@ -1954,10 +2311,21 @@ function DesignEditor({ templateRequest = null }) {
   const [designGridSize, setDesignGridSize] = useState(20);
   const [designSnap, setDesignSnap] = useState(true);
   const [designGuides, setDesignGuides] = useState([]);
+  const [designMarquee, setDesignMarquee] = useState(null);
   const [designMode, setDesignMode] = useState("select");
   const [designPathDraftId, setDesignPathDraftId] = useState("");
+  const [designContextMenu, setDesignContextMenu] = useState(null);
   const designHistory = useDesignHistory(elements, setElements);
   const selected = elements.find((item) => item.id === selectedId);
+  const designGridStroke = useMemo(() => {
+    const hex = String(background || "#ffffff").replace("#", "");
+    const normalized = hex.length === 3 ? hex.split("").map((value) => value + value).join("") : hex.padEnd(6, "f").slice(0, 6);
+    const red = Number.parseInt(normalized.slice(0, 2), 16) || 0;
+    const green = Number.parseInt(normalized.slice(2, 4), 16) || 0;
+    const blue = Number.parseInt(normalized.slice(4, 6), 16) || 0;
+    const luminance = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255;
+    return luminance < 0.48 ? "rgba(255, 255, 255, 0.24)" : "rgba(35, 49, 62, 0.24)";
+  }, [background]);
 
   useEffect(() => {
     const stage = designStageRef.current;
@@ -1973,6 +2341,7 @@ function DesignEditor({ templateRequest = null }) {
   useEffect(() => {
     if (!templateRequest) return;
     setBoard({ w: templateRequest.w || 1080, h: templateRequest.h || 1080 });
+    setDesignDocument({ preset: "instagram", orientation: "portrait", dpi: 72 });
     setBackground(templateRequest.backgroundColor || "#ffffff");
     setBackgroundImage("");
     setElements([]);
@@ -1985,6 +2354,21 @@ function DesignEditor({ templateRequest = null }) {
     function handleKeyDown(event) {
       const tag = event.target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (["+", "=", "Add"].includes(event.key)) {
+        event.preventDefault();
+        setDesignZoom((current) => clamp(current * 1.12, 0.25, 4));
+        return;
+      }
+      if (["-", "_", "Subtract"].includes(event.key)) {
+        event.preventDefault();
+        setDesignZoom((current) => clamp(current * 0.88, 0.25, 4));
+        return;
+      }
+      if ((event.key === "Delete" || event.key === "Backspace") && selectedDesignNode) {
+        event.preventDefault();
+        deleteDesignNode();
+        return;
+      }
       if ((event.key === "Delete" || event.key === "Backspace") && selectedIds.length) {
         event.preventDefault();
         deleteSelected();
@@ -2001,6 +2385,26 @@ function DesignEditor({ templateRequest = null }) {
         event.preventDefault();
         duplicateSelected();
       }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "c" && selectedIds.length) {
+        event.preventDefault();
+        copyDesignSelection();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "x" && selectedIds.length) {
+        event.preventDefault();
+        cutDesignSelection();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "v") {
+        event.preventDefault();
+        pasteDesignClipboard();
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === "]" && selectedIds.length) {
+        event.preventDefault();
+        arrangeDesignSelection(event.shiftKey ? "front" : "forward");
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key === "[" && selectedIds.length) {
+        event.preventDefault();
+        arrangeDesignSelection(event.shiftKey ? "back" : "backward");
+      }
       if (event.key === "Enter" && designPathDraftId) {
         event.preventDefault();
         finishDesignPath();
@@ -2013,7 +2417,7 @@ function DesignEditor({ templateRequest = null }) {
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedId, selectedIds, elements, designMode, designPathDraftId]);
+  }, [selectedId, selectedIds, elements, designMode, designPathDraftId, selectedDesignNode]);
 
   useEffect(() => {
     if (selectedId && !elements.some((item) => item.id === selectedId)) {
@@ -2023,9 +2427,24 @@ function DesignEditor({ templateRequest = null }) {
 
   useEffect(() => {
     setSelectedIds((current) => current.filter((id) => elements.some((item) => item.id === id)));
+    setSelectedDesignNode((current) => current && elements.some((item) => item.id === current.itemId && item.points?.[current.index]) ? current : null);
   }, [elements]);
 
+  useEffect(() => {
+    if (!designContextMenu) return undefined;
+    const closeMenu = (event) => {
+      if (!event.target.closest?.(".design-context-menu")) setDesignContextMenu(null);
+    };
+    window.addEventListener("pointerdown", closeMenu);
+    window.addEventListener("blur", closeMenu);
+    return () => {
+      window.removeEventListener("pointerdown", closeMenu);
+      window.removeEventListener("blur", closeMenu);
+    };
+  }, [designContextMenu]);
+
   function selectDesignItem(id, additive = false) {
+    if (selectedDesignNode?.itemId !== id) setSelectedDesignNode(null);
     const item = elements.find((entry) => entry.id === id);
     const related = item?.groupId ? elements.filter((entry) => entry.groupId === item.groupId).map((entry) => entry.id) : [id];
     setSelectedId(id);
@@ -2055,27 +2474,38 @@ function DesignEditor({ templateRequest = null }) {
   }
 
   function beginDesignCanvas(event) {
-    if (designMode !== "pen" || event.button !== 0) {
+    if ((designMode !== "pencil" && designMode !== "pen") || event.button !== 0) {
       setSelectedId("");
       setSelectedIds([]);
       return;
     }
     event.preventDefault();
-    const point = pointFromDesignEvent(event);
+    const point = designMode === "pen" ? snapDesignPoint(pointFromDesignEvent(event)) : pointFromDesignEvent(event);
+    if (designMode === "pen" && designPathDraftId) {
+      const draft = elements.find((item) => item.id === designPathDraftId);
+      const index = draft?.points?.length || 0;
+      designHistory.commit((current) => current.map((item) => item.id === designPathDraftId
+        ? { ...item, points: [...item.points, { x: point.x - item.x, y: point.y - item.y, inX: 0, inY: 0, outX: 0, outY: 0, manualIn: false, manualOut: false }] }
+        : item));
+      designBezierDragRef.current = { id: designPathDraftId, index, anchor: point };
+      return;
+    }
     const item = {
       id: `path-${Date.now()}`,
       type: "path",
-      name: "Trazo libre",
+      name: designMode === "pen" ? "Trazado con pluma" : "Trazo libre",
       x: point.x,
       y: point.y,
       points: [{ x: 0, y: 0, inX: 0, inY: 0, outX: 0, outY: 0, manualIn: false, manualOut: false }],
       closed: false,
-      smooth: true,
+      smooth: designMode === "pencil",
       fill: "#a100ff",
       fill2: "#ff6a00",
       fillType: "none",
       stroke: "#a100ff",
       strokeWidth: 8,
+      lineCap: "round",
+      arrowMode: "none",
       opacity: 1,
       rotation: 0,
       shadow: false,
@@ -2085,7 +2515,11 @@ function DesignEditor({ templateRequest = null }) {
     setDesignPathDraftId(item.id);
     setSelectedId(item.id);
     setSelectedIds([item.id]);
-    designPenDragRef.current = { id: item.id, origin: point, last: point, count: 1, freehand: true };
+    if (designMode === "pen") {
+      setDesignNodeEditingId(item.id);
+      designBezierDragRef.current = { id: item.id, index: 0, anchor: point };
+    }
+    else designPenDragRef.current = { id: item.id, origin: point, last: point, count: 1, freehand: true };
   }
 
   function finishDesignPath() {
@@ -2103,6 +2537,110 @@ function DesignEditor({ templateRequest = null }) {
   function updateSelected(patch) {
     if (!selectedId) return;
     designHistory.commit((current) => current.map((item) => (item.id === selectedId ? { ...item, ...patch } : item)));
+  }
+
+  function updateDesignNode(updater) {
+    if (!selectedDesignNode) return;
+    designHistory.commit((current) => current.map((item) => {
+      if (item.id !== selectedDesignNode.itemId || !item.points?.[selectedDesignNode.index]) return item;
+      return { ...item, points: item.points.map((node, index) => index === selectedDesignNode.index ? updater(node, item) : node) };
+    }));
+  }
+
+  function deleteDesignNode() {
+    if (!selectedDesignNode) return;
+    const item = elements.find((entry) => entry.id === selectedDesignNode.itemId);
+    const minimum = item?.closed ? 3 : 2;
+    if (!item || item.points.length <= minimum) {
+      setProjectStatus(`El trazado necesita al menos ${minimum} nodos`);
+      return;
+    }
+    designHistory.commit((current) => current.map((entry) => entry.id === item.id
+      ? { ...entry, points: entry.points.filter((_, index) => index !== selectedDesignNode.index) }
+      : entry));
+    setSelectedDesignNode(null);
+  }
+
+  function setDesignNodeKind(kind) {
+    updateDesignNode((node, item) => {
+      if (kind === "corner") {
+        return { ...node, inX: 0, inY: 0, outX: 0, outY: 0, manualIn: true, manualOut: true, handlesLinked: false };
+      }
+      const index = selectedDesignNode.index;
+      const previous = item.points[item.closed ? (index - 1 + item.points.length) % item.points.length : Math.max(0, index - 1)];
+      const next = item.points[item.closed ? (index + 1) % item.points.length : Math.min(item.points.length - 1, index + 1)];
+      const dx = next.x - previous.x;
+      const dy = next.y - previous.y;
+      const length = Math.max(1, Math.hypot(dx, dy));
+      const inLength = Math.hypot(node.x - previous.x, node.y - previous.y) / 3;
+      const outLength = Math.hypot(next.x - node.x, next.y - node.y) / 3;
+      return {
+        ...node,
+        inX: -dx / length * inLength,
+        inY: -dy / length * inLength,
+        outX: dx / length * outLength,
+        outY: dy / length * outLength,
+        manualIn: true,
+        manualOut: true,
+        handlesLinked: true
+      };
+    });
+  }
+
+  function toggleDesignNodeHandles() {
+    updateDesignNode((node) => ({ ...node, handlesLinked: node.handlesLinked === false }));
+  }
+
+  function addDesignNodeAfter() {
+    if (!selectedDesignNode) return;
+    const item = elements.find((entry) => entry.id === selectedDesignNode.itemId);
+    if (!item) return;
+    const index = selectedDesignNode.index;
+    const nextIndex = (index + 1) % item.points.length;
+    if (!item.closed && index === item.points.length - 1) {
+      setProjectStatus("Selecciona un nodo que tenga un segmento despues");
+      return;
+    }
+    const current = item.points[index];
+    const next = item.points[nextIndex];
+    const currentControls = pathNodeControls(item, index);
+    const nextControls = pathNodeControls(item, nextIndex);
+    const midpoint = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    const p0 = { x: current.x, y: current.y };
+    const p1 = { x: current.x + currentControls.outX, y: current.y + currentControls.outY };
+    const p2 = { x: next.x + nextControls.inX, y: next.y + nextControls.inY };
+    const p3 = { x: next.x, y: next.y };
+    const q0 = midpoint(p0, p1);
+    const q1 = midpoint(p1, p2);
+    const q2 = midpoint(p2, p3);
+    const r0 = midpoint(q0, q1);
+    const r1 = midpoint(q1, q2);
+    const anchor = midpoint(r0, r1);
+    const inserted = { x: anchor.x, y: anchor.y, inX: r0.x - anchor.x, inY: r0.y - anchor.y, outX: r1.x - anchor.x, outY: r1.y - anchor.y, manualIn: true, manualOut: true, handlesLinked: true };
+    designHistory.commit((currentItems) => currentItems.map((entry) => {
+      if (entry.id !== item.id) return entry;
+      const points = entry.points.map((node, nodeIndex) => {
+        if (nodeIndex === index) return { ...node, outX: q0.x - p0.x, outY: q0.y - p0.y, manualOut: true };
+        if (nodeIndex === nextIndex) return { ...node, inX: q2.x - p3.x, inY: q2.y - p3.y, manualIn: true };
+        return node;
+      });
+      points.splice(index + 1, 0, inserted);
+      return { ...entry, points };
+    }));
+    setSelectedDesignNode({ itemId: item.id, index: index + 1 });
+  }
+
+  function createDesignDocument() {
+    if (elements.length && !window.confirm("Crear un lienzo nuevo? Se eliminaran los elementos actuales.")) return;
+    setBoard(documentPixelSize(designDocument));
+    setBackground("#ffffff");
+    setBackgroundImage("");
+    setElements([]);
+    setSelectedId("");
+    setSelectedIds([]);
+    setDesignZoom(1);
+    designHistory.reset();
+    setProjectStatus("Lienzo nuevo creado");
   }
 
   function addText() {
@@ -2151,6 +2689,8 @@ function DesignEditor({ templateRequest = null }) {
       fillType: type === "line" || type === "curve" ? "none" : "solid",
       stroke: "#a100ff",
       strokeWidth: type === "line" || type === "curve" ? 10 : 4,
+      lineCap: type === "line" || type === "curve" ? "round" : "butt",
+      arrowMode: "none",
       opacity: 1,
       points: 5,
       innerRatio: 0.46,
@@ -2187,24 +2727,63 @@ function DesignEditor({ templateRequest = null }) {
     setSelectedIds([item.id]);
   }
 
-  function deleteSelected() {
-    if (!selectedIds.length) return;
-    designHistory.commit((current) => current.filter((item) => !selectedIds.includes(item.id)));
+  function deleteSelected(ids = selectedIds) {
+    if (!ids.length) return;
+    designHistory.commit((current) => current.filter((item) => !ids.includes(item.id)));
     setSelectedId("");
     setSelectedIds([]);
   }
 
-  function duplicateSelected() {
-    const source = elements.filter((item) => selectedIds.includes(item.id));
+  function duplicateSelected(ids = selectedIds, offset = 32) {
+    const source = elements.filter((item) => ids.includes(item.id));
     if (!source.length) return;
     const groupMap = new Map();
     const copies = source.map((item, index) => {
       if (item.groupId && !groupMap.has(item.groupId)) groupMap.set(item.groupId, `group-${Date.now()}-${index}`);
-      return { ...item, id: `${item.type}-${Date.now()}-${index}`, groupId: item.groupId ? groupMap.get(item.groupId) : undefined, name: `${item.name || item.type} copia`, x: item.x + 32, y: item.y + 32 };
+      return { ...item, id: `${item.type}-${Date.now()}-${index}`, groupId: item.groupId ? groupMap.get(item.groupId) : undefined, name: `${item.name || item.type} copia`, x: item.x + offset, y: item.y + offset };
     });
     designHistory.commit((current) => [...current, ...copies]);
     setSelectedId(copies[0].id);
     setSelectedIds(copies.map((item) => item.id));
+  }
+
+  function copyDesignSelection(ids = selectedIds) {
+    const items = elements.filter((item) => ids.includes(item.id));
+    if (!items.length) return;
+    designClipboardRef.current = { items: structuredClone(items), pasteCount: 0 };
+    setProjectStatus(`${items.length} ${items.length === 1 ? "elemento copiado" : "elementos copiados"}`);
+  }
+
+  function cutDesignSelection(ids = selectedIds) {
+    copyDesignSelection(ids);
+    deleteSelected(ids);
+  }
+
+  function pasteDesignClipboard() {
+    const clipboard = designClipboardRef.current;
+    if (!clipboard.items.length) {
+      setProjectStatus("No hay elementos copiados");
+      return;
+    }
+    clipboard.pasteCount += 1;
+    const stamp = Date.now();
+    const offset = 24 * clipboard.pasteCount;
+    const groupMap = new Map();
+    const copies = clipboard.items.map((item, index) => {
+      if (item.groupId && !groupMap.has(item.groupId)) groupMap.set(item.groupId, `group-${stamp}-${index}`);
+      return {
+        ...structuredClone(item),
+        id: `${item.type}-${stamp}-${index}`,
+        groupId: item.groupId ? groupMap.get(item.groupId) : undefined,
+        name: `${item.name || item.type} copia`,
+        x: item.x + offset,
+        y: item.y + offset
+      };
+    });
+    designHistory.commit((current) => [...current, ...copies]);
+    setSelectedId(copies[0].id);
+    setSelectedIds(copies.map((item) => item.id));
+    setProjectStatus(`${copies.length} ${copies.length === 1 ? "elemento pegado" : "elementos pegados"}`);
   }
 
   async function loadDesignBackground(file) {
@@ -2212,9 +2791,34 @@ function DesignEditor({ templateRequest = null }) {
     setBackgroundImage(await fileToDataUrl(file));
   }
 
+  async function loadDesignSvg(file) {
+    if (!file) return;
+    try {
+      const extension = file.name.split(".").pop()?.toLowerCase() || "";
+      if (extension !== "svg") throw new Error("Selecciona un archivo con extension .svg");
+      const contents = await file.text();
+      if (!/<svg[\s>]/i.test(contents)) {
+        throw new Error(`${extension.toUpperCase() || "El archivo"} no contiene vectores compatibles.`);
+      }
+      const imported = importDesignSvg(contents, board);
+      designHistory.commit((current) => [...current, ...imported]);
+      setSelectedId(imported[0].id);
+      setSelectedIds(imported.map((item) => item.id));
+      setProjectStatus(`${imported.length} ${imported.length === 1 ? "forma importada" : "formas importadas"}`);
+    } catch (error) {
+      console.error(error);
+      setProjectStatus(error.message || "No se pudo importar el SVG");
+    }
+  }
+
   function beginElementDrag(event, item) {
+    if (event.button !== 0) {
+      event.stopPropagation();
+      return;
+    }
+    if (designMode === "pen" && item.id === designPathDraftId) return;
     event.stopPropagation();
-    const movingIds = selectedIds.includes(item.id)
+    let movingIds = selectedIds.includes(item.id)
       ? selectedIds
       : item.groupId ? elements.filter((entry) => entry.groupId === item.groupId).map((entry) => entry.id) : [item.id];
     if (!selectedIds.includes(item.id) || event.shiftKey) selectDesignItem(item.id, event.shiftKey);
@@ -2222,8 +2826,25 @@ function DesignEditor({ templateRequest = null }) {
     if (item.locked) return;
     designHistory.record();
     const point = pointFromDesignEvent(event);
-    const origins = Object.fromEntries(elements.filter((entry) => movingIds.includes(entry.id) && !entry.locked).map((entry) => [entry.id, { x: entry.x, y: entry.y }]));
-    dragRef.current = { id: item.id, ids: Object.keys(origins), mode: "move", start: point, item: { ...item }, origins };
+    let dragItem = item;
+    let dragElements = elements;
+    if (event.altKey) {
+      const groupMap = new Map();
+      const stamp = Date.now();
+      const copies = elements.filter((entry) => movingIds.includes(entry.id) && !entry.locked).map((entry, index) => {
+        if (entry.groupId && !groupMap.has(entry.groupId)) groupMap.set(entry.groupId, `group-${stamp}-${index}`);
+        return { ...entry, id: `${entry.type}-${stamp}-${index}`, groupId: entry.groupId ? groupMap.get(entry.groupId) : undefined, name: `${entry.name || entry.type} copia` };
+      });
+      const clickedIndex = movingIds.indexOf(item.id);
+      dragItem = copies[Math.max(0, clickedIndex)] || copies[0];
+      movingIds = copies.map((entry) => entry.id);
+      dragElements = copies;
+      setElements((current) => [...current, ...copies]);
+      setSelectedId(dragItem.id);
+      setSelectedIds(movingIds);
+    }
+    const origins = Object.fromEntries(dragElements.filter((entry) => movingIds.includes(entry.id) && !entry.locked).map((entry) => [entry.id, { x: entry.x, y: entry.y }]));
+    dragRef.current = { id: dragItem.id, ids: Object.keys(origins), mode: "move", start: point, item: { ...dragItem }, origins };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
@@ -2232,6 +2853,14 @@ function DesignEditor({ templateRequest = null }) {
     event.stopPropagation();
     setSelectedId(item.id);
     setSelectedIds([item.id]);
+    if (item.type === "path" && (handle.startsWith("node-") || handle.startsWith("control-"))) {
+      setSelectedDesignNode({ itemId: item.id, index: Number(handle.split("-")[1]) });
+    }
+    if (designMode === "pen" && item.id === designPathDraftId && handle === "node-0" && item.points?.length >= 3) {
+      designHistory.commit((current) => current.map((entry) => entry.id === item.id ? { ...entry, closed: true } : entry));
+      setDesignPathDraftId("");
+      return;
+    }
     if (item.type === "path" && designPathDraftId !== item.id) setDesignMode("select");
     if (item.locked) return;
     designHistory.record();
@@ -2275,6 +2904,12 @@ function DesignEditor({ templateRequest = null }) {
     const dx = localPoint.x - drag.startLocal.x;
     const dy = localPoint.y - drag.startLocal.y;
 
+    if (drag.handle === "gradient-start" || drag.handle === "gradient-end") {
+      let angle = Math.atan2(localPoint.y - drag.center.y, localPoint.x - drag.center.x) * 180 / Math.PI;
+      if (drag.handle === "gradient-start") angle += 180;
+      return { gradientAngle: Math.round((angle + 360) % 360) };
+    }
+
     if (item.type === "line") {
       if (drag.handle === "line-start") {
         const endX = item.x + item.w;
@@ -2311,9 +2946,22 @@ function DesignEditor({ templateRequest = null }) {
     if (item.type === "path" && drag.handle.startsWith("control-")) {
       const [, indexValue, direction] = drag.handle.split("-");
       const index = Number(indexValue);
+      const x = Math.round(localPoint.x - item.x - item.points[index].x);
+      const y = Math.round(localPoint.y - item.y - item.points[index].y);
+      const opposite = direction === "in" ? "out" : "in";
       return {
         points: item.points.map((node, nodeIndex) => nodeIndex === index
-          ? { ...node, [`${direction}X`]: Math.round(localPoint.x - item.x - node.x), [`${direction}Y`]: Math.round(localPoint.y - item.y - node.y), [`manual${direction[0].toUpperCase()}${direction.slice(1)}`]: true }
+          ? {
+            ...node,
+            [`${direction}X`]: x,
+            [`${direction}Y`]: y,
+            [`manual${direction[0].toUpperCase()}${direction.slice(1)}`]: true,
+            ...(node.handlesLinked === false ? {} : {
+              [`${opposite}X`]: -x,
+              [`${opposite}Y`]: -y,
+              [`manual${opposite[0].toUpperCase()}${opposite.slice(1)}`]: true
+            })
+          }
           : node)
       };
     }
@@ -2321,6 +2969,37 @@ function DesignEditor({ templateRequest = null }) {
     if (item.type === "text") {
       const scale = Math.max(0.2, Math.max((drag.box.w + dx) / Math.max(1, drag.box.w), (drag.box.h + dy) / Math.max(1, drag.box.h)));
       return { fontSize: Math.max(6, Math.round(item.fontSize * scale)) };
+    }
+
+    if (item.type === "svgPath") {
+      const original = drag.box;
+      let left = drag.handle.includes("w") ? original.x + dx : original.x;
+      let top = drag.handle.includes("n") ? original.y + dy : original.y;
+      let right = drag.handle.includes("e") ? original.x + original.w + dx : original.x + original.w;
+      let bottom = drag.handle.includes("s") ? original.y + original.h + dy : original.y + original.h;
+      if (drag.handle.includes("w")) left = Math.min(left, right - 12);
+      if (drag.handle.includes("e")) right = Math.max(right, left + 12);
+      if (drag.handle.includes("n")) top = Math.min(top, bottom - 12);
+      if (drag.handle.includes("s")) bottom = Math.max(bottom, top + 12);
+      if (preserveRatio) {
+        const scaleX = Math.abs(right - left) / Math.max(1, original.w);
+        const scaleY = Math.abs(bottom - top) / Math.max(1, original.h);
+        const scale = Math.max(12 / Math.max(1, original.w), 12 / Math.max(1, original.h), Math.abs(scaleX - 1) > Math.abs(scaleY - 1) ? scaleX : scaleY);
+        const width = original.w * scale;
+        const height = original.h * scale;
+        left = drag.handle.includes("w") ? original.x + original.w - width : original.x;
+        right = left + width;
+        top = drag.handle.includes("n") ? original.y + original.h - height : original.y;
+        bottom = top + height;
+      }
+      const width = Math.max(12, right - left);
+      const height = Math.max(12, bottom - top);
+      return {
+        x: item.x + left - original.x,
+        y: item.y + top - original.y,
+        scaleX: (item.scaleX || 1) * width / Math.max(1, original.w),
+        scaleY: (item.scaleY || 1) * height / Math.max(1, original.h)
+      };
     }
 
     if (preserveRatio || item.type === "circle") {
@@ -2355,6 +3034,16 @@ function DesignEditor({ templateRequest = null }) {
   }
 
   function moveElementDrag(event) {
+    const bezierDrag = designBezierDragRef.current;
+    if (bezierDrag) {
+      const point = pointFromDesignEvent(event);
+      const dx = point.x - bezierDrag.anchor.x;
+      const dy = point.y - bezierDrag.anchor.y;
+      setElements((current) => current.map((item) => item.id === bezierDrag.id
+        ? { ...item, points: item.points.map((node, index) => index === bezierDrag.index ? { ...node, inX: -dx, inY: -dy, outX: dx, outY: dy, manualIn: true, manualOut: true } : node) }
+        : item));
+      return;
+    }
     const penDrag = designPenDragRef.current;
     if (penDrag) {
       const point = pointFromDesignEvent(event);
@@ -2421,19 +3110,43 @@ function DesignEditor({ templateRequest = null }) {
     const penDrag = designPenDragRef.current;
     dragRef.current = null;
     designPenDragRef.current = null;
+    designBezierDragRef.current = null;
     if (penDrag?.freehand) {
       if (penDrag.count < 2) {
         setElements((current) => current.filter((item) => item.id !== penDrag.id));
         setSelectedId("");
         setSelectedIds([]);
+      } else {
+        setSelectedId(penDrag.id);
+        setSelectedIds([penDrag.id]);
       }
+      setDesignNodeEditingId("");
       setDesignPathDraftId("");
+      setDesignMode("select");
     }
     setDesignGuides([]);
   }
 
   function beginDesignPan(event) {
-    if (event.button !== 1 && !event.altKey) return;
+    if (event.target.closest?.(".design-viewport-controls, .design-context-menu")) return;
+    const blankSelectionDrag = event.button === 0 && designMode === "select" && !event.target.closest?.(".design-item, .design-handle");
+    const altPan = event.altKey && !event.target.closest?.(".design-item, .design-handle");
+    if (event.button !== 1 && !altPan && !blankSelectionDrag) return;
+    if (blankSelectionDrag && event.shiftKey) {
+      event.preventDefault();
+      event.stopPropagation();
+      const start = pointFromDesignEvent(event);
+      designMarqueeRef.current = { start, baseIds: [...selectedIds] };
+      setDesignMarquee({ x: start.x, y: start.y, w: 0, h: 0 });
+      designStageRef.current.setPointerCapture(event.pointerId);
+      return;
+    }
+    if (blankSelectionDrag) {
+      setSelectedId("");
+      setSelectedIds([]);
+      setSelectedDesignNode(null);
+      setDesignNodeEditingId("");
+    }
     event.preventDefault();
     event.stopPropagation();
     const stage = designStageRef.current;
@@ -2442,6 +3155,19 @@ function DesignEditor({ templateRequest = null }) {
   }
 
   function moveDesignPan(event) {
+    const marquee = designMarqueeRef.current;
+    if (marquee) {
+      const point = pointFromDesignEvent(event);
+      const box = {
+        x: Math.min(marquee.start.x, point.x),
+        y: Math.min(marquee.start.y, point.y),
+        w: Math.abs(point.x - marquee.start.x),
+        h: Math.abs(point.y - marquee.start.y)
+      };
+      marquee.box = box;
+      setDesignMarquee(box);
+      return;
+    }
     const pan = designPanRef.current;
     if (!pan) return;
     const stage = designStageRef.current;
@@ -2452,13 +3178,42 @@ function DesignEditor({ templateRequest = null }) {
   function endDesignPan(event) {
     const stage = designStageRef.current;
     if (stage?.hasPointerCapture?.(event.pointerId)) stage.releasePointerCapture(event.pointerId);
+    if (designMarqueeRef.current?.box) {
+      const marqueeBox = designMarqueeRef.current.box;
+      const intersects = (box) => box.x <= marqueeBox.x + marqueeBox.w
+        && box.x + box.w >= marqueeBox.x
+        && box.y <= marqueeBox.y + marqueeBox.h
+        && box.y + box.h >= marqueeBox.y;
+      const hitIds = elements.filter((item) => item.visible !== false && intersects(selectionBox(item))).flatMap((item) => item.groupId
+        ? elements.filter((entry) => entry.groupId === item.groupId).map((entry) => entry.id)
+        : [item.id]);
+      const nextIds = [...new Set([...designMarqueeRef.current.baseIds, ...hitIds])];
+      setSelectedIds(nextIds);
+      setSelectedId(hitIds.at(-1) || nextIds.at(-1) || "");
+    }
+    designMarqueeRef.current = null;
+    setDesignMarquee(null);
     designPanRef.current = null;
   }
 
   function zoomDesignFromWheel(event) {
-    if (!event.ctrlKey && !event.metaKey) return;
+    if (event.target.closest?.(".design-viewport-controls")) return;
     event.preventDefault();
-    setDesignZoom((current) => clamp(current * (event.deltaY > 0 ? 0.9 : 1.1), 0.25, 4));
+    const stage = designStageRef.current;
+    const rect = stage.getBoundingClientRect();
+    const localX = event.clientX - rect.left;
+    const localY = event.clientY - rect.top;
+    const contentX = stage.scrollLeft + localX;
+    const contentY = stage.scrollTop + localY;
+    setDesignZoom((current) => {
+      const next = clamp(current * (event.deltaY > 0 ? 0.88 : 1.12), 0.25, 4);
+      const ratio = next / current;
+      requestAnimationFrame(() => {
+        stage.scrollLeft = contentX * ratio - localX;
+        stage.scrollTop = contentY * ratio - localY;
+      });
+      return next;
+    });
   }
 
   function renderText(item) {
@@ -2492,8 +3247,24 @@ function DesignEditor({ templateRequest = null }) {
     return item.fill || "#a100ff";
   }
 
+  function gradientCoordinates(item) {
+    const angle = (item.gradientAngle ?? 45) * Math.PI / 180;
+    const dx = Math.cos(angle) * 50;
+    const dy = Math.sin(angle) * 50;
+    return { x1: `${50 - dx}%`, y1: `${50 - dy}%`, x2: `${50 + dx}%`, y2: `${50 + dy}%` };
+  }
+
   function strokeFor(item) {
     return item.stroke || "none";
+  }
+
+  function strokeEndProps(item) {
+    if (item.closed) return {};
+    return {
+      markerStart: item.arrowMode === "start" || item.arrowMode === "both" ? `url(#arrow-start-${item.id})` : undefined,
+      markerEnd: item.arrowMode === "end" || item.arrowMode === "both" ? `url(#arrow-end-${item.id})` : undefined,
+      strokeLinecap: item.lineCap || "round"
+    };
   }
 
   function filterFor(item) {
@@ -2623,13 +3394,29 @@ function DesignEditor({ templateRequest = null }) {
     return <text {...common} dominantBaseline="middle" textAnchor="middle" x={box.x + box.w / 2} y={box.y + box.h / 2}>{item.labelText}</text>;
   }
 
+  function designGradientHandles(item, box) {
+    if (item.fillType !== "linear") return [];
+    const angle = (item.gradientAngle ?? 45) * Math.PI / 180;
+    const radius = Math.max(28, Math.min(box.w, box.h) * 0.38);
+    const cx = box.x + box.w / 2;
+    const cy = box.y + box.h / 2;
+    const dx = Math.cos(angle) * radius;
+    const dy = Math.sin(angle) * radius;
+    return [
+      { id: "gradient-start", x: cx - dx, y: cy - dy, kind: "gradient", color: item.fill || "#a100ff" },
+      { id: "gradient-end", x: cx + dx, y: cy + dy, kind: "gradient", color: item.fill2 || "#ff6a00" }
+    ];
+  }
+
   function designHandles(item, box) {
     const rotateHandle = { id: "rotate", x: box.x + box.w / 2, y: box.y - 42, kind: "rotate" };
+    const gradientHandles = designGradientHandles(item, box);
     if (item.type === "line") {
       return [
         { id: "line-start", x: item.x, y: item.y, kind: "round" },
         { id: "line-end", x: item.x + item.w, y: item.y + item.h, kind: "round" },
-        rotateHandle
+        rotateHandle,
+        ...gradientHandles
       ];
     }
     if (item.type === "curve") {
@@ -2637,29 +3424,32 @@ function DesignEditor({ templateRequest = null }) {
         { id: "line-start", x: item.x, y: item.y + item.h, kind: "round" },
         { id: "line-end", x: item.x + item.w, y: item.y, kind: "round" },
         { id: "curve-bend", x: item.x + item.w / 2, y: item.y + item.h / 2 + (item.curveBend || 0) * item.h * 0.3, kind: "diamond" },
-        rotateHandle
+        rotateHandle,
+        ...gradientHandles
       ];
     }
     if (item.type === "path") {
+      if (designNodeEditingId !== item.id) return [rotateHandle, ...gradientHandles];
       return [
         ...(item.points || []).flatMap((point, index) => {
           const controls = pathNodeControls(item, index);
           return [
-            { id: `node-${index}`, x: item.x + point.x, y: item.y + point.y, kind: "round" },
+            { id: `node-${index}`, x: item.x + point.x, y: item.y + point.y, kind: "round", selected: selectedDesignNode?.itemId === item.id && selectedDesignNode.index === index },
             ...((controls.inX || controls.inY) ? [{ id: `control-${index}-in`, x: item.x + point.x + controls.inX, y: item.y + point.y + controls.inY, kind: "control" }] : []),
             ...((controls.outX || controls.outY) ? [{ id: `control-${index}-out`, x: item.x + point.x + controls.outX, y: item.y + point.y + controls.outY, kind: "control" }] : [])
           ];
         }),
-        rotateHandle
+        rotateHandle,
+        ...gradientHandles
       ];
     }
-    if (item.type === "svgPath") return [rotateHandle];
     return [
       { id: "nw", x: box.x, y: box.y },
       { id: "ne", x: box.x + box.w, y: box.y },
       { id: "sw", x: box.x, y: box.y + box.h },
       { id: "se", x: box.x + box.w, y: box.y + box.h },
-      rotateHandle
+      rotateHandle,
+      ...gradientHandles
     ];
   }
 
@@ -2690,7 +3480,12 @@ function DesignEditor({ templateRequest = null }) {
       return { x, y, w: Math.max(1, Math.max(...xs) - x), h: Math.max(1, Math.max(...ys) - y) };
     }
     if (item.type === "svgPath") {
-      return { x: item.x + item.pathBounds.x, y: item.y + item.pathBounds.y, w: item.pathBounds.w, h: item.pathBounds.h };
+      return {
+        x: item.x + item.pathBounds.x,
+        y: item.y + item.pathBounds.y,
+        w: item.pathBounds.w * (item.scaleX || 1),
+        h: item.pathBounds.h * (item.scaleY || 1)
+      };
     }
     return {
       x: Math.min(item.x, item.x + (item.w || 1)),
@@ -2747,10 +3542,36 @@ function DesignEditor({ templateRequest = null }) {
     }));
   }
 
-  function groupDesignSelection() {
-    if (selectedIds.length < 2) return;
+  function groupDesignSelection(ids = selectedIds) {
+    if (ids.length < 2) return;
     const groupId = `group-${Date.now()}`;
-    designHistory.commit((current) => current.map((item) => selectedIds.includes(item.id) ? { ...item, groupId } : item));
+    designHistory.commit((current) => current.map((item) => ids.includes(item.id) ? { ...item, groupId } : item));
+  }
+
+  function arrangeDesignSelection(direction, ids = selectedIds) {
+    if (!ids.length) return;
+    const selectedSet = new Set(ids);
+    designHistory.commit((current) => {
+      const selectedItems = current.filter((item) => selectedSet.has(item.id));
+      const otherItems = current.filter((item) => !selectedSet.has(item.id));
+      if (direction === "front") return [...otherItems, ...selectedItems];
+      if (direction === "back") return [...selectedItems, ...otherItems];
+      const next = [...current];
+      if (direction === "forward") {
+        for (let index = next.length - 2; index >= 0; index -= 1) {
+          if (selectedSet.has(next[index].id) && !selectedSet.has(next[index + 1].id)) {
+            [next[index], next[index + 1]] = [next[index + 1], next[index]];
+          }
+        }
+      } else {
+        for (let index = 1; index < next.length; index += 1) {
+          if (selectedSet.has(next[index].id) && !selectedSet.has(next[index - 1].id)) {
+            [next[index], next[index - 1]] = [next[index - 1], next[index]];
+          }
+        }
+      }
+      return next;
+    });
   }
 
   function booleanDesignSelection(operation) {
@@ -2761,7 +3582,7 @@ function DesignEditor({ templateRequest = null }) {
       return;
     }
     try {
-      const result = runDesignBoolean(selectedShapes.map((item) => {
+      const operands = selectedShapes.map((item) => {
         const box = selectionBox(item);
         return {
           center: { x: box.x + box.w / 2, y: box.y + box.h / 2 },
@@ -2769,13 +3590,14 @@ function DesignEditor({ templateRequest = null }) {
           offset: item.type === "svgPath" ? { x: item.x, y: item.y } : { x: 0, y: 0 },
           rotation: item.rotation || 0
         };
-      }), operation);
+      });
       const source = selectedShapes[0];
-      const item = {
+      const results = operation === "divide" ? runDesignDivide(operands) : [runDesignBoolean(operands, operation)];
+      const created = results.map((result, index) => ({
         ...source,
-        id: `svg-path-${Date.now()}`,
+        id: `svg-path-${Date.now()}-${index}`,
         type: "svgPath",
-        name: "Forma combinada",
+        name: operation === "divide" ? `Region ${index + 1}` : "Forma combinada",
         d: result.d,
         pathBounds: result.bounds,
         x: 0,
@@ -2783,20 +3605,49 @@ function DesignEditor({ templateRequest = null }) {
         rotation: 0,
         groupId: undefined,
         labelText: ""
-      };
-      designHistory.commit((current) => [...current.filter((entry) => !selectedIds.includes(entry.id)), item]);
-      setSelectedId(item.id);
-      setSelectedIds([item.id]);
-      setProjectStatus("Operacion vectorial aplicada");
+      }));
+      designHistory.commit((current) => [...current.filter((entry) => !selectedIds.includes(entry.id)), ...created]);
+      setSelectedId(created[0]?.id || "");
+      setSelectedIds(created.map((item) => item.id));
+      setProjectStatus(operation === "divide" ? `${created.length} regiones creadas` : "Operacion vectorial aplicada");
     } catch (error) {
       console.error(error);
       setProjectStatus("No se pudo combinar esa geometria");
     }
   }
 
-  function ungroupDesignSelection() {
-    if (!selectedIds.some((id) => elements.find((item) => item.id === id)?.groupId)) return;
-    designHistory.commit((current) => current.map((item) => selectedIds.includes(item.id) ? { ...item, groupId: undefined } : item));
+  function ungroupDesignSelection(ids = selectedIds) {
+    if (!ids.some((id) => elements.find((item) => item.id === id)?.groupId)) return;
+    const groupIds = new Set(elements.filter((item) => ids.includes(item.id)).map((item) => item.groupId).filter(Boolean));
+    designHistory.commit((current) => current.map((item) => groupIds.has(item.groupId) ? { ...item, groupId: undefined } : item));
+  }
+
+  function isolateDesignItem(id) {
+    const item = elements.find((entry) => entry.id === id);
+    if (!item) return;
+    dragRef.current = null;
+    if (item.groupId) {
+      designHistory.commit((current) => current.map((entry) => entry.groupId === item.groupId ? { ...entry, groupId: undefined } : entry));
+      setProjectStatus("Grupo desarmado. Las capas ya se pueden mover por separado.");
+    }
+    setSelectedId(id);
+    setSelectedIds([id]);
+  }
+
+  function convertSelectedSvgPath() {
+    if (selected?.type !== "svgPath") return;
+    try {
+      const converted = convertSvgPathToEditable(selected);
+      if (!converted.length) throw new Error("El trazado no contiene nodos editables");
+      designHistory.commit((current) => current.flatMap((item) => item.id === selected.id ? converted : [item]));
+      setSelectedId(converted[0].id);
+      setSelectedIds([converted[0].id]);
+      setDesignNodeEditingId(converted[0].id);
+      setProjectStatus(converted.length > 1 ? `${converted.length} contornos editables creados` : "Trazado convertido. Ya podes mover sus nodos.");
+    } catch (error) {
+      console.error(error);
+      setProjectStatus(error.message || "No se pudo convertir el trazado");
+    }
   }
 
   function renameDesignLayer(id, name) {
@@ -2819,6 +3670,37 @@ function DesignEditor({ templateRequest = null }) {
       const next = [...current];
       [next[index], next[target]] = [next[target], next[index]];
       return next;
+    });
+  }
+
+  function reorderDesignLayer(draggedId, targetId, position) {
+    designHistory.commit((current) => {
+      const dragged = current.find((item) => item.id === draggedId);
+      if (!dragged) return current;
+      const next = current.filter((item) => item.id !== draggedId);
+      const targetIndex = next.findIndex((item) => item.id === targetId);
+      if (targetIndex < 0) return current;
+      const insertAt = position === "above" ? targetIndex + 1 : targetIndex;
+      next.splice(insertAt, 0, dragged);
+      return next;
+    });
+  }
+
+  function openDesignContextMenu(event, item) {
+    event.preventDefault();
+    event.stopPropagation();
+    const related = item.groupId ? elements.filter((entry) => entry.groupId === item.groupId).map((entry) => entry.id) : [item.id];
+    const ids = selectedIds.includes(item.id)
+      ? selectedIds
+      : selectedIds.length ? [...new Set([...selectedIds, ...related])] : related;
+    if (!selectedIds.includes(item.id)) {
+      setSelectedId(item.id);
+      setSelectedIds(ids);
+    }
+    setDesignContextMenu({
+      ids,
+      x: Math.min(event.clientX, window.innerWidth - 196),
+      y: Math.max(8, Math.min(event.clientY, window.innerHeight - 438))
     });
   }
 
@@ -2853,7 +3735,7 @@ function DesignEditor({ templateRequest = null }) {
     canvas.getContext("2d").drawImage(image, 0, 0);
     URL.revokeObjectURL(url);
     const blob = await blobFromCanvas(canvas, "image/png");
-    downloadBlob(blob, "diseno.png");
+    downloadBlob(await applyPngDpi(blob, designDocument.dpi || 72), "diseno.png");
   }
 
   async function saveDesignProject({ projectId = DESIGN_PROJECT_ID } = {}) {
@@ -2862,6 +3744,7 @@ function DesignEditor({ templateRequest = null }) {
       board,
       background,
       backgroundImage,
+      designDocument,
       elements,
       selectedId
     });
@@ -2886,6 +3769,7 @@ function DesignEditor({ templateRequest = null }) {
     setBoard(saved.board || { w: 1080, h: 1080 });
     setBackground(saved.background || "#ffffff");
     setBackgroundImage(saved.backgroundImage || "");
+    setDesignDocument(saved.designDocument || { preset: "instagram", orientation: "portrait", dpi: 72 });
     setElements((saved.elements || []).map((item) => ({ ...item, name: item.name || (item.type === "text" ? "Texto" : item.type) })));
     setSelectedId(saved.selectedId || "");
     setSelectedIds(saved.selectedId ? [saved.selectedId] : []);
@@ -2899,8 +3783,10 @@ function DesignEditor({ templateRequest = null }) {
     <section className="design-workspace">
       <DesignLayersPanel
         elements={elements}
+        onIsolate={isolateDesignItem}
         onMove={moveDesignLayer}
         onRename={renameDesignLayer}
+        onReorder={reorderDesignLayer}
         onSelect={selectDesignItem}
         onToggleLocked={(id) => toggleDesignLayer(id, "locked")}
         onToggleVisible={(id) => toggleDesignLayer(id, "visible")}
@@ -2911,6 +3797,9 @@ function DesignEditor({ templateRequest = null }) {
         className={`design-stage design-mode-${designMode} ${designPanRef.current ? "is-panning" : ""}`}
         data-wizard="design-canvas"
         onPointerDownCapture={beginDesignPan}
+        onPointerMove={moveDesignPan}
+        onPointerUp={endDesignPan}
+        onPointerCancel={endDesignPan}
         onWheel={zoomDesignFromWheel}
         ref={designStageRef}
       >
@@ -2945,11 +3834,11 @@ function DesignEditor({ templateRequest = null }) {
         >
           <defs>
             <pattern className="design-helper" height={designGridSize} id="design-grid-pattern" patternUnits="userSpaceOnUse" width={designGridSize}>
-              <path d={`M ${designGridSize} 0 L 0 0 0 ${designGridSize}`} fill="none" stroke="rgba(35, 49, 62, 0.24)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+              <path d={`M ${designGridSize} 0 L 0 0 0 ${designGridSize}`} fill="none" stroke={designGridStroke} strokeWidth="1" vectorEffect="non-scaling-stroke" />
             </pattern>
             {elements.map((item) => (
               <React.Fragment key={`defs-${item.id}`}>
-                <linearGradient id={`fill-linear-${item.id}`} x1="0%" x2="100%" y1="0%" y2="100%">
+                <linearGradient id={`fill-linear-${item.id}`} {...gradientCoordinates(item)}>
                   <stop offset="0%" stopColor={item.fill || "#a100ff"} />
                   <stop offset="100%" stopColor={item.fill2 || "#ff6a00"} />
                 </linearGradient>
@@ -2960,6 +3849,12 @@ function DesignEditor({ templateRequest = null }) {
                 <filter id={`shadow-${item.id}`} x="-40%" y="-40%" width="180%" height="180%">
                   <feDropShadow dx={item.shadowX || 0} dy={item.shadowY || 0} stdDeviation={item.shadowBlur || 0} floodColor={item.shadowColor || "#000000"} floodOpacity="0.55" />
                 </filter>
+                <marker id={`arrow-end-${item.id}`} markerHeight="5" markerUnits="strokeWidth" markerWidth="5" orient="auto" refX="4.5" refY="2.5" viewBox="0 0 5 5">
+                  <path d="M 0 0 L 5 2.5 L 0 5 Z" fill={strokeFor(item)} />
+                </marker>
+                <marker id={`arrow-start-${item.id}`} markerHeight="5" markerUnits="strokeWidth" markerWidth="5" orient="auto" refX="0.5" refY="2.5" viewBox="0 0 5 5">
+                  <path d="M 5 0 L 0 2.5 L 5 5 Z" fill={strokeFor(item)} />
+                </marker>
                 {item.type !== "text" && <path d={shapeTextPath(item)} fill="none" id={`shape-text-path-${item.id}`} />}
               </React.Fragment>
             ))}
@@ -2970,27 +3865,31 @@ function DesignEditor({ templateRequest = null }) {
           {elements.filter((item) => item.visible !== false).map((item) => {
             const box = selectionBox(item);
             return (
-              <g key={item.id} onPointerDown={(event) => beginElementDrag(event, item)} className="design-item" filter={filterFor(item)} opacity={item.opacity ?? 1} transform={`rotate(${item.rotation || 0} ${box.x + box.w / 2} ${box.y + box.h / 2})`}>
+              <g key={item.id} onContextMenu={(event) => openDesignContextMenu(event, item)} onDoubleClick={(event) => { event.preventDefault(); event.stopPropagation(); isolateDesignItem(item.id); }} onPointerDown={(event) => beginElementDrag(event, item)} className="design-item" filter={filterFor(item)} opacity={item.opacity ?? 1} transform={`rotate(${item.rotation || 0} ${box.x + box.w / 2} ${box.y + box.h / 2})`}>
                 {item.type === "text" && React.cloneElement(renderText(item), { fill: fillFor(item), stroke: strokeFor(item), strokeWidth: item.strokeWidth || 0 })}
                 {item.type === "rect" && <rect x={item.x} y={item.y} width={item.w} height={item.h} rx={item.radius || 0} fill={fillFor(item)} stroke={strokeFor(item)} strokeWidth={item.strokeWidth || 0} />}
                 {item.type === "circle" && <ellipse cx={item.x + item.w / 2} cy={item.y + item.h / 2} rx={item.w / 2} ry={item.h / 2} fill={fillFor(item)} stroke={strokeFor(item)} strokeWidth={item.strokeWidth || 0} />}
                 {item.type === "star" && <path d={starPath(item)} fill={fillFor(item)} stroke={strokeFor(item)} strokeLinejoin="round" strokeWidth={item.strokeWidth || 0} />}
-                {item.type === "line" && <line x1={item.x} y1={item.y} x2={item.x + item.w} y2={item.y + item.h} stroke={strokeFor(item)} strokeLinecap="round" strokeWidth={item.strokeWidth || 8} />}
-                {item.type === "curve" && <path d={curvePath(item)} fill="none" stroke={strokeFor(item)} strokeLinecap="round" strokeWidth={item.strokeWidth || 8} />}
-                {item.type === "path" && <path d={customPath(item)} fill={fillFor(item)} fillRule="evenodd" stroke={strokeFor(item)} strokeLinecap="round" strokeLinejoin="round" strokeWidth={item.strokeWidth || 8} />}
-                {item.type === "svgPath" && <path d={item.d} fill={fillFor(item)} fillRule="evenodd" stroke={strokeFor(item)} strokeLinejoin="round" strokeWidth={item.strokeWidth || 0} transform={`translate(${item.x} ${item.y})`} />}
+                {item.type === "line" && <line {...strokeEndProps(item)} x1={item.x} y1={item.y} x2={item.x + item.w} y2={item.y + item.h} stroke={strokeFor(item)} strokeWidth={item.strokeWidth || 8} />}
+                {item.type === "curve" && <path {...strokeEndProps(item)} d={curvePath(item)} fill="none" stroke={strokeFor(item)} strokeWidth={item.strokeWidth || 8} />}
+                {item.type === "path" && <path {...strokeEndProps(item)} d={customPath(item)} fill={fillFor(item)} fillRule="evenodd" stroke={strokeFor(item)} strokeLinejoin="round" strokeWidth={item.strokeWidth || 8} />}
+                {item.type === "svgPath" && <path {...strokeEndProps(item)} d={item.d} fill={fillFor(item)} fillRule="evenodd" stroke={strokeFor(item)} strokeLinejoin="round" strokeWidth={item.strokeWidth || 0} transform={`translate(${item.x} ${item.y}) translate(${item.pathBounds.x} ${item.pathBounds.y}) scale(${item.scaleX || 1} ${item.scaleY || 1}) translate(${-item.pathBounds.x} ${-item.pathBounds.y})`} />}
                 {item.type !== "text" && renderShapeLabel(item, box)}
                 {selectedIds.includes(item.id) && (
                   <>
                     <rect className="design-selection" x={box.x - 6} y={box.y - 6} width={box.w + 12} height={box.h + 12} fill="none" stroke="#a100ff" strokeDasharray="6 4" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
                     {selectedIds.length === 1 && <line className="design-selection" x1={box.x + box.w / 2} y1={box.y - 6} x2={box.x + box.w / 2} y2={box.y - 42} stroke="#a100ff" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />}
-                    {selectedIds.length === 1 && item.type === "path" && (item.points || []).flatMap((point, index) => ["in", "out"].map((direction) => {
+                    {selectedIds.length === 1 && item.type === "path" && designNodeEditingId === item.id && (item.points || []).flatMap((point, index) => ["in", "out"].map((direction) => {
                       const controls = pathNodeControls(item, index);
                       const dx = controls[`${direction}X`] || 0;
                       const dy = controls[`${direction}Y`] || 0;
                       if (!dx && !dy) return null;
                       return <line className="design-selection" key={`arm-${index}-${direction}`} stroke="#00bfe8" strokeWidth="1.5" vectorEffect="non-scaling-stroke" x1={item.x + point.x} x2={item.x + point.x + dx} y1={item.y + point.y} y2={item.y + point.y + dy} />;
                     }))}
+                    {selectedIds.length === 1 && item.fillType === "linear" && (() => {
+                      const gradientHandles = designGradientHandles(item, box);
+                      return gradientHandles.length === 2 ? <line className="design-selection" pointerEvents="none" stroke="#ffffff" strokeDasharray="4 3" strokeWidth="2" vectorEffect="non-scaling-stroke" x1={gradientHandles[0].x} x2={gradientHandles[1].x} y1={gradientHandles[0].y} y2={gradientHandles[1].y} /> : null;
+                    })()}
                     {selectedIds.length === 1 && designHandles(item, box).map((handle) => (
                       handle.kind === "rotate" ? (
                         <circle
@@ -3008,7 +3907,7 @@ function DesignEditor({ templateRequest = null }) {
                         />
                       ) : handle.kind === "round" ? (
                         <circle
-                          className="design-selection design-handle"
+                          className={`design-selection design-handle ${handle.selected ? "is-selected-node" : ""}`}
                           cx={handle.x}
                           cy={handle.y}
                           fill="#ffffff"
@@ -3032,6 +3931,20 @@ function DesignEditor({ templateRequest = null }) {
                           r={Math.max(5, 6 / Math.max(0.25, designFitScale * designZoom))}
                           stroke="#ffffff"
                           strokeWidth="1.5"
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      ) : handle.kind === "gradient" ? (
+                        <circle
+                          className="design-selection design-handle design-gradient-handle"
+                          cx={handle.x}
+                          cy={handle.y}
+                          fill={handle.color}
+                          key={handle.id}
+                          onPointerDown={(event) => beginDesignHandle(event, item, handle.id)}
+                          pointerEvents="all"
+                          r={Math.max(7, 8 / Math.max(0.25, designFitScale * designZoom))}
+                          stroke="#ffffff"
+                          strokeWidth="2"
                           vectorEffect="non-scaling-stroke"
                         />
                       ) : handle.kind === "diamond" ? (
@@ -3073,7 +3986,25 @@ function DesignEditor({ templateRequest = null }) {
           {designGuides.map((guide, index) => guide.axis === "x"
             ? <line className="design-helper" key={`guide-${index}`} pointerEvents="none" stroke="#00bfe8" strokeDasharray="5 4" strokeWidth="1.5" vectorEffect="non-scaling-stroke" x1={guide.value} x2={guide.value} y1="0" y2={board.h} />
             : <line className="design-helper" key={`guide-${index}`} pointerEvents="none" stroke="#00bfe8" strokeDasharray="5 4" strokeWidth="1.5" vectorEffect="non-scaling-stroke" x1="0" x2={board.w} y1={guide.value} y2={guide.value} />)}
+          {designMarquee && <rect className="design-helper design-marquee" fill="rgba(161, 0, 255, 0.12)" height={designMarquee.h} pointerEvents="none" stroke="#a100ff" strokeDasharray="6 4" strokeWidth="1.5" vectorEffect="non-scaling-stroke" width={designMarquee.w} x={designMarquee.x} y={designMarquee.y} />}
         </svg>
+        {designContextMenu && (
+          <div className="design-context-menu" role="menu" style={{ left: designContextMenu.x, top: designContextMenu.y }}>
+            <button onClick={() => { arrangeDesignSelection("front", designContextMenu.ids); setDesignContextMenu(null); }} role="menuitem" type="button"><BringToFront size={16} /> Traer al frente</button>
+            <button onClick={() => { arrangeDesignSelection("forward", designContextMenu.ids); setDesignContextMenu(null); }} role="menuitem" type="button"><ArrowUp size={16} /> Hacia adelante</button>
+            <button onClick={() => { arrangeDesignSelection("backward", designContextMenu.ids); setDesignContextMenu(null); }} role="menuitem" type="button"><ArrowDown size={16} /> Hacia atras</button>
+            <button onClick={() => { arrangeDesignSelection("back", designContextMenu.ids); setDesignContextMenu(null); }} role="menuitem" type="button"><SendToBack size={16} /> Enviar al fondo</button>
+            <span className="design-context-divider" />
+            <button onClick={() => { duplicateSelected(designContextMenu.ids); setDesignContextMenu(null); }} role="menuitem" type="button"><Copy size={16} /> Duplicar</button>
+            <button onClick={() => { copyDesignSelection(designContextMenu.ids); setDesignContextMenu(null); }} role="menuitem" type="button"><Copy size={16} /> Copiar</button>
+            <button onClick={() => { cutDesignSelection(designContextMenu.ids); setDesignContextMenu(null); }} role="menuitem" type="button"><Scissors size={16} /> Cortar</button>
+            <button disabled={!designClipboardRef.current.items.length} onClick={() => { pasteDesignClipboard(); setDesignContextMenu(null); }} role="menuitem" type="button"><ClipboardPaste size={16} /> Pegar</button>
+            <button disabled={designContextMenu.ids.length < 2} onClick={() => { groupDesignSelection(designContextMenu.ids); setDesignContextMenu(null); }} role="menuitem" type="button"><Group size={16} /> Agrupar</button>
+            <button disabled={!designContextMenu.ids.some((id) => elements.find((item) => item.id === id)?.groupId)} onClick={() => { ungroupDesignSelection(designContextMenu.ids); setDesignContextMenu(null); }} role="menuitem" type="button"><Ungroup size={16} /> Desagrupar</button>
+            <span className="design-context-divider" />
+            <button className="is-danger" onClick={() => { deleteSelected(designContextMenu.ids); setDesignContextMenu(null); }} role="menuitem" type="button"><Trash2 size={16} /> Eliminar</button>
+          </div>
+        )}
       </div>
 
       <aside className="control-panel" data-wizard="design-properties">
@@ -3082,6 +4013,20 @@ function DesignEditor({ templateRequest = null }) {
           <button data-tooltip="Deshacer" disabled={!designHistory.canUndo} onClick={designHistory.undo} type="button"><Undo2 size={16} /></button>
           <button data-tooltip="Rehacer" disabled={!designHistory.canRedo} onClick={designHistory.redo} type="button"><Redo2 size={16} /></button>
         </div>
+        <nav className="image-panel-tabs design-panel-tabs" aria-label="Panel de diseno">
+          <button className={designPanelTab === "create" ? "active" : ""} onClick={() => setDesignPanelTab("create")} type="button">Crear</button>
+          <button className={designPanelTab === "properties" ? "active" : ""} onClick={() => setDesignPanelTab("properties")} type="button">Propiedades</button>
+          <button className={designPanelTab === "organize" ? "active" : ""} onClick={() => setDesignPanelTab("organize")} type="button">Organizar</button>
+          <button className={designPanelTab === "document" ? "active" : ""} onClick={() => setDesignPanelTab("document")} type="button">Documento</button>
+        </nav>
+        {designPanelTab === "document" && <div className="image-panel-section">
+        <DesignDocumentPanel
+          onChange={setDesignDocument}
+          onCreate={createDesignDocument}
+          settings={designDocument}
+        />
+        </div>}
+        {designPanelTab === "organize" && <div className="image-panel-section">
         <h3>Organizar</h3>
         <div className="design-organize-tools">
           <button data-tooltip="Alinear a la izquierda" disabled={selectedIds.length < 2} onClick={() => alignDesignSelection("left")} type="button"><AlignLeft size={16} /></button>
@@ -3092,21 +4037,29 @@ function DesignEditor({ templateRequest = null }) {
           <button data-tooltip="Alinear abajo" disabled={selectedIds.length < 2} onClick={() => alignDesignSelection("bottom")} type="button"><AlignVerticalDistributeEnd size={16} /></button>
           <button data-tooltip="Distribuir horizontalmente" disabled={selectedIds.length < 3} onClick={() => distributeDesignSelection("x")} type="button"><AlignHorizontalDistributeCenter size={16} /></button>
           <button data-tooltip="Distribuir verticalmente" disabled={selectedIds.length < 3} onClick={() => distributeDesignSelection("y")} type="button"><AlignVerticalDistributeCenter size={16} /></button>
+          <button data-tooltip="Traer al frente" disabled={!selectedIds.length} onClick={() => arrangeDesignSelection("front")} type="button"><BringToFront size={16} /></button>
+          <button data-tooltip="Subir una capa" disabled={!selectedIds.length} onClick={() => arrangeDesignSelection("forward")} type="button"><ArrowUp size={16} /></button>
+          <button data-tooltip="Bajar una capa" disabled={!selectedIds.length} onClick={() => arrangeDesignSelection("backward")} type="button"><ArrowDown size={16} /></button>
+          <button data-tooltip="Enviar al fondo" disabled={!selectedIds.length} onClick={() => arrangeDesignSelection("back")} type="button"><SendToBack size={16} /></button>
           <button data-tooltip="Agrupar" disabled={selectedIds.length < 2} onClick={groupDesignSelection} type="button"><Group size={16} /></button>
           <button data-tooltip="Desagrupar" disabled={!selectedIds.some((id) => elements.find((item) => item.id === id)?.groupId)} onClick={ungroupDesignSelection} type="button"><Ungroup size={16} /></button>
         </div>
         {selectedIds.length > 1 && <p className="design-selection-count">{selectedIds.length} elementos seleccionados</p>}
-        <h3>Operaciones vectoriales</h3>
-        <div className="design-boolean-tools">
-          <button data-tooltip="Unir formas" disabled={selectedIds.length < 2} onClick={() => booleanDesignSelection("unite")} type="button"><Combine size={16} /><span>Unir</span></button>
-          <button data-tooltip="Restar formas superiores" disabled={selectedIds.length < 2} onClick={() => booleanDesignSelection("subtract")} type="button"><Minus size={16} /><span>Restar</span></button>
-          <button data-tooltip="Conservar interseccion" disabled={selectedIds.length < 2} onClick={() => booleanDesignSelection("intersect")} type="button"><SquaresIntersect size={16} /><span>Intersecar</span></button>
-          <button data-tooltip="Excluir superposicion" disabled={selectedIds.length < 2} onClick={() => booleanDesignSelection("exclude")} type="button"><Diff size={16} /><span>Excluir</span></button>
-        </div>
+        <DesignPathfinderPanel onApply={booleanDesignSelection} selectionCount={selectedIds.length} />
+        </div>}
+        {designPanelTab === "create" && <div className="image-panel-section">
         <label className="drop-zone compact">
           <Upload size={18} />
           Foto de fondo
           <input accept="image/*" onChange={(event) => loadDesignBackground(event.target.files?.[0])} type="file" />
+        </label>
+        <label className="drop-zone compact">
+          <Upload size={18} />
+          Importar SVG (.svg)
+          <input accept=".svg,image/svg+xml" onChange={(event) => {
+            loadDesignSvg(event.target.files?.[0]);
+            event.target.value = "";
+          }} type="file" />
         </label>
         <div className="button-row" data-wizard="design-add">
           <button onClick={addText}><Type size={16} /> Texto</button>
@@ -3116,14 +4069,19 @@ function DesignEditor({ templateRequest = null }) {
           <button onClick={() => addShape("curve")}><Scissors size={16} /> Curva</button>
           <button onClick={() => addShape("star")}><Wand2 size={16} /> Estrella</button>
         </div>
+        </div>}
 
+        {designPanelTab === "document" && <div className="image-panel-section">
         <h3>Lienzo</h3>
         <div className="field-grid">
           <label>Ancho<input value={board.w} onChange={(event) => setBoard((current) => ({ ...current, w: Number(event.target.value) || 1 }))} type="number" /></label>
           <label>Alto<input value={board.h} onChange={(event) => setBoard((current) => ({ ...current, h: Number(event.target.value) || 1 }))} type="number" /></label>
           <label>Fondo<input value={background} onChange={(event) => setBackground(event.target.value)} type="color" /></label>
         </div>
+        </div>}
 
+        {designPanelTab === "properties" && <div className="image-panel-section">
+        {!selected && <p className="file-hint">Selecciona un objeto del lienzo para editar sus propiedades.</p>}
         {selected && (
           <>
             <h3>Elemento</h3>
@@ -3192,9 +4150,31 @@ function DesignEditor({ templateRequest = null }) {
             {selected.type === "path" && (
               <>
                 <h3>Trazado</h3>
+                <button className={designNodeEditingId === selected.id ? "active" : ""} onClick={() => {
+                  setDesignNodeEditingId((current) => current === selected.id ? "" : selected.id);
+                  setSelectedDesignNode(null);
+                }} type="button"><MousePointer2 size={16} /> {designNodeEditingId === selected.id ? "Terminar nodos" : "Editar nodos"}</button>
+                {designNodeEditingId === selected.id && (
+                  <div className="design-node-tools">
+                    <button data-tooltip="Agregar nodo en el segmento siguiente" disabled={!selectedDesignNode} onClick={addDesignNodeAfter} type="button"><Plus size={16} /></button>
+                    <button data-tooltip="Eliminar nodo seleccionado" disabled={!selectedDesignNode} onClick={deleteDesignNode} type="button"><Trash2 size={16} /></button>
+                    <button data-tooltip="Convertir en esquina" disabled={!selectedDesignNode} onClick={() => setDesignNodeKind("corner")} type="button"><CornerDownRight size={16} /></button>
+                    <button data-tooltip="Convertir en curva suave" disabled={!selectedDesignNode} onClick={() => setDesignNodeKind("smooth")} type="button"><Spline size={16} /></button>
+                    <button data-tooltip={selectedDesignNode && selected.points?.[selectedDesignNode.index]?.handlesLinked === false ? "Vincular manejadores" : "Separar manejadores"} disabled={!selectedDesignNode} onClick={toggleDesignNodeHandles} type="button">
+                      {selectedDesignNode && selected.points?.[selectedDesignNode.index]?.handlesLinked === false ? <Link2 size={16} /> : <Unlink2 size={16} />}
+                    </button>
+                  </div>
+                )}
                 <label className="check-row"><input checked={Boolean(selected.closed)} onChange={(event) => updateSelected({ closed: event.target.checked, fillType: event.target.checked && selected.fillType === "none" ? "solid" : selected.fillType })} type="checkbox" /> Cerrar trazado</label>
                 <label className="check-row"><input checked={Boolean(selected.smooth)} onChange={(event) => updateSelected({ smooth: event.target.checked })} type="checkbox" /> Suavizar nodos</label>
-                <p className="file-hint">{selected.points?.length || 0} nodos. Arrastra los puntos blancos para editar.</p>
+                <p className="file-hint">{selected.points?.length || 0} nodos. Selecciona un punto para editarlo.</p>
+              </>
+            )}
+            {selected.type === "svgPath" && (
+              <>
+                <h3>Trazado SVG</h3>
+                <button onClick={convertSelectedSvgPath} type="button"><MousePointer2 size={16} /> Convertir a trazado editable</button>
+                <p className="file-hint">Convierte la forma en nodos y manejadores Bezier.</p>
               </>
             )}
             {selected.type !== "text" && selected.type !== "svgPath" && (
@@ -3256,6 +4236,31 @@ function DesignEditor({ templateRequest = null }) {
               <label>Trazo<input value={selected.stroke?.startsWith("#") ? selected.stroke : "#a100ff"} onChange={(event) => updateSelected({ stroke: event.target.value })} type="color" /></label>
               <label>Grosor<input value={selected.strokeWidth || 0} onChange={(event) => updateSelected({ strokeWidth: Number(event.target.value) || 0 })} type="number" /></label>
             </div>
+            {selected.fillType === "linear" && (
+              <div className="design-gradient-controls">
+                <label>Angulo<input max="360" min="0" onChange={(event) => updateSelected({ gradientAngle: Number(event.target.value) })} type="range" value={selected.gradientAngle ?? 45} /><span>{Math.round(selected.gradientAngle ?? 45)}°</span></label>
+                <button onClick={() => updateSelected({ fill: selected.fill2 || "#ff6a00", fill2: selected.fill || "#a100ff" })} type="button"><FlipHorizontal size={16} /> Invertir</button>
+              </div>
+            )}
+            {["line", "curve", "path"].includes(selected.type) && (
+              <div className="field-grid design-stroke-ends">
+                <label>Terminacion
+                  <select value={selected.lineCap || "round"} onChange={(event) => updateSelected({ lineCap: event.target.value })}>
+                    <option value="round">Redonda</option>
+                    <option value="butt">Plana</option>
+                    <option value="square">Cuadrada</option>
+                  </select>
+                </label>
+                <label>Flechas
+                  <select disabled={Boolean(selected.closed)} value={selected.closed ? "none" : selected.arrowMode || "none"} onChange={(event) => updateSelected({ arrowMode: event.target.value })}>
+                    <option value="none">Sin flecha</option>
+                    <option value="start">Al inicio</option>
+                    <option value="end">Al final</option>
+                    <option value="both">En ambos extremos</option>
+                  </select>
+                </label>
+              </div>
+            )}
             <h3>Sombra</h3>
             <label className="check-row"><input checked={Boolean(selected.shadow)} onChange={(event) => updateSelected({ shadow: event.target.checked })} type="checkbox" /> Sombra paralela</label>
             {selected.shadow && (
@@ -3272,13 +4277,16 @@ function DesignEditor({ templateRequest = null }) {
             </div>
           </>
         )}
+        </div>}
 
+        {designPanelTab === "document" && <div className="image-panel-section">
         <h3>Exportar</h3>
         <div className="button-row">
           <button onClick={exportDesignPng}><Download size={16} /> PNG</button>
           <button onClick={exportDesignSvg}><Download size={16} /> SVG</button>
         </div>
         {projectStatus && <p className="file-hint">{projectStatus}</p>}
+        </div>}
       </aside>
     </section>
   );
@@ -3914,7 +4922,7 @@ export default function App() {
         <div>
           <strong className="header-brand">
             <img alt="" src={logo} />
-            Interbanking Studio
+            Neon Studio
           </strong>
           <span>{user.email} | {role}</span>
         </div>
