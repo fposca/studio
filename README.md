@@ -1,4 +1,4 @@
-# Inter Studio
+# Neon Studio
 
 MVP local para editar imagenes y video desde el navegador.
 
@@ -52,7 +52,7 @@ Si el documento no existe, el rol es desconocido o Firestore falla, se usa `view
 
 ## Aplicacion de escritorio
 
-La aplicacion de escritorio procesa imagenes y videos en la PC del usuario. No necesita conectarse a un servidor de Inter Studio.
+La aplicacion de escritorio procesa imagenes y videos en la PC del usuario. No necesita conectarse a un servidor de Neon Studio.
 
 ```bash
 pnpm run desktop
@@ -70,12 +70,12 @@ El instalador se crea en `release/`.
 
 1. Ejecuta `pnpm run dist:win`.
 2. Crea una nueva version en GitHub Releases.
-3. Adjunta `release/Inter-Studio-Setup-Windows.exe` a esa version.
+3. Adjunta `release/Neon-Studio-Setup-Windows.exe` a esa version.
 
 Para publicar una descarga desde la web, configura la URL del instalador antes del build:
 
 ```powershell
-$env:VITE_WINDOWS_DOWNLOAD_URL = "https://servidor.example/Inter-Studio-Setup-Windows.exe"
+$env:VITE_WINDOWS_DOWNLOAD_URL = "https://servidor.example/Neon-Studio-Setup-Windows.exe"
 pnpm run build
 ```
 

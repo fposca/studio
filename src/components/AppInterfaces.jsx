@@ -58,8 +58,8 @@ export function Login({ downloadUrl, onLogin, onResetPassword }) {
   return (
     <main className="login-shell">
       <form className="login-panel" onSubmit={submit}>
-        <div className="intro-logo-wrap"><img alt="Inter Studio" className="intro-logo" src={logoIntro} /></div>
-        <h1>Inter Studio</h1>
+        <div className="intro-logo-wrap"><img alt="Neon Studio" className="intro-logo" src={logoIntro} /></div>
+        <h1>Neon Studio</h1>
         <p>Acceso exclusivo para usuarios habilitados por un administrador.</p>
         <label>Email<input autoComplete="email" autoFocus value={email} onChange={(event) => { setEmail(event.target.value); setError(""); setStatus(""); }} placeholder="nombre@empresa.com" type="email" /></label>
         <label>Contrasena<input autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} type="password" /></label>
@@ -69,7 +69,7 @@ export function Login({ downloadUrl, onLogin, onResetPassword }) {
         <button className="text-button" disabled={busy} onClick={recoverPassword} type="button">Recuperar contrasena</button>
         {downloadUrl && (
           <a className="login-download" href={downloadUrl} rel="noreferrer">
-            <Download size={17} /> Descargar Inter Studio para Windows
+            <Download size={17} /> Descargar Neon Studio para Windows
           </a>
         )}
       </form>
@@ -113,14 +113,14 @@ export function ViewerDemo({ downloadUrl, onLogout, user }) {
   return (
     <main className="app-shell">
       <header className="app-header viewer-header">
-        <div><strong>Inter Studio</strong><span>{user?.email} | Presentacion</span></div>
+        <div><strong>Neon Studio</strong><span>{user?.email} | Presentacion</span></div>
         <button className="icon-button" data-tooltip="Cerrar sesion" onClick={onLogout} type="button"><LogOut size={18} /></button>
       </header>
       <div className="viewer-showcase">
         <section className="viewer-hero">
           <div className="viewer-hero-copy">
             <span className="viewer-kicker">EDICION LOCAL PARA WINDOWS</span>
-            <h1>Inter Studio</h1>
+            <h1>Neon Studio</h1>
             <p>Imagen, diseno, PDF y video en una sola aplicacion. Tus archivos se procesan directamente en tu computadora.</p>
             <div className="viewer-hero-actions">
               <a className="primary-button" href={downloadUrl} rel="noreferrer"><Download size={18} /> Descargar para Windows</a>
@@ -128,7 +128,7 @@ export function ViewerDemo({ downloadUrl, onLogout, user }) {
             </div>
           </div>
           <div className="viewer-brand-visual">
-            <img alt="Inter Studio" src={logoIntro} />
+            <img alt="Neon Studio" src={logoIntro} />
           </div>
         </section>
 
@@ -154,7 +154,7 @@ export function ViewerDemo({ downloadUrl, onLogout, user }) {
                       <div className="viewer-preview-rail"><ImageIcon size={16} /><Type size={16} /><Layers3 size={16} /></div>
                       <div className="viewer-preview-canvas">
                         {module.id === "image" && <img alt="Logo editado en el lienzo" src={logoIntro} />}
-                        {module.id === "design" && <div className="viewer-design-sample"><strong>IDEAS QUE<br />TOMAN FORMA</strong><span>Inter Studio</span></div>}
+                        {module.id === "design" && <div className="viewer-design-sample"><strong>IDEAS QUE<br />TOMAN FORMA</strong><span>Neon Studio</span></div>}
                         {module.id === "pdf" && <div className="viewer-pdf-sample"><span>1</span><span>2</span><span>3</span></div>}
                         {module.id === "video" && (
                           <video autoPlay controls loop muted playsInline>
@@ -180,7 +180,7 @@ export function ViewerDemo({ downloadUrl, onLogout, user }) {
         </section>
 
         <section className="viewer-final-cta">
-          <div><span>INTER STUDIO PARA WINDOWS</span><h2>Listo para trabajar en tu computadora</h2></div>
+          <div><span>NEON STUDIO PARA WINDOWS</span><h2>Listo para trabajar en tu computadora</h2></div>
           <a className="primary-button" href={downloadUrl} rel="noreferrer"><Download size={18} /> Descargar aplicacion</a>
         </section>
       </div>
@@ -218,12 +218,12 @@ export function Dashboard({ downloadUrl, onCreate, onTemplate, projects, readOnl
   ];
   return (
     <section className="dashboard">
-      <div className="dashboard-hero"><div><h1>Inter Studio</h1><p>{readOnly ? "Conoce las herramientas disponibles en la aplicacion." : "Elegi que queres crear o recupera un proyecto guardado."}</p></div></div>
+      <div className="dashboard-hero"><div><h1>Neon Studio</h1><p>{readOnly ? "Conoce las herramientas disponibles en la aplicacion." : "Elegi que queres crear o recupera un proyecto guardado."}</p></div></div>
       {downloadUrl && (
         <div className="desktop-download-band">
           <span className="desktop-download-icon"><Monitor size={28} /></span>
           <div>
-            <strong>Inter Studio para Windows</strong>
+            <strong>Neon Studio para Windows</strong>
             <span>Procesa imagenes y videos directamente en tu PC.</span>
           </div>
           <a className="primary-button" href={downloadUrl} rel="noreferrer">

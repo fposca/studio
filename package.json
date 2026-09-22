@@ -2,7 +2,7 @@
   "name": "neon-studio",
   "version": "0.1.0",
   "description": "Editor local de imagen, audio, video, diseno, PDF y 3D.",
-  "author": "Inter Studio",
+  "author": "fposca",
   "private": true,
   "main": "desktop/electron-main.js",
   "packageManager": "pnpm@12.4.2",
@@ -40,8 +40,8 @@
   },
   "build": {
     "appId": "com.neonstudio.app",
-    "artifactName": "Inter-Studio-Setup-Windows.${ext}",
-    "productName": "Inter Studio",
+    "artifactName": "Neon-Studio-Setup-Windows.${ext}",
+    "productName": "Neon Studio",
     "asarUnpack": [
       "node_modules/ffmpeg-static/**"
     ],

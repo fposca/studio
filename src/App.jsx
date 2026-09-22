@@ -4991,7 +4991,7 @@ export default function App() {
         <div>
           <strong className="header-brand">
             <img alt="" src={logo} />
-            Inter Studio
+            Neon Studio
           </strong>
           <span>{user.email} | {role}</span>
         </div>
