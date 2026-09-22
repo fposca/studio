@@ -1,9 +1,7 @@
 import React, { useState } from "react";
-import { doc, serverTimestamp, setDoc } from "firebase/firestore";
-import { ArrowRight, Box, Check, Copy, Download, FileText, Film, HardDrive, Image as ImageIcon, Layers3, Loader2, Lock, LogOut, Monitor, ShieldCheck, Sparkles, Square, Trash2, Type, WifiOff, X } from "lucide-react";
+import { ArrowRight, Box, Check, Copy, Download, FileText, Film, HardDrive, Image as ImageIcon, Layers3, Loader2, Lock, LogOut, Monitor, Music2, ShieldCheck, Sparkles, Square, Trash2, Type, WifiOff, X } from "lucide-react";
 import logoIntro from "../assets/logo-intro.png";
 import neonboyVideo from "../assets/video/neonboy.mp4";
-import { db } from "../lib/firebase.js";
 
 function authErrorMessage(error) {
   const messages = {
@@ -24,8 +22,6 @@ export function Login({ downloadUrl, onLogin, onResetPassword }) {
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
-  const [requestOpen, setRequestOpen] = useState(false);
-  const [request, setRequest] = useState({ name: "", email: "", company: "" });
 
   async function submit(event) {
     event.preventDefault();
@@ -59,63 +55,21 @@ export function Login({ downloadUrl, onLogin, onResetPassword }) {
     }
   }
 
-  async function requestAccess(event) {
-    event.preventDefault();
-    setBusy(true);
-    setError("");
-    setStatus("");
-    try {
-      const normalizedEmail = request.email.trim().toLowerCase();
-      const emailBytes = new TextEncoder().encode(normalizedEmail);
-      const emailHash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", emailBytes)))
-        .map((byte) => byte.toString(16).padStart(2, "0"))
-        .join("");
-      await setDoc(doc(db, "accessRequests", emailHash), {
-        name: request.name.trim(),
-        email: normalizedEmail,
-        company: request.company.trim(),
-        status: "pending",
-        createdAt: serverTimestamp()
-      });
-      setRequest({ name: "", email: "", company: "" });
-      setRequestOpen(false);
-      setStatus("Solicitud enviada. Te avisaremos por email cuando sea aprobada.");
-    } catch (caught) {
-      console.error("No se pudo enviar la solicitud.", caught);
-      setError(caught?.code === "permission-denied" ? "Ya existe una solicitud para este email." : "No se pudo enviar la solicitud. Intenta nuevamente.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <main className="login-shell">
-      <form className="login-panel" onSubmit={requestOpen ? requestAccess : submit}>
-        <div className="intro-logo-wrap"><img alt="Neon Studio" className="intro-logo" src={logoIntro} /></div>
-        <h1>Neon Studio</h1>
-        <p>{requestOpen ? "Completa tus datos para solicitar acceso." : "Edicion de imagen y video para usuarios habilitados."}</p>
-        {requestOpen ? (
-          <>
-            <label>Nombre y apellido<input autoFocus maxLength="100" minLength="2" required value={request.name} onChange={(event) => setRequest((current) => ({ ...current, name: event.target.value }))} /></label>
-            <label>Email<input autoComplete="email" maxLength="254" required value={request.email} onChange={(event) => setRequest((current) => ({ ...current, email: event.target.value }))} type="email" /></label>
-            <label>Empresa (opcional)<input maxLength="120" value={request.company} onChange={(event) => setRequest((current) => ({ ...current, company: event.target.value }))} /></label>
-          </>
-        ) : (
-          <>
-            <label>Email<input autoComplete="email" autoFocus value={email} onChange={(event) => { setEmail(event.target.value); setError(""); setStatus(""); }} placeholder="nombre@empresa.com" type="email" /></label>
-            <label>Contrasena<input autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} type="password" /></label>
-          </>
-        )}
+      <form className="login-panel" onSubmit={submit}>
+        <div className="intro-logo-wrap"><img alt="Inter Studio" className="intro-logo" src={logoIntro} /></div>
+        <h1>Inter Studio</h1>
+        <p>Acceso exclusivo para usuarios habilitados por un administrador.</p>
+        <label>Email<input autoComplete="email" autoFocus value={email} onChange={(event) => { setEmail(event.target.value); setError(""); setStatus(""); }} placeholder="nombre@empresa.com" type="email" /></label>
+        <label>Contrasena<input autoComplete="current-password" value={password} onChange={(event) => { setPassword(event.target.value); setError(""); }} type="password" /></label>
         {error && <span className="form-error">{error}</span>}
         {status && <span className="form-status">{status}</span>}
-        <button className="primary-button" disabled={busy} type="submit">{busy ? <Loader2 className="spin" size={18} /> : <Check size={18} />} {requestOpen ? "Enviar solicitud" : "Iniciar sesion"}</button>
-        {!requestOpen && <button className="text-button" disabled={busy} onClick={recoverPassword} type="button">Recuperar contrasena</button>}
-        <button className="text-button" disabled={busy} onClick={() => { setRequestOpen((current) => !current); setError(""); setStatus(""); }} type="button">
-          {requestOpen ? "Volver al inicio de sesion" : "Solicitar acceso"}
-        </button>
-        {!requestOpen && downloadUrl && (
+        <button className="primary-button" disabled={busy} type="submit">{busy ? <Loader2 className="spin" size={18} /> : <Check size={18} />} Iniciar sesion</button>
+        <button className="text-button" disabled={busy} onClick={recoverPassword} type="button">Recuperar contrasena</button>
+        {downloadUrl && (
           <a className="login-download" href={downloadUrl} rel="noreferrer">
-            <Download size={17} /> Descargar Neon Studio para Windows
+            <Download size={17} /> Descargar Inter Studio para Windows
           </a>
         )}
       </form>
@@ -159,14 +113,14 @@ export function ViewerDemo({ downloadUrl, onLogout, user }) {
   return (
     <main className="app-shell">
       <header className="app-header viewer-header">
-        <div><strong>Neon Studio</strong><span>{user?.email} | Presentacion</span></div>
+        <div><strong>Inter Studio</strong><span>{user?.email} | Presentacion</span></div>
         <button className="icon-button" data-tooltip="Cerrar sesion" onClick={onLogout} type="button"><LogOut size={18} /></button>
       </header>
       <div className="viewer-showcase">
         <section className="viewer-hero">
           <div className="viewer-hero-copy">
             <span className="viewer-kicker">EDICION LOCAL PARA WINDOWS</span>
-            <h1>Neon Studio</h1>
+            <h1>Inter Studio</h1>
             <p>Imagen, diseno, PDF y video en una sola aplicacion. Tus archivos se procesan directamente en tu computadora.</p>
             <div className="viewer-hero-actions">
               <a className="primary-button" href={downloadUrl} rel="noreferrer"><Download size={18} /> Descargar para Windows</a>
@@ -174,7 +128,7 @@ export function ViewerDemo({ downloadUrl, onLogout, user }) {
             </div>
           </div>
           <div className="viewer-brand-visual">
-            <img alt="Neon Studio" src={logoIntro} />
+            <img alt="Inter Studio" src={logoIntro} />
           </div>
         </section>
 
@@ -200,7 +154,7 @@ export function ViewerDemo({ downloadUrl, onLogout, user }) {
                       <div className="viewer-preview-rail"><ImageIcon size={16} /><Type size={16} /><Layers3 size={16} /></div>
                       <div className="viewer-preview-canvas">
                         {module.id === "image" && <img alt="Logo editado en el lienzo" src={logoIntro} />}
-                        {module.id === "design" && <div className="viewer-design-sample"><strong>IDEAS QUE<br />TOMAN FORMA</strong><span>Neon Studio</span></div>}
+                        {module.id === "design" && <div className="viewer-design-sample"><strong>IDEAS QUE<br />TOMAN FORMA</strong><span>Inter Studio</span></div>}
                         {module.id === "pdf" && <div className="viewer-pdf-sample"><span>1</span><span>2</span><span>3</span></div>}
                         {module.id === "video" && (
                           <video autoPlay controls loop muted playsInline>
@@ -226,7 +180,7 @@ export function ViewerDemo({ downloadUrl, onLogout, user }) {
         </section>
 
         <section className="viewer-final-cta">
-          <div><span>NEON STUDIO PARA WINDOWS</span><h2>Listo para trabajar en tu computadora</h2></div>
+          <div><span>INTER STUDIO PARA WINDOWS</span><h2>Listo para trabajar en tu computadora</h2></div>
           <a className="primary-button" href={downloadUrl} rel="noreferrer"><Download size={18} /> Descargar aplicacion</a>
         </section>
       </div>
@@ -259,16 +213,17 @@ export function Dashboard({ downloadUrl, onCreate, onTemplate, projects, readOnl
     { id: "design", className: "dashboard-card-design", icon: Type, kicker: "VECTORIAL", title: "Diseno", text: "Texto, formas vectoriales y fotos combinadas." },
     { id: "pdf", className: "dashboard-card-pdf", icon: FileText, kicker: "DOCUMENTOS", title: "PDF", text: "Ordenar hojas, convertir y optimizar." },
     { id: "video", className: "dashboard-card-video", icon: Film, kicker: "POSTPRODUCCION", title: "Video", text: "Timeline, cortes, efectos y exportacion." },
+    { id: "audio", className: "dashboard-card-audio", icon: Music2, kicker: "SONIDO", title: "Audio", text: "Recorta, nivela, aplica fundidos y exporta." },
     { id: "three", className: "dashboard-card-three", icon: Box, kicker: "ESPACIO", title: "3D", text: "Modela escenas, materiales, luces y camaras." }
   ];
   return (
     <section className="dashboard">
-      <div className="dashboard-hero"><div><h1>Neon Studio</h1><p>{readOnly ? "Conoce las herramientas disponibles en la aplicacion." : "Elegi que queres crear o recupera un proyecto guardado."}</p></div></div>
+      <div className="dashboard-hero"><div><h1>Inter Studio</h1><p>{readOnly ? "Conoce las herramientas disponibles en la aplicacion." : "Elegi que queres crear o recupera un proyecto guardado."}</p></div></div>
       {downloadUrl && (
         <div className="desktop-download-band">
           <span className="desktop-download-icon"><Monitor size={28} /></span>
           <div>
-            <strong>Neon Studio para Windows</strong>
+            <strong>Inter Studio para Windows</strong>
             <span>Procesa imagenes y videos directamente en tu PC.</span>
           </div>
           <a className="primary-button" href={downloadUrl} rel="noreferrer">

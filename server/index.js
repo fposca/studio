@@ -187,6 +187,77 @@ app.post("/api/vectorize", upload.single("image"), (req, res) => {
   });
 });
 
+app.post("/api/audio/export", upload.single("audio"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No se recibio audio." });
+  try {
+    const start = Math.max(0, Number(req.body.start) || 0);
+    const end = Math.max(start + 0.01, Number(req.body.end) || start + 1);
+    const duration = end - start;
+    const volume = Math.max(0, Math.min(2, (Number(req.body.volume) || 0) / 100));
+    const fadeIn = Math.max(0, Math.min(duration / 2, Number(req.body.fadeIn) || 0));
+    const fadeOut = Math.max(0, Math.min(duration / 2, Number(req.body.fadeOut) || 0));
+    const delay = Math.max(0, Math.min(800, Number(req.body.delay) || 0));
+    const delayPreset = ["slapback", "vocal", "dub", "long"].includes(req.body.delayPreset) ? req.body.delayPreset : "vocal";
+    const reverb = Math.max(0, Math.min(1, (Number(req.body.reverb) || 0) / 100));
+    const reverbPreset = ["room", "studio", "plate", "hall", "cathedral"].includes(req.body.reverbPreset) ? req.body.reverbPreset : "room";
+    const distortion = Math.max(0, Math.min(1, (Number(req.body.distortion) || 0) / 100));
+    const lowpass = Math.max(500, Math.min(20000, Number(req.body.lowpass) || 20000));
+    const highpass = Math.max(0, Math.min(5000, Number(req.body.highpass) || 0));
+    let equalizer = {};
+    try {
+      equalizer = JSON.parse(req.body.equalizer || "{}");
+    } catch {
+      return res.status(400).json({ error: "Ecualizador invalido." });
+    }
+    const format = req.body.format === "wav" ? "wav" : "mp3";
+    const bitrate = ["128k", "192k", "256k", "320k"].includes(req.body.bitrate) ? req.body.bitrate : "192k";
+    const filters = [`atrim=start=${start}:duration=${duration}`, "asetpts=PTS-STARTPTS", `volume=${volume}`];
+    if (fadeIn > 0) filters.push(`afade=t=in:st=0:d=${fadeIn}`);
+    if (fadeOut > 0) filters.push(`afade=t=out:st=${Math.max(0, duration - fadeOut)}:d=${fadeOut}`);
+    if (distortion > 0) filters.push(`acrusher=bits=${Math.max(4, 16 - distortion * 12)}:mix=${distortion}`);
+    if (lowpass < 20000) filters.push(`lowpass=f=${lowpass}`);
+    if (highpass > 20) filters.push(`highpass=f=${highpass}`);
+    for (const frequency of [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]) {
+      const gain = Math.max(-12, Math.min(12, Number(equalizer[frequency]) || 0));
+      if (gain) filters.push(`equalizer=f=${frequency}:t=q:w=1.15:g=${gain}`);
+    }
+    if (delay > 0) {
+      const delayFilters = {
+        slapback: `aecho=0.8:0.55:${delay}:0.28`,
+        vocal: `aecho=0.8:0.65:${delay}:0.34`,
+        dub: `aecho=0.8:0.72:${delay}|${Math.min(1000, delay * 2)}:0.42|0.24`,
+        long: `aecho=0.8:0.7:${delay}|${Math.min(1000, delay + 220)}:0.5|0.3`
+      };
+      filters.push(delayFilters[delayPreset]);
+    }
+    if (reverb > 0) {
+      const reverbFilters = {
+        room: [35, 65, [0.18, 0.1]],
+        studio: [45, 90, [0.22, 0.13]],
+        plate: [55, 115, [0.28, 0.17]],
+        hall: [70, 150, [0.34, 0.21]],
+        cathedral: [90, 210, [0.42, 0.27]]
+      };
+      const [firstDelay, secondDelay, decays] = reverbFilters[reverbPreset];
+      filters.push(`aecho=0.8:0.75:${firstDelay}|${secondDelay}:${decays[0] * reverb}|${decays[1] * reverb}`);
+    }
+    if (req.body.normalize === "true") filters.push("loudnorm=I=-16:LRA=11:TP=-1.5");
+    const baseName = cleanName(path.parse(req.file.originalname).name) || "audio";
+    const fileName = `${Date.now()}-${baseName}.${format}`;
+    const outPath = path.join(outputDir, fileName);
+    const args = ["-i", req.file.path, "-vn", "-af", filters.join(",")];
+    if (format === "wav") args.push("-c:a", "pcm_s16le");
+    else args.push("-c:a", "libmp3lame", "-b:a", bitrate);
+    args.push(outPath);
+    await runFfmpeg(args);
+    res.json({ fileName, url: outputUrl(fileName) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    fs.rm(req.file.path, { force: true }, () => {});
+  }
+});
+
 app.post("/api/video/trim", upload.single("video"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No se recibio video." });

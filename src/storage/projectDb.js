@@ -1,4 +1,4 @@
-const PROJECT_DB_NAME = "interbanking-studio-projects";
+const PROJECT_DB_NAME = "neon-studio-projects";
 const PROJECT_STORE = "projects";
 
 function openProjectDb() {

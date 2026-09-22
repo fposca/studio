@@ -6,6 +6,7 @@ import { useAuth } from "./auth/AuthProvider.jsx";
 import { canManageUsers, canUseDesktop, canUseFullWeb } from "./auth/permissions.js";
 import { CustomTooltip, Wizard } from "./components/Guidance";
 import VideoEditor from "./editors/VideoEditor";
+import AudioEditor from "./editors/AudioEditor";
 import ThreeDEditor from "./editors/ThreeDEditor";
 import DesignLayersPanel from "./editors/design/DesignLayersPanel.jsx";
 import DesignViewportControls from "./editors/design/DesignViewportControls.jsx";
@@ -89,12 +90,12 @@ import {
 
 const API = window.location.port === "5173" ? "http://127.0.0.1:5174" : window.location.origin;
 const IS_DESKTOP_APP = navigator.userAgent.includes("Electron");
-const WINDOWS_DOWNLOAD_URL = import.meta.env.VITE_WINDOWS_DOWNLOAD_URL || "https://github.com/fposca/studio/releases/latest/download/Neon-Studio-Setup-Windows.exe";
+const WINDOWS_DOWNLOAD_URL = import.meta.env.VITE_WINDOWS_DOWNLOAD_URL || "";
 const MAX_VIDEO_MB = 100;
 const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024;
 const IMAGE_PROJECT_KEY = "studio:image-project:v1";
 const IMAGE_WORKSPACE_ID = "image-workspace";
-const PROJECT_DB_NAME = "interbanking-studio-projects";
+const PROJECT_DB_NAME = "neon-studio-projects";
 const PROJECT_STORE = "projects";
 const VIDEO_PROJECT_ID = "video";
 const PDF_PROJECT_ID = "pdf";
@@ -524,6 +525,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
   const [activeTool, setActiveTool] = useState("select");
   const [selectionShape, setSelectionShape] = useState("rect");
   const [freePath, setFreePath] = useState([]);
+  const [cutSelectionVisible, setCutSelectionVisible] = useState(false);
   const [brushSize, setBrushSize] = useState(28);
   const [cloneSoftness, setCloneSoftness] = useState(58);
   const [colorTolerance, setColorTolerance] = useState(42);
@@ -540,6 +542,10 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
       setDragging("");
       setClonePoint(null);
       setCloneHover(null);
+      if (activeTool === "cut") {
+        setCutSelectionVisible(false);
+        setFreePath([]);
+      }
       setActiveTool("select");
     }
     window.addEventListener("keydown", leaveImageTool);
@@ -578,7 +584,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
       ctx.drawImage(layer.source, layer.x, layer.y, layer.w, layer.h);
       ctx.restore();
     });
-    drawSelection(ctx);
+    if (cutSelectionVisible) drawSelection(ctx);
     const selectedBox = selectedLayer?.visible === false ? null : selectedLayer || (imageSelected && imageVisible ? imageBox : null);
     if (selectedBox) {
       const handleSize = Math.max(8, Math.round(canvas.width / 120));
@@ -594,7 +600,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
       });
     }
     drawCloneOverlay(ctx);
-  }, [filterString, cropBox, freePath, selectionShape, boardSize, imageBox, imageSelected, imageVisible, imageLocked, imageOpacity, imageBlendMode, imageLayers, selectedLayerId, canvasBackground, version, activeTool, brushSize, clonePoint, cloneHover, dragging]);
+  }, [filterString, cropBox, freePath, cutSelectionVisible, selectionShape, boardSize, imageBox, imageSelected, imageVisible, imageLocked, imageOpacity, imageBlendMode, imageLayers, selectedLayerId, canvasBackground, version, activeTool, brushSize, clonePoint, cloneHover, dragging]);
 
   useEffect(() => {
     const preview = clonePreviewRef.current;
@@ -773,20 +779,40 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
     return piece;
   }
 
-  function clipSelectionOnSource(ctx, source) {
-    const scaleX = source.width / imageBox.w;
-    const scaleY = source.height / imageBox.h;
-    return buildSelectionPath(ctx, imageBox, { x: scaleX, y: scaleY });
+  function composeSelectedImageCanvas() {
+    const source = selectedLayer?.source || sourceRef.current;
+    const box = selectedLayer || imageBox;
+    const visible = selectedLayer ? selectedLayer.visible !== false : imageVisible;
+    if (!source || !visible || !box.w || !box.h) return null;
+    const bounds = selectionBounds();
+    const piece = document.createElement("canvas");
+    piece.width = Math.max(1, Math.round(bounds.w));
+    piece.height = Math.max(1, Math.round(bounds.h));
+    const ctx = piece.getContext("2d");
+    ctx.drawImage(source, box.x - bounds.x, box.y - bounds.y, box.w, box.h);
+    if (selectionShape !== "rect") {
+      ctx.save();
+      ctx.globalCompositeOperation = "destination-in";
+      if (!buildSelectionPath(ctx, { x: bounds.x, y: bounds.y })) {
+        ctx.restore();
+        return null;
+      }
+      ctx.fill();
+      ctx.restore();
+    }
+    return piece;
   }
 
-  function clearSelectionFromSource() {
-    const source = sourceRef.current;
-    if (!source || !imageVisible) return;
+  function clearSelectionFromSelectedImage() {
+    const source = selectedLayer?.source || sourceRef.current;
+    const box = selectedLayer || imageBox;
+    const visible = selectedLayer ? selectedLayer.visible !== false : imageVisible;
+    if (!source || !visible || !box.w || !box.h) return;
     const bounds = selectionBounds();
-    const scaleX = source.width / imageBox.w;
-    const scaleY = source.height / imageBox.h;
-    const sx = (bounds.x - imageBox.x) * scaleX;
-    const sy = (bounds.y - imageBox.y) * scaleY;
+    const scaleX = source.width / box.w;
+    const scaleY = source.height / box.h;
+    const sx = (bounds.x - box.x) * scaleX;
+    const sy = (bounds.y - box.y) * scaleY;
     const clearX = clamp(Math.floor(sx), 0, source.width);
     const clearY = clamp(Math.floor(sy), 0, source.height);
     const clearW = clamp(Math.ceil(bounds.w * scaleX - Math.max(0, -sx)), 0, source.width - clearX);
@@ -795,7 +821,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
 
     const ctx = source.getContext("2d");
     ctx.save();
-    if (!clipSelectionOnSource(ctx, source)) {
+    if (!buildSelectionPath(ctx, box, { x: scaleX, y: scaleY })) {
       ctx.restore();
       return;
     }
@@ -1272,6 +1298,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
 
     if (activeTool === "cut") {
       setImageSelected(false);
+      setCutSelectionVisible(true);
       if (selectionShape === "free") {
         dragRef.current = { mode: "free-select" };
         setDragging("cut");
@@ -1619,16 +1646,17 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
   }
 
   function cutSelection() {
-    const source = sourceRef.current;
-    if (!source || !imageVisible) return;
-    const piece = composeSelectionCanvas();
+    const source = selectedLayer?.source || sourceRef.current;
+    const visible = selectedLayer ? selectedLayer.visible !== false : imageVisible;
+    if (!source || !visible) return;
+    const piece = composeSelectedImageCanvas();
     if (!piece) return;
     pushHistory();
     setClipboard(piece.toDataURL("image/png"));
-    clearSelectionFromSource();
+    clearSelectionFromSelectedImage();
     setActiveTool("select");
-    setImageSelected(true);
-    setSelectedLayerId("");
+    setCutSelectionVisible(false);
+    setImageSelected(!selectedLayer);
     setVersion((value) => value + 1);
   }
 
@@ -1904,7 +1932,7 @@ function ImageEditor({ openProjectSignal = 0, templateRequest = null }) {
         <button className={activeTool === "clone" ? "active-tool" : ""} data-tooltip="Clonar" onClick={() => setActiveTool("clone")}>
           <Stamp size={18} />
         </button>
-        <button className={activeTool === "cut" ? "active-tool" : ""} data-tooltip="Seleccion de corte" onClick={() => setActiveTool("cut")}>
+        <button className={activeTool === "cut" ? "active-tool" : ""} data-tooltip="Seleccion de corte" onClick={() => { setActiveTool("cut"); setCutSelectionVisible(false); setFreePath([]); }}>
           <Scissors size={18} />
         </button>
         <button className={activeTool === "magic" ? "active-tool" : ""} data-tooltip="Varita por color" onClick={() => setActiveTool("magic")}>
@@ -4306,6 +4334,8 @@ function PdfEditor({ openProjectSignal = 0, templateRequest = null }) {
   const [error, setError] = useState("");
   const [projectStatus, setProjectStatus] = useState("");
   const [draggedPageIndex, setDraggedPageIndex] = useState(null);
+  const [pdfDropTargetIndex, setPdfDropTargetIndex] = useState(null);
+  const [settledPageId, setSettledPageId] = useState("");
   const [pdfDragging, setPdfDragging] = useState(false);
 
   useEffect(() => {
@@ -4318,6 +4348,7 @@ function PdfEditor({ openProjectSignal = 0, templateRequest = null }) {
     const clearDragState = () => {
       setPdfDragging(false);
       setDraggedPageIndex(null);
+      setPdfDropTargetIndex(null);
     };
     window.addEventListener("dragend", clearDragState);
     window.addEventListener("drop", clearDragState);
@@ -4391,6 +4422,15 @@ function PdfEditor({ openProjectSignal = 0, templateRequest = null }) {
   function handlePdfDrop(event) {
     event.preventDefault();
     setPdfDragging(false);
+    const internalIndex = event.dataTransfer.getData("application/x-studio-pdf-page");
+    if (internalIndex !== "" || draggedPageIndex !== null) {
+      const from = draggedPageIndex ?? Number(internalIndex);
+      const movedPageId = converterPagesRef.current[from]?.id;
+      moveConverterPageTo(from, Math.max(0, converterPagesRef.current.length - 1));
+      markPdfPageSettled(movedPageId);
+      endPageDrag();
+      return;
+    }
     appendConverterImages(event.dataTransfer.files);
   }
 
@@ -4422,22 +4462,41 @@ function PdfEditor({ openProjectSignal = 0, templateRequest = null }) {
     }
     event.stopPropagation();
     setDraggedPageIndex(index);
+    setPdfDropTargetIndex(null);
     setPdfDragging(false);
     event.dataTransfer.effectAllowed = "move";
     event.dataTransfer.setData("text/plain", String(index));
     event.dataTransfer.setData("application/x-studio-pdf-page", String(index));
+    const card = event.currentTarget;
+    const bounds = card.getBoundingClientRect();
+    event.dataTransfer.setDragImage(card, Math.min(event.clientX - bounds.left, bounds.width), Math.min(event.clientY - bounds.top, bounds.height));
   }
 
   function endPageDrag() {
     setDraggedPageIndex(null);
+    setPdfDropTargetIndex(null);
     setPdfDragging(false);
+  }
+
+  function markPdfPageSettled(pageId) {
+    if (!pageId) return;
+    setSettledPageId(pageId);
+    window.setTimeout(() => setSettledPageId((current) => current === pageId ? "" : current), 360);
+  }
+
+  function handlePageDragOver(event, index) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (draggedPageIndex !== null && draggedPageIndex !== index) setPdfDropTargetIndex(index);
   }
 
   function dropPage(event, index) {
     event.preventDefault();
     event.stopPropagation();
     const from = draggedPageIndex ?? Number(event.dataTransfer.getData("text/plain"));
+    const movedPageId = converterPagesRef.current[from]?.id;
     moveConverterPageTo(from, index);
+    markPdfPageSettled(movedPageId);
     endPageDrag();
   }
 
@@ -4656,23 +4715,32 @@ function PdfEditor({ openProjectSignal = 0, templateRequest = null }) {
           </div>
           <label className="pdf-add-pages">
             <Upload size={16} /> Agregar imagenes
-            <input multiple accept="image/jpeg,image/png,image/webp" onChange={(event) => loadConverterImages(event.target.files)} type="file" />
+            <input multiple accept="image/jpeg,image/png,image/webp" onChange={(event) => { appendConverterImages(event.target.files); event.target.value = ""; }} type="file" />
           </label>
         </div>
         {converterPages.length ? (
           <div className="pdf-sheet-grid">
             {converterPages.map((page, index) => (
               <div
-                className={draggedPageIndex === index ? "pdf-sheet is-dragging" : "pdf-sheet"}
+                className={`pdf-sheet ${draggedPageIndex === index ? "is-dragging" : ""} ${pdfDropTargetIndex === index ? "is-drop-target" : ""} ${settledPageId === page.id ? "is-settling" : ""}`}
                 draggable
                 key={page.id}
                 onDragEnd={endPageDrag}
-                onDragOver={(event) => event.preventDefault()}
+                onDragOver={(event) => handlePageDragOver(event, index)}
                 onDragStart={(event) => beginPageDrag(event, index)}
                 onDrop={(event) => dropPage(event, index)}
               >
-                <span>{index + 1}</span>
-                <img alt="" src={page.url} style={{ transform: `rotate(${page.rotation || 0}deg)` }} />
+                <span className="pdf-page-number" title={`Pagina ${index + 1}`}>{String(index + 1).padStart(2, "0")}</span>
+                <button
+                  className="pdf-sheet-delete"
+                  data-tooltip={`Eliminar pagina ${index + 1}`}
+                  onClick={(event) => { event.stopPropagation(); removeConverterPage(index); }}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  type="button"
+                >
+                  <Trash2 size={15} />
+                </button>
+                <img alt="" draggable={false} src={page.url} style={{ transform: `rotate(${page.rotation || 0}deg)` }} />
                 <strong>{page.file.name}</strong>
               </div>
             ))}
@@ -4689,22 +4757,23 @@ function PdfEditor({ openProjectSignal = 0, templateRequest = null }) {
         <h2>PDF</h2>
         <label className="drop-zone compact">
           <Upload size={18} />
-          Imagenes a PDF
-          <input multiple accept="image/jpeg,image/png,image/webp" onChange={(event) => loadConverterImages(event.target.files)} type="file" />
+          {converterPages.length ? "Reemplazar imagenes" : "Imagenes a PDF"}
+          <input multiple accept="image/jpeg,image/png,image/webp" onChange={(event) => { loadConverterImages(event.target.files); event.target.value = ""; }} type="file" />
         </label>
         {converterPages.length ? (
           <div className="pdf-page-preview">
             {converterPages.map((page, index) => (
               <div
-                className={draggedPageIndex === index ? "pdf-page-item is-dragging" : "pdf-page-item"}
+                className={`pdf-page-item ${draggedPageIndex === index ? "is-dragging" : ""} ${pdfDropTargetIndex === index ? "is-drop-target" : ""} ${settledPageId === page.id ? "is-settling" : ""}`}
                 draggable
                 key={page.id}
                 onDragEnd={endPageDrag}
-                onDragOver={(event) => event.preventDefault()}
+                onDragOver={(event) => handlePageDragOver(event, index)}
                 onDragStart={(event) => beginPageDrag(event, index)}
                 onDrop={(event) => dropPage(event, index)}
               >
-                <img alt="" src={page.url} style={{ transform: `rotate(${page.rotation || 0}deg)` }} />
+                <span className="pdf-page-number" title={`Pagina ${index + 1}`}>{String(index + 1).padStart(2, "0")}</span>
+                <img alt="" draggable={false} src={page.url} style={{ transform: `rotate(${page.rotation || 0}deg)` }} />
                 <div>
                   <strong>Hoja {index + 1}</strong>
                   <span>{page.file.name}</span>
@@ -4798,7 +4867,7 @@ function PdfEditor({ openProjectSignal = 0, templateRequest = null }) {
 export default function App() {
   const { loading, login, logout, resetPassword, role, user } = useAuth();
   const [tab, setTab] = useState("home");
-  const [openSignals, setOpenSignals] = useState({ image: 0, pdf: 0, video: 0, three: 0 });
+  const [openSignals, setOpenSignals] = useState({ image: 0, pdf: 0, video: 0, audio: 0, three: 0 });
   const [imageTemplate, setImageTemplate] = useState(null);
   const [designTemplate, setDesignTemplate] = useState(null);
   const [pdfTemplate, setPdfTemplate] = useState(null);
@@ -4900,7 +4969,7 @@ export default function App() {
 
   async function duplicateWorkspace(project) {
     const id = crypto.randomUUID?.() || `project-${Date.now()}`;
-    await Promise.all(["image", "design", "pdf", "video", "three"].map(async (kind) => {
+    await Promise.all(["image", "design", "pdf", "video", "audio", "three"].map(async (kind) => {
       const value = await getProject(`workspace:${project.id}:${kind}`);
       if (value) await putProject(`workspace:${id}:${kind}`, value);
     }));
@@ -4910,7 +4979,7 @@ export default function App() {
 
   async function deleteWorkspace(project) {
     if (!window.confirm(`Eliminar el proyecto "${project.name}"?`)) return;
-    await Promise.all(["image", "design", "pdf", "video", "three"].map((kind) => deleteProject(`workspace:${project.id}:${kind}`)));
+    await Promise.all(["image", "design", "pdf", "video", "audio", "three"].map((kind) => deleteProject(`workspace:${project.id}:${kind}`)));
     storeProjects(projects.filter((item) => item.id !== project.id));
     if (currentProjectId === project.id) setCurrentProjectId("");
     setWorkspaceStatus("Proyecto eliminado");
@@ -4922,7 +4991,7 @@ export default function App() {
         <div>
           <strong className="header-brand">
             <img alt="" src={logo} />
-            Neon Studio
+            Inter Studio
           </strong>
           <span>{user.email} | {role}</span>
         </div>
@@ -4941,6 +5010,9 @@ export default function App() {
           </button>
           <button className={tab === "video" ? "active" : ""} onClick={() => setTab("video")}>
             <Film size={17} /> Video
+          </button>
+          <button className={tab === "audio" ? "active" : ""} onClick={() => setTab("audio")}>
+            <FileAudio size={17} /> Audio
           </button>
           <button className={tab === "three" ? "active" : ""} onClick={() => setTab("three")}>
             <Box size={17} /> 3D
@@ -5005,6 +5077,9 @@ export default function App() {
             openProjectSignal={openSignals.video}
             templateRequest={videoTemplate}
           />
+        </div>
+        <div className={tab === "audio" ? "editor-pane" : "editor-pane is-hidden"}>
+          <AudioEditor active={tab === "audio"} onRequestProjectSave={() => setSaveDialogOpen(true)} />
         </div>
         <div className={tab === "three" ? "editor-pane" : "editor-pane is-hidden"}>
           <ThreeDEditor

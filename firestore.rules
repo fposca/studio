@@ -23,22 +23,5 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    match /accessRequests/{requestId} {
-      allow create: if request.resource.data.keys().hasAll(["name", "email", "status", "createdAt"])
-        && request.resource.data.keys().hasOnly(["name", "email", "company", "status", "createdAt"])
-        && request.resource.data.name is string
-        && request.resource.data.name.size() >= 2
-        && request.resource.data.name.size() <= 100
-        && request.resource.data.email is string
-        && request.resource.data.email.size() >= 5
-        && request.resource.data.email.size() <= 254
-        && request.resource.data.email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
-        && (!request.resource.data.keys().hasAny(["company"])
-          || (request.resource.data.company is string && request.resource.data.company.size() <= 120))
-        && request.resource.data.status == "pending"
-        && request.resource.data.createdAt == request.time;
-      allow read: if isAdmin();
-      allow update, delete: if false;
-    }
   }
 }

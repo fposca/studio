@@ -1,8 +1,8 @@
 {
   "name": "neon-studio",
   "version": "0.1.0",
-  "description": "Editor local de imagen, video, diseno y PDF.",
-  "author": "fposca",
+  "description": "Editor local de imagen, audio, video, diseno, PDF y 3D.",
+  "author": "Inter Studio",
   "private": true,
   "main": "desktop/electron-main.js",
   "packageManager": "pnpm@12.4.2",
@@ -39,9 +39,9 @@
     "firebase-tools": "^15.30.1"
   },
   "build": {
-    "appId": "com.fposca.studio",
-    "artifactName": "Neon-Studio-Setup-Windows.${ext}",
-    "productName": "Neon Studio",
+    "appId": "com.neonstudio.app",
+    "artifactName": "Inter-Studio-Setup-Windows.${ext}",
+    "productName": "Inter Studio",
     "asarUnpack": [
       "node_modules/ffmpeg-static/**"
     ],

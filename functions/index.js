@@ -16,89 +16,50 @@ async function requireAdmin(request) {
   return request.auth.uid;
 }
 
-function requestIdFrom(request) {
-  const requestId = String(request.data?.requestId || "");
-  if (!requestId || requestId.length > 128) throw new HttpsError("invalid-argument", "Solicitud invalida.");
-  return requestId;
+function normalizeEmail(value) {
+  const email = String(value || "").trim().toLowerCase();
+  if (email.length < 5 || email.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    throw new HttpsError("invalid-argument", "Email invalido.");
+  }
+  return email;
 }
 
-export const approveAccessRequest = onCall({ region: "southamerica-east1" }, async (request) => {
+export const createManagedUser = onCall({ region: "southamerica-east1" }, async (request) => {
   const adminUid = await requireAdmin(request);
-  const requestId = requestIdFrom(request);
-  const requestRef = db.collection("accessRequests").doc(requestId);
-  const snapshot = await requestRef.get();
-  if (!snapshot.exists) throw new HttpsError("not-found", "La solicitud no existe.");
-
-  const accessRequest = snapshot.data();
-  if (accessRequest.status === "approved") return { status: "approved", email: accessRequest.email, alreadyProcessed: true };
-  if (accessRequest.status !== "pending") throw new HttpsError("failed-precondition", "La solicitud ya fue rechazada.");
+  const email = normalizeEmail(request.data?.email);
+  const name = String(request.data?.name || "").trim();
+  const role = String(request.data?.role || "tester");
+  if (name.length < 2 || name.length > 100 || !VALID_ROLES.has(role)) {
+    throw new HttpsError("invalid-argument", "Nombre o rol invalido.");
+  }
 
   let account;
-  let created = false;
   try {
     account = await getAuth().createUser({
-      displayName: accessRequest.name,
-      email: accessRequest.email,
+      displayName: name,
+      email,
       emailVerified: false,
-      password: randomBytes(24).toString("base64url")
+      password: randomBytes(32).toString("base64url")
     });
-    created = true;
   } catch (error) {
-    if (error.code !== "auth/email-already-exists") throw error;
-    account = await getAuth().getUserByEmail(accessRequest.email);
+    if (error.code === "auth/email-already-exists") throw new HttpsError("already-exists", "Ya existe una cuenta con ese email.");
+    throw error;
   }
 
-  const userRef = db.collection("users").doc(account.uid);
-  const existingProfile = await userRef.get();
-  if (existingProfile.exists && existingProfile.data()?.accessRequestId !== requestId) {
-    throw new HttpsError("already-exists", "Este email ya pertenece a un usuario registrado.");
-  }
-  if (created || !existingProfile.exists) {
-    await userRef.set({
-      accessRequestId: requestId,
-      company: accessRequest.company || "",
+  try {
+    await db.collection("users").doc(account.uid).set({
       createdAt: FieldValue.serverTimestamp(),
-      email: accessRequest.email,
-      name: accessRequest.name,
-      role: "viewer"
+      createdBy: adminUid,
+      email,
+      name,
+      role
     });
+  } catch (error) {
+    await getAuth().deleteUser(account.uid);
+    throw error;
   }
 
-  const approvedNow = await db.runTransaction(async (transaction) => {
-    const latest = await transaction.get(requestRef);
-    const status = latest.data()?.status;
-    if (status === "approved") return false;
-    if (status !== "pending") throw new HttpsError("failed-precondition", "La solicitud ya fue procesada.");
-    transaction.update(requestRef, {
-      authUid: account.uid,
-      status: "approved",
-      approvedAt: FieldValue.serverTimestamp(),
-      approvedBy: adminUid
-    });
-    return true;
-  });
-
-  return { status: "approved", email: accessRequest.email, alreadyProcessed: !approvedNow };
-});
-
-export const rejectAccessRequest = onCall({ region: "southamerica-east1" }, async (request) => {
-  const adminUid = await requireAdmin(request);
-  const requestId = requestIdFrom(request);
-  const requestRef = db.collection("accessRequests").doc(requestId);
-
-  return db.runTransaction(async (transaction) => {
-    const snapshot = await transaction.get(requestRef);
-    if (!snapshot.exists) throw new HttpsError("not-found", "La solicitud no existe.");
-    const status = snapshot.data()?.status;
-    if (status === "rejected") return { status: "rejected", alreadyProcessed: true };
-    if (status !== "pending") throw new HttpsError("failed-precondition", "La solicitud ya fue aprobada.");
-    transaction.update(requestRef, {
-      status: "rejected",
-      rejectedAt: FieldValue.serverTimestamp(),
-      rejectedBy: adminUid
-    });
-    return { status: "rejected" };
-  });
+  return { email, role, userId: account.uid };
 });
 
 export const setUserRole = onCall({ region: "southamerica-east1" }, async (request) => {
@@ -107,6 +68,8 @@ export const setUserRole = onCall({ region: "southamerica-east1" }, async (reque
   const role = String(request.data?.role || "");
   if (!userId || !VALID_ROLES.has(role)) throw new HttpsError("invalid-argument", "Usuario o rol invalido.");
   if (userId === adminUid && role !== "admin") throw new HttpsError("failed-precondition", "No puedes quitar tu propio acceso de administrador.");
-  await db.collection("users").doc(userId).update({ role, updatedAt: FieldValue.serverTimestamp() });
+  const userRef = db.collection("users").doc(userId);
+  if (!(await userRef.get()).exists) throw new HttpsError("not-found", "El perfil no existe.");
+  await userRef.update({ role, updatedAt: FieldValue.serverTimestamp(), updatedBy: adminUid });
   return { role };
 });
