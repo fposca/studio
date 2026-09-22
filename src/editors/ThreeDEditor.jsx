@@ -41,10 +41,11 @@ import skySun from "../assets/environments/sky-sun.png";
 import skySunset from "../assets/environments/sky-sunset.png";
 import skyNight from "../assets/environments/sky-night.png";
 import skySpace from "../assets/environments/sky-space.png";
+import neonboyModelUrl from "../assets/Meshy_AI_Midnight_Jester_Axe_Breathe_and_Look_.glb?url";
 import {
-  ArrowDownToLine, Box, Camera, Circle, ClipboardPaste, Combine, Cone, Copy, Cylinder, Download, Eye,
+  ArrowDownToLine, Box, Camera, Circle, CircleDot, ClipboardPaste, Combine, Cone, Copy, Cylinder, Download, Eye,
   EyeOff, Flashlight, Focus, Grid3X3, ImageDown, Lightbulb, LocateFixed,
-  Group, Hammer, MousePointer2, Move3D, Palette, Redo2, Rotate3D, Scale3D, Sparkles, Square,
+  Group, Hammer, MousePointer2, Move3D, Palette, Pause, Pill, Play, Redo2, Rotate3D, Scale3D, Sparkles, Square,
   Sun, Trash2, Type, Undo2, Ungroup, Upload
 } from "lucide-react";
 import { getProject, putProject } from "../storage/projectDb.js";
@@ -263,6 +264,9 @@ function iconForType(type) {
   if (type === "sphere") return Circle;
   if (type === "cylinder") return Cylinder;
   if (type === "cone") return Cone;
+  if (type === "plane") return Square;
+  if (type === "torus") return CircleDot;
+  if (type === "capsule") return Pill;
   if (type === "light") return Lightbulb;
   if (type === "text") return Type;
   if (type === "svg") return Palette;
@@ -281,6 +285,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const sculptingRef = useRef(false);
   const sculptSettingsRef = useRef({ brush: "inflate", radius: 0.65, strength: 0.3 });
   const animationTracksRef = useRef({});
+  const skyMotionRef = useRef({ enabled: true, speed: 0.35, preset: "solid" });
   const rotationDragRef = useRef(null);
   const cameraOrbitRef = useRef({ lastTheta: null, theta: 0 });
   const applyingAnimationRef = useRef(false);
@@ -290,6 +295,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const [mode, setMode] = useState("translate");
   const [background, setBackground] = useState(DEFAULT_BACKGROUND);
   const [environmentBackground, setEnvironmentBackground] = useState("solid");
+  const [skyMotionEnabled, setSkyMotionEnabled] = useState(true);
+  const [skyMotionSpeed, setSkyMotionSpeed] = useState(0.35);
   const [gridVisible, setGridVisible] = useState(true);
   const [ambientIntensity, setAmbientIntensity] = useState(0.7);
   const [exposure, setExposure] = useState(1.15);
@@ -441,8 +448,28 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         enabled: Boolean(object.userData.spin?.enabled),
         axis: object.userData.spin?.axis || "y",
         speed: object.userData.spin?.speed ?? 30
-      }
+      },
+      modelAnimation: object.userData.modelAnimation ? { ...object.userData.modelAnimation } : null
     });
+  }
+
+  function registerModelAnimations(object, clips = object?.animations || []) {
+    const runtime = runtimeRef.current;
+    if (!runtime || !object?.userData?.editorId || !clips.length) return;
+    runtime.mixers.get(object.userData.editorId)?.mixer.stopAllAction();
+    const mixer = new THREE.AnimationMixer(object);
+    const actions = new Map(clips.map((clip) => [clip.name || "Animacion", mixer.clipAction(clip)]));
+    const saved = object.userData.modelAnimation || {};
+    const activeName = actions.has(saved.clip) ? saved.clip : actions.keys().next().value;
+    const active = actions.get(activeName);
+    const playing = saved.playing !== false;
+    const speed = saved.speed ?? 1;
+    active.reset().play();
+    active.paused = !playing;
+    mixer.timeScale = speed;
+    object.animations = clips;
+    object.userData.modelAnimation = { clip: activeName, clips: [...actions.keys()], playing, speed };
+    runtime.mixers.set(object.userData.editorId, { mixer, actions, active });
   }
 
   function selectObject(object, additive = false) {
@@ -500,6 +527,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       schemaVersion: 2,
       background,
       environmentBackground,
+      skyMotionEnabled,
+      skyMotionSpeed,
       gridVisible,
       ambientIntensity,
       exposure,
@@ -538,6 +567,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const runtime = runtimeRef.current;
     if (!runtime || !state) return;
     selectObject(null);
+    runtime.mixers.forEach(({ mixer }) => mixer.stopAllAction());
+    runtime.mixers.clear();
     runtime.content.children.slice().forEach((child) => {
       runtime.content.remove(child);
       disposeObject(child);
@@ -553,7 +584,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       item.geometry.computeBoundingBox();
       item.geometry.computeBoundingSphere();
     });
-    loaded.children.slice().forEach((child) => runtime.content.add(child));
+    loaded.children.slice().forEach((child) => {
+      runtime.content.add(child);
+      registerModelAnimations(child);
+    });
     runtime.camera.position.fromArray(state.camera?.position || [7, 5, 8]);
     runtime.orbit.target.fromArray(state.camera?.target || [0, 1, 0]);
     runtime.orbit.update();
@@ -561,6 +595,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     cameraOrbitRef.current = { lastTheta: loadedOrbit.theta, theta: loadedOrbit.theta };
     setBackground(state.background || DEFAULT_BACKGROUND);
     setEnvironmentBackground(state.environmentBackground || "solid");
+    setSkyMotionEnabled(state.skyMotionEnabled !== false);
+    setSkyMotionSpeed(state.skyMotionSpeed ?? 0.35);
     setGridVisible(state.gridVisible !== false);
     setAmbientIntensity(state.ambientIntensity ?? 0.7);
     setExposure(state.exposure ?? 1.15);
@@ -793,7 +829,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     observer.observe(host);
     resize();
 
-    runtimeRef.current = { scene, camera, renderer, content, ambient, floor, grid, keyLight, orbit, transform, transformHelper, brushCursor, lightHelper: null, lightMarkers: new Map(), backgroundTexture: null, baseEnvironment: environmentTexture };
+    runtimeRef.current = { scene, camera, renderer, content, ambient, floor, grid, keyLight, orbit, transform, transformHelper, brushCursor, lightHelper: null, lightMarkers: new Map(), mixers: new Map(), backgroundTexture: null, baseEnvironment: environmentTexture };
     let frame = 0;
     let previousRenderTime = 0;
     const render = (time = 0) => {
@@ -801,6 +837,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       orbit.update();
       const delta = previousRenderTime ? Math.min((time - previousRenderTime) / 1000, 0.05) : 0;
       previousRenderTime = time;
+      runtimeRef.current?.mixers?.forEach(({ mixer }) => mixer.update(delta));
       content.traverse((object) => {
         const spin = object.userData?.spin;
         if (!spin?.enabled || !object.rotation) return;
@@ -814,6 +851,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         floorTexture.offset.set((time * 0.000012) % 1, (time * 0.000008) % 1);
       } else if (floorTexture && activeFloor.userData.surface === "gas") {
         floorTexture.offset.set((time * 0.000004) % 1, (time * 0.000006) % 1);
+      }
+      const skyTexture = runtimeRef.current?.backgroundTexture;
+      const skyMotion = skyMotionRef.current;
+      if (skyTexture && skyMotion.enabled && skyMotion.preset.startsWith("sky-")) {
+        const presetRate = { "sky-clouds": 1, "sky-space": 0.4, "sky-sun": 0.65, "sky-night": 0.5, "sky-day": 0.8, "sky-sunset": 0.7 }[skyMotion.preset] || 0.7;
+        const rotationStep = delta * skyMotion.speed * presetRate * 0.6;
+        scene.backgroundRotation.y = (scene.backgroundRotation.y + rotationStep) % (Math.PI * 2);
+        scene.environmentRotation.y = scene.backgroundRotation.y;
       }
       runtimeRef.current?.lightMarkers?.forEach((marker, id) => {
         const light = content.children.find((item) => item.userData.editorId === id);
@@ -857,6 +902,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         marker.material.dispose();
       });
       runtimeRef.current?.backgroundTexture?.dispose?.();
+      runtimeRef.current?.mixers?.forEach(({ mixer }) => mixer.stopAllAction());
       orbit.dispose();
       orbit.removeEventListener("change", trackCameraOrbit);
       disposeObject(content);
@@ -898,6 +944,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   useEffect(() => {
     animationTracksRef.current = animationTracks;
   }, [animationTracks]);
+
+  useEffect(() => {
+    skyMotionRef.current = { enabled: skyMotionEnabled, speed: skyMotionSpeed, preset: environmentBackground };
+  }, [environmentBackground, skyMotionEnabled, skyMotionSpeed]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;
@@ -1091,7 +1141,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       window.removeEventListener("studio:workspace-save", save);
       window.removeEventListener("studio:workspace-load", load);
     };
-  }, [background, environmentBackground, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, renderResolution, transparentPng, animationDuration, animationTracks, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, selectedId]);
+  }, [background, environmentBackground, skyMotionEnabled, skyMotionSpeed, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, renderResolution, transparentPng, animationDuration, animationTracks, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, selectedId]);
 
   useEffect(() => {
     if (openProjectSignal) setStatus("Selecciona un proyecto desde Inicio");
@@ -1105,15 +1155,19 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       box: () => new THREE.BoxGeometry(2, 2, 2, 12, 12, 12),
       sphere: () => new THREE.SphereGeometry(1.25, 48, 32),
       cylinder: () => new THREE.CylinderGeometry(1, 1, 2.4, 48, 18),
-      cone: () => new THREE.ConeGeometry(1.2, 2.5, 48, 18)
+      cone: () => new THREE.ConeGeometry(1.2, 2.5, 48, 18),
+      plane: () => new THREE.PlaneGeometry(3.2, 3.2, 24, 24),
+      torus: () => new THREE.TorusGeometry(1.15, 0.36, 24, 64),
+      capsule: () => new THREE.CapsuleGeometry(0.72, 1.5, 12, 32)
     };
-    const labels = { box: "Cubo", sphere: "Esfera", cylinder: "Cilindro", cone: "Cono" };
+    const labels = { box: "Cubo", sphere: "Esfera", cylinder: "Cilindro", cone: "Cono", plane: "Plano", torus: "Toroide", capsule: "Capsula" };
     const object = new THREE.Mesh(
       geometries[type](),
-      new THREE.MeshStandardMaterial({ color: 0x8b5cf6, metalness: 0.1, roughness: 0.4 })
+      new THREE.MeshStandardMaterial({ color: 0x8b5cf6, metalness: 0.1, roughness: 0.4, side: type === "plane" ? THREE.DoubleSide : THREE.FrontSide })
     );
     object.name = `${labels[type]} ${objects.length + 1}`;
-    object.position.set((((objects.length + 1) % 3) - 1) * 2.8, 1.25, 0);
+    object.position.set((((objects.length + 1) % 3) - 1) * 2.8, type === "plane" ? 0.02 : 1.25, 0);
+    if (type === "plane") object.rotation.x = -Math.PI / 2;
     object.castShadow = true;
     object.receiveShadow = true;
     object.userData = { editorId: makeId(), editorType: type };
@@ -1394,6 +1448,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const object = selectedRef.current;
     if (!runtime || !object) return;
     pushHistory();
+    runtime.mixers.get(object.userData.editorId)?.mixer.stopAllAction();
+    runtime.mixers.delete(object.userData.editorId);
     runtime.content.remove(object);
     setAnimationTracks((current) => {
       const next = { ...current };
@@ -1598,6 +1654,38 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const object = selectedRef.current;
     if (!object) return;
     object.userData.spin = { enabled: false, axis: "y", speed: 30, ...object.userData.spin, [key]: value };
+    syncSelection(object);
+  }
+
+  function toggleModelAnimation() {
+    const object = selectedRef.current;
+    const entry = runtimeRef.current?.mixers.get(object?.userData.editorId);
+    if (!object?.userData.modelAnimation || !entry) return;
+    const playing = !object.userData.modelAnimation.playing;
+    entry.active.paused = !playing;
+    object.userData.modelAnimation.playing = playing;
+    syncSelection(object);
+  }
+
+  function setModelAnimationSpeed(speed) {
+    const object = selectedRef.current;
+    const entry = runtimeRef.current?.mixers.get(object?.userData.editorId);
+    if (!object?.userData.modelAnimation || !entry) return;
+    entry.mixer.timeScale = Number(speed);
+    object.userData.modelAnimation.speed = Number(speed);
+    syncSelection(object);
+  }
+
+  function selectModelAnimation(clipName) {
+    const object = selectedRef.current;
+    const entry = runtimeRef.current?.mixers.get(object?.userData.editorId);
+    const next = entry?.actions.get(clipName);
+    if (!object?.userData.modelAnimation || !entry || !next) return;
+    entry.active.stop();
+    entry.active = next;
+    next.reset().play();
+    next.paused = !object.userData.modelAnimation.playing;
+    object.userData.modelAnimation.clip = clipName;
     syncSelection(object);
   }
 
@@ -1943,6 +2031,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       const model = gltf.scene;
       model.name = file.name.replace(/\.(glb|gltf)$/i, "");
       model.userData = { ...model.userData, editorId: makeId(), editorType: "model" };
+      model.animations = gltf.animations;
       model.traverse((item) => {
         if (item.isMesh) { item.castShadow = true; item.receiveShadow = true; }
       });
@@ -1953,6 +2042,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       bounds.setFromObject(model);
       model.position.y -= bounds.min.y;
       runtimeRef.current.content.add(model);
+      registerModelAnimations(model, gltf.animations);
       refreshObjects();
       selectObject(model);
       focusSelected();
@@ -1962,6 +2052,37 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setStatus("No se pudo importar el modelo");
     } finally {
       event.target.value = "";
+    }
+  }
+
+  async function addNeonboy() {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    try {
+      setStatus("Cargando Neonboy...");
+      const gltf = await new GLTFLoader().loadAsync(neonboyModelUrl);
+      pushHistory();
+      const model = gltf.scene;
+      model.name = "Neonboy";
+      model.userData = { ...model.userData, editorId: makeId(), editorType: "model", bundledModel: "neonboy" };
+      model.animations = gltf.animations;
+      model.traverse((item) => {
+        if (item.isMesh) { item.castShadow = true; item.receiveShadow = true; }
+      });
+      const bounds = new Box3().setFromObject(model);
+      const size = bounds.getSize(new Vector3());
+      model.scale.multiplyScalar(4.8 / Math.max(size.x, size.y, size.z, 1));
+      bounds.setFromObject(model);
+      model.position.y -= bounds.min.y;
+      runtime.content.add(model);
+      registerModelAnimations(model, gltf.animations);
+      refreshObjects();
+      selectObject(model);
+      focusSelected();
+      setStatus("Neonboy agregado con su animacion");
+    } catch (error) {
+      console.error(error);
+      setStatus("No se pudo cargar Neonboy");
     }
   }
 
@@ -2040,6 +2161,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
             <button onClick={() => addPrimitive("sphere")} type="button"><Circle size={22} /><span>Esfera</span></button>
             <button onClick={() => addPrimitive("cylinder")} type="button"><Cylinder size={22} /><span>Cilindro</span></button>
             <button onClick={() => addPrimitive("cone")} type="button"><Cone size={22} /><span>Cono</span></button>
+            <button onClick={() => addPrimitive("plane")} type="button"><Square size={22} /><span>Plano</span></button>
+            <button onClick={() => addPrimitive("torus")} type="button"><CircleDot size={22} /><span>Toroide</span></button>
+            <button onClick={() => addPrimitive("capsule")} type="button"><Pill size={22} /><span>Capsula</span></button>
+            <button onClick={addNeonboy} type="button"><Sparkles size={22} /><span>Neonboy</span></button>
             <button onClick={() => addLight("point")} type="button"><Lightbulb size={22} /><span>Puntual</span></button>
             <button onClick={() => addLight("directional")} type="button"><Sun size={22} /><span>Solar</span></button>
             <button onClick={() => addLight("spot")} type="button"><Flashlight size={22} /><span>Foco</span></button>
@@ -2105,6 +2230,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
               )}
               {!selection.isLight && (
                 <>
+                  {selection.modelAnimation && (
+                    <fieldset className="three-tab-model">
+                      <legend>Animacion del modelo</legend>
+                      <label><span>Clip</span><select onChange={(event) => selectModelAnimation(event.target.value)} value={selection.modelAnimation.clip}>{selection.modelAnimation.clips.map((clip) => <option key={clip} value={clip}>{clip}</option>)}</select></label>
+                      <button className="three-sculpt-toggle" onClick={toggleModelAnimation} type="button">{selection.modelAnimation.playing ? <Pause size={16} /> : <Play size={16} />} {selection.modelAnimation.playing ? "Pausar" : "Reproducir"}</button>
+                      <label><span>Velocidad</span><input max="2.5" min="0" onChange={(event) => setModelAnimationSpeed(event.target.value)} step="0.05" type="range" value={selection.modelAnimation.speed} /></label>
+                    </fieldset>
+                  )}
                   <fieldset className="three-tab-model">
                     <legend>Rotacion automatica</legend>
                     <label className="three-check"><input checked={selection.spin.enabled} onChange={(event) => updateSpin("enabled", event.target.checked)} type="checkbox" /><Rotate3D size={16} /> Girar sobre si mismo</label>
@@ -2181,6 +2314,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
             <div className="three-sky-presets">
               {SKY_BACKGROUNDS.map((preset) => <button className={environmentBackground === preset.id ? "active" : ""} key={preset.id} onClick={() => applySkyPreset(preset)} style={{ backgroundImage: `url(${preset.image})` }} type="button"><span>{preset.name}</span></button>)}
             </div>
+            <label className="three-check"><input checked={skyMotionEnabled} disabled={!environmentBackground.startsWith("sky-")} onChange={(event) => { pushHistory(); setSkyMotionEnabled(event.target.checked); }} type="checkbox" /><Sparkles size={16} /> Animar cielo</label>
+            <label><span>Velocidad cielo</span><input disabled={!environmentBackground.startsWith("sky-") || !skyMotionEnabled} max="1.5" min="0.05" onChange={(event) => setSkyMotionSpeed(Number(event.target.value))} onPointerDown={pushHistory} step="0.05" type="range" value={skyMotionSpeed} /></label>
             <div className="three-environment-presets">
               <button onClick={() => applyScenePreset("studio")} type="button">Estudio</button>
               <button onClick={() => applyScenePreset("product")} type="button">Producto</button>

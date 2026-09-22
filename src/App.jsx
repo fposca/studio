@@ -83,6 +83,7 @@ import {
   VolumeX,
   Wand2,
   Group,
+  House,
   Ungroup,
   Unlink2,
   X
@@ -4997,7 +4998,7 @@ export default function App() {
         </div>
         <nav className="tabs">
           <button className={tab === "home" ? "active" : ""} onClick={() => setTab("home")}>
-            <Square size={17} /> Inicio
+            <House size={17} /> Inicio
           </button>
           <button className={tab === "image" ? "active" : ""} onClick={() => setTab("image")}>
             <ImageIcon size={17} /> Imagen
