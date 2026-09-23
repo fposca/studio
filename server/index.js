@@ -22,6 +22,8 @@ fs.mkdirSync(outputDir, { recursive: true });
 const app = express();
 const maxUploadMb = 100;
 const upload = multer({ dest: uploadDir, limits: { fileSize: maxUploadMb * 1024 * 1024 } });
+const renderUploadMb = 500;
+const renderUpload = multer({ dest: uploadDir, limits: { fileSize: renderUploadMb * 1024 * 1024 } });
 
 app.use(cors());
 app.use(express.json({ limit: "5mb" }));
@@ -585,9 +587,43 @@ app.post("/api/video/export", upload.single("video"), async (req, res) => {
   }
 });
 
+app.post("/api/three/export-h264", renderUpload.single("video"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "No se recibio video." });
+  const fileName = `${Date.now()}-studio-3d-h264.mp4`;
+  const outPath = path.join(outputDir, fileName);
+
+  try {
+    await runFfmpeg([
+      "-i",
+      req.file.path,
+      "-vf",
+      "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+      "-an",
+      "-c:v",
+      "libx264",
+      "-preset",
+      "slow",
+      "-crf",
+      "17",
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+faststart",
+      outPath
+    ]);
+    res.download(outPath, fileName, () => fs.rm(outPath, { force: true }, () => {}));
+  } catch (error) {
+    fs.rm(outPath, { force: true }, () => {});
+    if (!res.headersSent) res.status(500).json({ error: error.message });
+  } finally {
+    fs.rm(req.file.path, { force: true }, () => {});
+  }
+});
+
 app.use((error, _req, res, next) => {
   if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
-    return res.status(413).json({ error: `El archivo supera el limite de ${maxUploadMb} MB.` });
+    const limitMb = error.field === "video" && _req.path === "/api/three/export-h264" ? renderUploadMb : maxUploadMb;
+    return res.status(413).json({ error: `El archivo supera el limite de ${limitMb} MB.` });
   }
   return next(error);
 });

@@ -1069,6 +1069,7 @@ label {
 }
 
 .three-animation-controls {
+  align-items: center;
   display: flex;
   gap: 5px;
 }
@@ -1201,6 +1202,47 @@ label {
   width: 30px;
 }
 
+.three-director-control {
+  display: flex;
+  gap: 4px;
+}
+
+.three-director-control select {
+  background: #20262c;
+  border: 1px solid #39434d;
+  border-radius: 5px;
+  color: #dce2e8;
+  font-size: 10px;
+  max-width: 92px;
+  min-width: 0;
+  padding: 5px 6px;
+}
+
+.three-recording-controls button {
+  gap: 6px;
+  min-width: max-content;
+  padding-inline: 9px;
+}
+
+.three-recording-controls button span {
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.three-recording-controls button.recording {
+  background: #9f1f32;
+  border-color: #ff6178;
+  color: #fff;
+}
+
+.three-recording-controls button.recording svg {
+  animation: three-recording-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes three-recording-pulse {
+  50% { opacity: 0.35; }
+}
+
 .three-toolbar button {
   border-radius: 5px;
   min-height: 36px;
@@ -1265,18 +1307,202 @@ label {
   white-space: nowrap;
 }
 
+.three-library-tabs {
+  border-bottom: 1px solid #303740;
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 7px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #191d22;
+}
+
+.three-library-tabs button {
+  align-items: center;
+  display: flex;
+  font-size: 10px;
+  gap: 5px;
+  justify-content: center;
+  min-height: 34px;
+  min-width: 0;
+  padding: 6px 4px;
+}
+
+.three-library-tabs button.active {
+  background: #7440ae;
+  border-color: #a970e8;
+  color: #fff;
+}
+
+.three-character-library {
+  display: grid;
+}
+
+.three-character-library section + section {
+  border-top: 1px solid #303740;
+}
+
+.three-library-section-title {
+  align-items: center;
+  color: #dce2e8;
+  display: flex;
+  font-size: 11px;
+  justify-content: space-between;
+  padding: 11px 11px 0;
+}
+
+.three-library-section-title span {
+  align-items: center;
+  background: #2b323a;
+  border-radius: 10px;
+  color: #9ca8b3;
+  display: flex;
+  font-size: 9px;
+  height: 19px;
+  justify-content: center;
+  min-width: 19px;
+  padding: 0 5px;
+}
+
+.three-camera-navigation {
+  align-items: stretch;
+  border-bottom: 1px solid #303740;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) 38px 38px;
+  padding: 7px;
+}
+
+.three-camera-navigation button,
+.three-camera-trackpad {
+  align-items: center;
+  background: #20262c;
+  border: 1px solid #39434d;
+  border-radius: 5px;
+  color: #b7c1ca;
+  display: flex;
+  height: 38px;
+  justify-content: center;
+  min-width: 0;
+}
+
+.three-camera-trackpad {
+  cursor: grab;
+  touch-action: none;
+}
+
+.three-camera-trackpad:active {
+  background: #2b2333;
+  border-color: #b54cff;
+  color: #dc8cff;
+  cursor: grabbing;
+}
+
+.three-camera-navigation button:hover {
+  border-color: #7f8993;
+  color: #fff;
+}
+
+.three-camera-shots {
+  border-bottom: 1px solid #303740;
+  padding: 9px 7px;
+}
+
+.three-camera-shots-title {
+  align-items: center;
+  color: #8a96a2;
+  display: flex;
+  font-size: 9px;
+  font-weight: 800;
+  gap: 6px;
+  margin: 0 2px 7px;
+}
+
+.three-camera-shot-grid {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.three-camera-shot-grid button {
+  justify-content: center;
+  min-height: 31px;
+  min-width: 0;
+  padding: 5px 7px;
+}
+
+.three-camera-shot-grid button.active {
+  background: #7440ae;
+  border-color: #a970e8;
+  color: #fff;
+}
+
+.three-camera-shot-grid button:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.three-camera-shot-picker {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) 36px;
+}
+
+.three-camera-shot-picker select {
+  background: #20262c;
+  border: 1px solid #39434d;
+  border-radius: 5px;
+  color: #dce2e8;
+  min-height: 36px;
+  min-width: 0;
+  padding: 6px 8px;
+  width: 100%;
+}
+
+.three-camera-shot-picker button {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 36px;
+  min-width: 36px;
+  padding: 6px;
+}
+
+.three-camera-shot-picker button.active {
+  background: #7440ae;
+  border-color: #a970e8;
+  color: #fff;
+}
+
+.three-camera-recording {
+  border-bottom: 1px solid #303740;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0 7px 7px;
+}
+
+.three-camera-recording button {
+  justify-content: center;
+  min-height: 34px;
+  min-width: 0;
+  padding: 6px 4px;
+}
+
 .three-property-tabs {
   border-bottom: 1px solid #303740;
   display: grid;
-  gap: 3px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: 7px;
 }
 
 .three-property-tabs button {
-  font-size: 9px;
+  font-size: 10px;
+  min-height: 34px;
   min-width: 0;
-  padding: 7px 2px;
+  padding: 7px 4px;
 }
 
 .three-property-tabs button.active {
@@ -1289,6 +1515,7 @@ label {
 .three-properties .three-tab-model,
 .three-properties .three-tab-material,
 .three-properties .three-tab-scene,
+.three-properties .three-tab-effects,
 .three-properties .three-tab-output,
 .three-properties .three-tab-selection { display: none; }
 
@@ -1296,6 +1523,7 @@ label {
 .three-properties[data-tab="model"] .three-tab-model,
 .three-properties[data-tab="material"] .three-tab-material,
 .three-properties[data-tab="scene"] .three-tab-scene,
+.three-properties[data-tab="effects"] .three-tab-effects,
 .three-properties[data-tab="output"] .three-tab-output { display: grid; }
 
 .three-properties[data-tab="object"] .three-tab-selection,
@@ -1316,6 +1544,18 @@ label {
 
 .three-model-actions button:last-child:nth-child(odd) {
   grid-column: 1 / -1;
+}
+
+.three-effects-presets {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.three-effects-presets button {
+  justify-content: flex-start;
+  min-width: 0;
+  padding: 8px;
 }
 
 .three-model-hint {
@@ -1504,6 +1744,34 @@ label {
   transform: translateX(-50%);
 }
 
+.three-recording-countdown {
+  align-items: center;
+  animation: three-countdown-beat 1s ease-out both;
+  background: rgba(10, 12, 15, 0.62);
+  border: 2px solid rgba(255, 255, 255, 0.82);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  font-size: 64px;
+  font-weight: 800;
+  height: 118px;
+  justify-content: center;
+  left: 50%;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 118px;
+  z-index: 8;
+}
+
+@keyframes three-countdown-beat {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(1.28); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  78% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0.2; transform: translate(-50%, -50%) scale(0.88); }
+}
+
 .three-properties fieldset {
   border: 0;
   border-bottom: 1px solid #303740;
@@ -1518,6 +1786,28 @@ label {
   font-size: 11px;
   font-weight: 800;
   padding: 0;
+}
+
+.three-transform-legend {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+}
+
+.three-transform-legend button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: #6f7b87;
+  display: inline-flex;
+  height: 20px;
+  justify-content: center;
+  padding: 0;
+  width: 20px;
+}
+
+.three-transform-legend button.active {
+  color: #c73cff;
 }
 
 .three-properties label {
@@ -1685,13 +1975,15 @@ label {
   text-transform: uppercase;
 }
 
-.three-sky-presets {
+.three-sky-presets,
+.three-scene-presets {
   display: grid;
   gap: 5px;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.three-sky-presets button {
+.three-sky-presets button,
+.three-scene-presets button {
   align-items: end;
   background-position: center;
   background-size: cover;
@@ -1705,7 +1997,8 @@ label {
   padding: 0;
 }
 
-.three-sky-presets button span {
+.three-sky-presets button span,
+.three-scene-presets button span {
   background: rgba(7, 10, 13, 0.74);
   color: #fff;
   font-size: 8px;
@@ -1714,9 +2007,14 @@ label {
   width: 100%;
 }
 
-.three-sky-presets button.active {
+.three-sky-presets button.active,
+.three-scene-presets button.active {
   border-color: #c65cff;
   box-shadow: inset 0 0 0 2px #8f00e8;
+}
+
+.three-scene-presets button {
+  height: 68px;
 }
 
 .three-floor-surfaces {
@@ -1999,6 +2297,16 @@ label {
   height: 28px;
   object-fit: contain;
   width: 76px;
+}
+
+.header-brand .header-edition {
+  border-left: 1px solid #3b444d;
+  color: #c86cff;
+  font-size: 10px;
+  font-weight: 800;
+  margin-left: 3px;
+  padding-left: 11px;
+  text-transform: uppercase;
 }
 
 .app-header .header-actions {

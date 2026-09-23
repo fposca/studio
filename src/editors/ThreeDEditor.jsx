@@ -41,12 +41,32 @@ import skySun from "../assets/environments/sky-sun.png";
 import skySunset from "../assets/environments/sky-sunset.png";
 import skyNight from "../assets/environments/sky-night.png";
 import skySpace from "../assets/environments/sky-space.png";
+import skyInfernal from "../assets/environments/sky-infernal.png";
+import skyApocalypse from "../assets/environments/sky-apocalypse.png";
+import skyCemetery from "../assets/environments/sky-cemetery.png";
+import infernalFloorTexture from "../assets/environments/infernal-floor-texture.png";
+import apocalypseFloorTexture from "../assets/environments/apocalypse-floor-texture.png";
+import cemeteryFloorTexture from "../assets/environments/cemetery-floor-texture.png";
+import skyMedievalApocalypse from "../assets/environments/sky-medieval-apocalypse.png";
+import medievalApocalypseFloorTexture from "../assets/environments/medieval-apocalypse-floor-texture.png";
+import skyGothicChurch from "../assets/environments/sky-gothic-church.png";
+import gothicChurchFloorTexture from "../assets/environments/gothic-church-floor-texture.png";
+import skyNightSwamp from "../assets/environments/sky-night-swamp.png";
+import nightSwampFloorTexture from "../assets/environments/night-swamp-floor-texture.png";
+import skyRuinedGothicChurch from "../assets/environments/sky-ruined-gothic-church.png";
+import ruinedGothicChurchFloorTexture from "../assets/environments/ruined-gothic-church-floor-texture.png";
+import skyCastleInterior from "../assets/environments/sky-castle-interior.png";
+import skyCastleCourtyard from "../assets/environments/sky-castle-courtyard.png";
+import skyMedievalVillage from "../assets/environments/sky-medieval-village.png";
+import skyMoonlitPeaks from "../assets/environments/sky-moonlit-peaks.png";
+import skySpiderwebRuins from "../assets/environments/sky-spiderweb-ruins.png";
 import neonboyModelUrl from "../assets/Meshy_AI_Midnight_Jester_Axe_Breathe_and_Look_.glb?url";
+import neonboyLogoModelUrl from "../assets/logo.glb?url";
 import {
-  ArrowDownToLine, Box, Camera, Circle, CircleDot, ClipboardPaste, Combine, Cone, Copy, Cylinder, Download, Eye,
-  EyeOff, Flashlight, Focus, Grid3X3, ImageDown, Lightbulb, LocateFixed,
-  Group, Hammer, MousePointer2, Move3D, Palette, Pause, Pill, Play, Redo2, Rotate3D, Scale3D, Sparkles, Square,
-  Sun, Trash2, Type, Undo2, Ungroup, Upload
+  ArrowDownToLine, Box, Camera, Circle, CircleDot, ClipboardPaste, CloudFog, CloudLightning, CloudRain, Combine, Cone, Copy, Cylinder, Download, Eye,
+  EyeOff, Film, Flashlight, Focus, Grid3X3, ImageDown, Lightbulb, LocateFixed,
+  Flame, Group, Hammer, Link2, MousePointer2, Move3D, Palette, Pause, Pill, Play, Redo2, Rotate3D, Scale3D, Sparkles, Square,
+  Sun, Trash2, Type, Undo2, Ungroup, Unlink2, Upload, ZoomIn, ZoomOut
 } from "lucide-react";
 import { getProject, putProject } from "../storage/projectDb.js";
 import ThreeAnimationPanel from "./ThreeAnimationPanel.jsx";
@@ -54,6 +74,71 @@ import ThreeAnimationPanel from "./ThreeAnimationPanel.jsx";
 const THREE_PROJECT_ID = "three";
 const CAMERA_TRACK_ID = "__camera__";
 const DEFAULT_BACKGROUND = "#17191d";
+const API = window.location.port === "5173" ? "http://127.0.0.1:5174" : window.location.origin;
+const CAMERA_SHOTS = [
+  { id: "general", name: "General", crop: 0, fill: 0.72, fov: 45 },
+  { id: "full", name: "Entero", crop: 0, fill: 0.86, fov: 42 },
+  { id: "american", name: "Americano", crop: 0.22, fill: 0.88, fov: 38 },
+  { id: "medium", name: "Medio", crop: 0.48, fill: 0.9, fov: 35 },
+  { id: "close", name: "Primer plano", crop: 0.7, fill: 0.88, fov: 32 },
+  { id: "three-quarter-left", name: "3/4 izquierda", crop: 0.42, fill: 0.88, fov: 36, angle: 38, elevation: 4 },
+  { id: "three-quarter-right", name: "3/4 derecha", crop: 0.42, fill: 0.88, fov: 36, angle: -38, elevation: 4 },
+  { id: "profile", name: "Perfil", crop: 0.28, fill: 0.86, fov: 38, angle: 86, elevation: 2 },
+  { id: "hero", name: "Heroe", crop: 0.18, fill: 0.9, fov: 30, angle: -28, elevation: -11 },
+  { id: "low-angle", name: "Contrapicado", crop: 0.12, fill: 0.84, fov: 34, angle: 18, elevation: -22 },
+  { id: "high-angle", name: "Picado", crop: 0.3, fill: 0.86, fov: 38, angle: -18, elevation: 30 },
+  { id: "dutch", name: "Plano holandes", crop: 0.38, fill: 0.84, fov: 35, angle: 30, elevation: 3, roll: -12 }
+];
+const NEONBOY_ANIMATION_URLS = import.meta.glob("../assets/neonboy-animaciones/*.glb", { import: "default", query: "?url" });
+const GUITAR_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/guitar.glb"];
+const STATIC_MODEL_URLS = import.meta.glob("../assets/3destatic/*.glb", { import: "default", query: "?url" });
+const ENVIRONMENT_THUMBNAIL_URLS = import.meta.glob("../assets/environments/thumbnails/*.jpg", { eager: true, import: "default", query: "?url" });
+const ENVIRONMENT_THUMBNAILS = Object.fromEntries(Object.entries(ENVIRONMENT_THUMBNAIL_URLS).map(([path, url]) => [path.split("/").pop().replace(/\.jpg$/i, ""), url]));
+const CHARACTER_ANIMATION_NAMES = {
+  "Meshy_AI_Midnight_Jester_Chair_Sit_Idle_M": { character: "Neoncruzader", animation: "Sentado", order: 2 },
+  "Meshy_AI_Midnight_Jester_Long_Breathe_and_Look": { character: "Neoncruzader", animation: "Respirando", order: 1 },
+  "Meshy_AI_Midnight_Jester_Walk_Slowly_and_Look_": { character: "Neoncruzader", animation: "Caminando", order: 3 },
+  "neon-stand": { character: "Neonboy", animation: "Hablando", order: 10 },
+  "neon-sit-chair": { character: "Neonboy", animation: "Sentado", order: 11 },
+  "neon-hablando": { character: "Neonboy", animation: "Respirando", order: 12 },
+  "neon-hablando-mano": { character: "Neonboy", animation: "Hablando con manos", order: 13 },
+  "neon-guitar": { character: "Neonboy", animation: "Guitarrista", order: 14 },
+  "neon-guitar-3": { character: "Neonboy", animation: "Guitarrista 2", order: 15 },
+  "neon-guitar-4": { character: "Neonboy", animation: "Guitarrista 3", order: 16 }
+};
+const CHARACTER_MODELS = [
+  { id: "breathe-look", character: "Neoncruzader", animation: "Base", name: "Neoncruzader - Base", order: 0, url: neonboyModelUrl },
+  ...Object.entries(NEONBOY_ANIMATION_URLS).filter(([path]) => !path.endsWith("/guitar.glb")).map(([path, loadUrl]) => {
+    const filename = path.split("/").pop().replace(/\.glb$/i, "");
+    const metadata = CHARACTER_ANIMATION_NAMES[filename] || {
+      character: filename.startsWith("neon-") ? "Neonboy" : "Neoncruzader",
+      animation: filename.replace(/^Meshy_AI_Midnight_Jester_/i, "").replace(/^neon-/i, "").replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()),
+      order: 99
+    };
+    return { id: filename, ...metadata, name: `${metadata.character} - ${metadata.animation}`, loadUrl };
+  })
+].sort((left, right) => left.order - right.order);
+const STATIC_MODELS = [
+  { id: "neonboy-logo", name: "Logo Neonboy", url: neonboyLogoModelUrl },
+  { id: "guitar", name: "Guitarra", loadUrl: GUITAR_MODEL_LOADER },
+  ...Object.entries(STATIC_MODEL_URLS).map(([path, loadUrl]) => {
+    const filename = path.split("/").pop().replace(/\.glb$/i, "");
+    const cleanName = filename
+      .replace(/^Meshy_AI_/i, "")
+      .replace(/_texture$/i, "")
+      .replace(/_\d{10,}.*$/, "")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+    return { id: filename, name: cleanName, loadUrl };
+  })
+];
+const DEFAULT_SCENE_EFFECTS = {
+  fog: { enabled: false, intensity: 0.5, color: "#768291" },
+  fire: { enabled: false, intensity: 0.6 },
+  rain: { enabled: false, intensity: 0.8, directionX: 0.15, directionZ: 0, color: "#9bdcff" },
+  particles: { enabled: false, intensity: 0.5, color: "#d875ff" },
+  storm: { enabled: false, intensity: 0.6 }
+};
 const ENVIRONMENT_BACKGROUNDS = [
   { id: "solid", name: "Color", image: "" },
   { id: "field", name: "Campo", image: fieldPanorama },
@@ -66,7 +151,38 @@ const SKY_BACKGROUNDS = [
   { id: "sky-sun", name: "Sol", image: skySun, ambient: 0.85, exposure: 1.08, key: 4.2, light: "#fff1c4", ground: "#7e91a4", environment: 0.85 },
   { id: "sky-night", name: "Noche", image: skyNight, ambient: 0.16, exposure: 1.2, key: 0.32, light: "#9cbcff", ground: "#050914", environment: 0.7 },
   { id: "sky-day", name: "Dia", image: skyDay, ambient: 1, exposure: 1, key: 2.6, light: "#fff8e8", ground: "#7892a6", environment: 0.82 },
-  { id: "sky-sunset", name: "Atardecer", image: skySunset, ambient: 0.48, exposure: 1.13, key: 2.4, light: "#ffad66", ground: "#50345e", environment: 0.9 }
+  { id: "sky-sunset", name: "Atardecer", image: skySunset, ambient: 0.48, exposure: 1.13, key: 2.4, light: "#ffad66", ground: "#50345e", environment: 0.9 },
+  { id: "sky-infernal", name: "Infernal", image: skyInfernal, ambient: 0.42, exposure: 1.18, key: 3.8, light: "#ff4a1c", ground: "#180302", environment: 0.85 },
+  { id: "sky-apocalypse", name: "Apocalipsis", image: skyApocalypse, ambient: 0.5, exposure: 1.05, key: 2.3, light: "#ffb06a", ground: "#302a28", environment: 0.72 },
+  { id: "sky-cemetery", name: "Cementerio", image: skyCemetery, ambient: 0.24, exposure: 1.2, key: 1.25, light: "#a9c8ff", ground: "#080b12", environment: 0.78 },
+  { id: "sky-medieval-apocalypse", name: "Medieval", image: skyMedievalApocalypse, ambient: 0.38, exposure: 1.12, key: 3.1, light: "#ff693c", ground: "#21100b", environment: 0.82 },
+  { id: "sky-gothic-church", name: "Iglesia", image: skyGothicChurch, ambient: 0.4, exposure: 1.08, key: 1.7, light: "#a9c8ff", ground: "#1a1411", environment: 0.88 },
+  { id: "sky-night-swamp", name: "Pantano", image: skyNightSwamp, ambient: 0.2, exposure: 1.28, key: 1.15, light: "#8fcfff", ground: "#06110f", environment: 0.8 },
+  { id: "sky-ruined-gothic-church", name: "Iglesia en ruinas", image: skyRuinedGothicChurch, ambient: 0.22, exposure: 1.18, key: 1.35, light: "#9bbcff", ground: "#100d18", environment: 0.9 },
+  { id: "sky-castle-interior", name: "Interior castillo", image: skyCastleInterior, ambient: 0.38, exposure: 1.08, key: 1.25, light: "#ffd7a0", ground: "#261b15", environment: 0.74 },
+  { id: "sky-castle-courtyard", name: "Patio del castillo", image: skyCastleCourtyard, ambient: 0.82, exposure: 1.02, key: 2.35, light: "#fff0cf", ground: "#667068", environment: 0.8 },
+  { id: "sky-medieval-village", name: "Aldea medieval", image: skyMedievalVillage, ambient: 0.66, exposure: 1.08, key: 1.85, light: "#ffd8a3", ground: "#4a4640", environment: 0.82 },
+  { id: "sky-moonlit-peaks", name: "Cumbres luna llena", image: skyMoonlitPeaks, ambient: 0.28, exposure: 1.18, key: 1.7, light: "#c7dcff", ground: "#101721", environment: 0.92 },
+  { id: "sky-spiderweb-ruins", name: "Ruinas de telaranas", image: skySpiderwebRuins, ambient: 0.2, exposure: 1.24, key: 1.15, light: "#bed5f2", ground: "#0c1115", environment: 0.88 }
+];
+
+function environmentThumbnail(preset) {
+  const aliases = { field: "field-panorama", clouds: "clouds-panorama", factory: "factory-panorama" };
+  return ENVIRONMENT_THUMBNAILS[aliases[preset.id] || preset.id] || preset.image;
+}
+const THEMED_SCENES = [
+  { id: "infernal", name: "Infernal", sky: "sky-infernal", floor: "infernal", image: skyInfernal },
+  { id: "apocalypse", name: "Apocalipsis", sky: "sky-apocalypse", floor: "apocalypse", image: skyApocalypse },
+  { id: "cemetery", name: "Cementerio", sky: "sky-cemetery", floor: "cemetery", image: skyCemetery },
+  { id: "medieval-apocalypse", name: "Medieval", sky: "sky-medieval-apocalypse", floor: "medieval-apocalypse", image: skyMedievalApocalypse },
+  { id: "gothic-church", name: "Iglesia gotica", sky: "sky-gothic-church", floor: "gothic-church", image: skyGothicChurch },
+  { id: "night-swamp", name: "Pantano", sky: "sky-night-swamp", floor: "night-swamp", image: skyNightSwamp },
+  { id: "ruined-gothic-church", name: "Iglesia en ruinas", sky: "sky-ruined-gothic-church", floor: "ruined-gothic-church", image: skyRuinedGothicChurch },
+  { id: "castle-interior", name: "Interior castillo", sky: "sky-castle-interior", floor: "gothic-church", image: skyCastleInterior },
+  { id: "castle-courtyard", name: "Patio del castillo", sky: "sky-castle-courtyard", floor: "ruined-gothic-church", image: skyCastleCourtyard },
+  { id: "medieval-village", name: "Aldea medieval", sky: "sky-medieval-village", floor: "medieval-apocalypse", image: skyMedievalVillage },
+  { id: "moonlit-peaks", name: "Cumbres luna llena", sky: "sky-moonlit-peaks", floor: "ruined-gothic-church", image: skyMoonlitPeaks },
+  { id: "spiderweb-ruins", name: "Ruinas de telaranas", sky: "sky-spiderweb-ruins", floor: "night-swamp", image: skySpiderwebRuins }
 ];
 const FLOOR_SURFACES = [
   { id: "shadow", name: "Solo sombra", color: "#20242a" },
@@ -79,7 +195,14 @@ const FLOOR_SURFACES = [
   { id: "glass", name: "Vidrio", color: "#bdefff" },
   { id: "fantasy", name: "Fantasia", color: "#b54cff" },
   { id: "gas", name: "Gases", color: "#5442d6" },
-  { id: "water", name: "Agua", color: "#34c4e8" }
+  { id: "water", name: "Agua", color: "#34c4e8" },
+  { id: "infernal", name: "Lava", color: "#ff3b0a" },
+  { id: "apocalypse", name: "Ruinas", color: "#68605a" },
+  { id: "cemetery", name: "Cementerio", color: "#344139" },
+  { id: "medieval-apocalypse", name: "Medieval", color: "#5d4436" },
+  { id: "gothic-church", name: "Iglesia", color: "#443f3c" },
+  { id: "night-swamp", name: "Pantano", color: "#193c35" },
+  { id: "ruined-gothic-church", name: "Iglesia en ruinas", color: "#34343e" }
 ];
 const REALISTIC_FLOOR_TEXTURES = {
   grass: grassTexture,
@@ -90,7 +213,14 @@ const REALISTIC_FLOOR_TEXTURES = {
   plastic: plasticTexture,
   fantasy: fantasyFloorTexture,
   gas: gasFloorTexture,
-  water: waterFloorTexture
+  water: waterFloorTexture,
+  infernal: infernalFloorTexture,
+  apocalypse: apocalypseFloorTexture,
+  cemetery: cemeteryFloorTexture,
+  "medieval-apocalypse": medievalApocalypseFloorTexture,
+  "gothic-church": gothicChurchFloorTexture,
+  "night-swamp": nightSwampFloorTexture,
+  "ruined-gothic-church": ruinedGothicChurchFloorTexture
 };
 const FONT_LOADER = new FontLoader();
 const THREE_FONTS = {
@@ -129,7 +259,7 @@ function createFloorTexture(surface) {
     const texture = new THREE.TextureLoader().load(REALISTIC_FLOOR_TEXTURES[surface]);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    const repeats = { grass: 14, dirt: 12, metal: 8, concrete: 10, tiles: 8, plastic: 12, fantasy: 7, gas: 5, water: 10 };
+    const repeats = { grass: 14, dirt: 12, metal: 8, concrete: 10, tiles: 8, plastic: 12, fantasy: 7, gas: 5, water: 10, infernal: 7, apocalypse: 8, cemetery: 7, "medieval-apocalypse": 8, "gothic-church": 7, "night-swamp": 7, "ruined-gothic-church": 7 };
     texture.repeat.set(repeats[surface], repeats[surface]);
     texture.anisotropy = 8;
     return texture;
@@ -190,10 +320,204 @@ function createFloorMaterial(surface, color) {
     transmission: 0.62, transparent: true, opacity: 0.82, ior: 1.333, thickness: 0.5,
     clearcoat: 1, clearcoatRoughness: 0.035, side: THREE.DoubleSide
   });
+  if (surface === "infernal") return new THREE.MeshStandardMaterial({
+    color: 0xffffff, map, bumpMap: map, bumpScale: 0.075, emissiveMap: map,
+    emissive: 0x8a1200, emissiveIntensity: 0.72, roughness: 0.82, metalness: 0.05
+  });
+  if (surface === "apocalypse") return new THREE.MeshStandardMaterial({ color: 0xffffff, map, bumpMap: map, bumpScale: 0.055, roughness: 0.94, metalness: 0.02 });
+  if (surface === "cemetery") return new THREE.MeshStandardMaterial({ color: 0xdbe5df, map, bumpMap: map, bumpScale: 0.065, roughness: 0.98, metalness: 0 });
+  if (surface === "medieval-apocalypse") return new THREE.MeshStandardMaterial({ color: 0xffffff, map, bumpMap: map, bumpScale: 0.06, emissiveMap: map, emissive: 0x2b0802, emissiveIntensity: 0.16, roughness: 0.94, metalness: 0.02 });
+  if (surface === "gothic-church") return new THREE.MeshPhysicalMaterial({ color: 0xffffff, map, bumpMap: map, bumpScale: 0.035, roughness: 0.34, metalness: 0.06, clearcoat: 0.28, clearcoatRoughness: 0.4 });
+  if (surface === "night-swamp") return new THREE.MeshPhysicalMaterial({ color: 0xd7ebe5, map, bumpMap: map, bumpScale: 0.07, roughness: 0.3, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.22 });
+  if (surface === "ruined-gothic-church") return new THREE.MeshPhysicalMaterial({ color: 0xe2e5ef, map, bumpMap: map, bumpScale: 0.055, roughness: 0.38, metalness: 0.04, clearcoat: 0.42, clearcoatRoughness: 0.28 });
   if (surface === "plastic") return new THREE.MeshStandardMaterial({ ...settings, map: null, bumpMap: map, bumpScale: 0.018 });
   const relief = ["grass", "dirt", "metal", "concrete", "tiles"].includes(surface);
   const bumpScale = { grass: 0.09, dirt: 0.06, metal: 0.012, concrete: 0.035, tiles: 0.025 }[surface] || 0;
   return new THREE.MeshStandardMaterial({ ...settings, map, bumpMap: relief ? map : null, bumpScale });
+}
+
+function createParticleTexture(type) {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 64;
+  const context = canvas.getContext("2d");
+  if (type === "rain") {
+    const gradient = context.createLinearGradient(32, 4, 32, 60);
+    gradient.addColorStop(0, "rgba(210,240,255,0)");
+    gradient.addColorStop(0.35, "rgba(210,240,255,.9)");
+    gradient.addColorStop(1, "rgba(120,190,255,0)");
+    context.fillStyle = gradient;
+    context.fillRect(29, 3, 6, 58);
+  } else if (type === "fire") {
+    const gradient = context.createRadialGradient(32, 42, 1, 32, 34, 29);
+    gradient.addColorStop(0, "rgba(255,255,210,1)");
+    gradient.addColorStop(0.18, "rgba(255,220,45,1)");
+    gradient.addColorStop(0.52, "rgba(255,80,5,.9)");
+    gradient.addColorStop(1, "rgba(120,0,0,0)");
+    context.fillStyle = gradient;
+    context.beginPath();
+    context.moveTo(32, 2);
+    context.bezierCurveTo(50, 27, 57, 48, 32, 63);
+    context.bezierCurveTo(7, 48, 16, 25, 32, 2);
+    context.fill();
+  } else {
+    const blobs = ["fog", "storm"].includes(type) ? [[20, 35, 24], [42, 30, 25], [32, 43, 27]] : [[32, 32, 30]];
+    blobs.forEach(([x, y, radius]) => {
+      const gradient = context.createRadialGradient(x, y, 1, x, y, radius);
+      gradient.addColorStop(0, "rgba(255,255,255,.9)");
+      gradient.addColorStop(["fog", "storm"].includes(type) ? 0.42 : 0.22, "rgba(255,255,255,.55)");
+      gradient.addColorStop(1, "rgba(255,255,255,0)");
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, 64, 64);
+    });
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function createSceneEffectSystem() {
+  const group = new THREE.Group();
+  group.name = "Efectos de escena";
+  group.userData.editorHelper = true;
+  const systems = {};
+  const createPoints = (type, count, color, size, opacity, additive = false) => {
+    const positions = new Float32Array(count * 3);
+    for (let index = 0; index < count; index += 1) {
+      const offset = index * 3;
+      positions[offset] = (Math.random() - 0.5) * 18;
+      positions[offset + 1] = type === "rain" ? Math.random() * 12 : type === "fog" ? Math.random() * 3.2 - 0.9 : type === "storm" ? 6.5 + Math.random() * 3.2 : Math.random() * 4;
+      positions[offset + 2] = (Math.random() - 0.5) * 18;
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    if (type === "fire") geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(count * 3).fill(1), 3));
+    const material = new THREE.PointsMaterial({
+      color: type === "fire" ? 0xffffff : color,
+      depthTest: type !== "fog",
+      depthWrite: false,
+      map: createParticleTexture(type),
+      opacity,
+      size,
+      sizeAttenuation: true,
+      transparent: true,
+      vertexColors: type === "fire",
+      blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending
+    });
+    const points = new THREE.Points(geometry, material);
+    points.visible = false;
+    points.frustumCulled = false;
+    points.renderOrder = type === "fog" ? 20 : 0;
+    points.userData.effectType = type;
+    group.add(points);
+    systems[type] = points;
+  };
+  createPoints("fog", 220, 0xd6e1eb, 2.8, 0.14);
+  createPoints("fire", 380, 0xff5a12, 0.3, 0.9, true);
+  createPoints("rain", 1200, 0x9bdcff, 0.16, 0.72);
+  createPoints("particles", 260, 0xd875ff, 0.13, 0.85, true);
+  createPoints("storm", 110, 0x566174, 4.8, 0.58);
+  const fireLights = [
+    new THREE.PointLight(0xff4a12, 0, 8, 2),
+    new THREE.PointLight(0xff9a24, 0, 7, 2)
+  ];
+  fireLights[0].position.set(-2.6, 1.2, 1.5);
+  fireLights[1].position.set(2.7, 1, -1.8);
+  fireLights.forEach((light) => { light.visible = false; group.add(light); });
+  const lightningLight = new THREE.PointLight(0xdce8ff, 0, 35, 1.2);
+  lightningLight.position.set(0, 9, 0);
+  lightningLight.visible = false;
+  group.add(lightningLight);
+  const lightningGeometry = new THREE.BufferGeometry();
+  lightningGeometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(30), 3));
+  const lightningBolt = new THREE.Line(
+    lightningGeometry,
+    new THREE.LineBasicMaterial({ color: 0xe9f2ff, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending })
+  );
+  lightningBolt.visible = false;
+  lightningBolt.frustumCulled = false;
+  group.add(lightningBolt);
+  return { group, systems, fireLights, lightningLight, lightningBolt, nextLightning: 0, lightningUntil: 0 };
+}
+
+function animateSceneEffects(scene, effectSystem, settings, delta, time) {
+  if (!effectSystem) return;
+  const fogIntensity = settings.fog.intensity;
+  if (settings.fog.enabled) {
+    if (!scene.fog?.isFogExp2) scene.fog = new THREE.FogExp2(settings.fog.color, 0.012 + fogIntensity * 0.045);
+    else {
+      scene.fog.color.set(settings.fog.color);
+      scene.fog.density = (0.012 + fogIntensity * 0.045) * (0.94 + Math.sin(time * 0.00045) * 0.06);
+    }
+  } else scene.fog = null;
+  Object.entries(effectSystem.systems).forEach(([type, points]) => {
+    const config = settings[type];
+    points.visible = config.enabled;
+    if (!config.enabled) return;
+    if (type === "fog") points.material.color.set(settings.fog.color);
+    if (type === "rain") points.material.color.set(config.color || DEFAULT_SCENE_EFFECTS.rain.color);
+    if (type === "particles") points.material.color.set(config.color || DEFAULT_SCENE_EFFECTS.particles.color);
+    if (type === "rain") points.geometry.setDrawRange(0, Math.round(points.geometry.attributes.position.count * Math.min(1, 0.28 + config.intensity * 0.5)));
+    points.material.opacity = type === "fog" ? 0.06 + config.intensity * 0.2 : 0.35 + config.intensity * 0.6;
+    const positions = points.geometry.attributes.position;
+    const colors = points.geometry.attributes.color;
+    for (let index = 0; index < positions.count; index += 1) {
+      let x = positions.getX(index);
+      let y = positions.getY(index);
+      let z = positions.getZ(index);
+      if (type === "fog") {
+        x += delta * (0.18 + config.intensity * 0.45);
+        z += Math.sin(time * 0.00035 + index) * delta * 0.08;
+        if (x > 10) x = -10;
+      } else if (type === "fire") {
+        y += delta * (0.75 + config.intensity * 2.2);
+        x += Math.sin(time * 0.004 + index * 1.7) * delta * 0.35;
+        if (y > 4.2) { y = 0.02; x = (Math.random() - 0.5) * 8; z = (Math.random() - 0.5) * 8; }
+        const heat = Math.max(0, 1 - y / 4.2);
+        colors.setXYZ(index, 1, 0.12 + heat * 0.72, 0.015 + heat * 0.12);
+      } else if (type === "rain") {
+        y -= delta * (9 + config.intensity * 15);
+        x += delta * config.directionX * (5 + config.intensity * 4);
+        z += delta * config.directionZ * (5 + config.intensity * 4);
+        if (y < 0) { y = 12; x = (Math.random() - 0.5) * 18; z = (Math.random() - 0.5) * 18; }
+      } else if (type === "storm") {
+        x += delta * (0.22 + config.intensity * 0.35);
+        z += Math.sin(time * 0.00022 + index) * delta * 0.12;
+        if (x > 12) x = -12;
+      } else {
+        y += delta * (0.35 + config.intensity * 1.1);
+        x += Math.sin(time * 0.002 + index) * delta * 0.22;
+        z += Math.cos(time * 0.0017 + index) * delta * 0.18;
+        if (y > 6) { y = 0.05; x = (Math.random() - 0.5) * 12; z = (Math.random() - 0.5) * 12; }
+      }
+      positions.setXYZ(index, x, y, z);
+    }
+    positions.needsUpdate = true;
+    if (colors) colors.needsUpdate = true;
+  });
+  effectSystem.fireLights.forEach((light, index) => {
+    light.visible = settings.fire.enabled;
+    light.intensity = settings.fire.enabled
+      ? (22 + settings.fire.intensity * 55) * (0.82 + Math.sin(time * 0.014 + index * 2.1) * 0.18)
+      : 0;
+  });
+  const storm = settings.storm;
+  if (storm.enabled && time >= effectSystem.nextLightning) {
+    const positions = effectSystem.lightningBolt.geometry.attributes.position;
+    const originX = (Math.random() - 0.5) * 12;
+    const originZ = (Math.random() - 0.5) * 8;
+    for (let index = 0; index < positions.count; index += 1) {
+      const progress = index / (positions.count - 1);
+      positions.setXYZ(index, originX + (Math.random() - 0.5) * progress * 1.4, 10 - progress * 9, originZ + (Math.random() - 0.5) * progress * 1.2);
+    }
+    positions.needsUpdate = true;
+    effectSystem.lightningLight.position.set(originX, 7, originZ);
+    effectSystem.lightningUntil = time + 90 + Math.random() * 90;
+    effectSystem.nextLightning = time + 900 + Math.random() * (2600 - storm.intensity * 1200);
+  }
+  const lightningVisible = storm.enabled && time < effectSystem.lightningUntil;
+  effectSystem.lightningBolt.visible = lightningVisible;
+  effectSystem.lightningLight.visible = lightningVisible;
+  effectSystem.lightningLight.intensity = lightningVisible ? 180 + storm.intensity * 420 : 0;
 }
 
 function createTextGeometry(value, depth, fontId = "helvetiker") {
@@ -286,9 +610,16 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const sculptSettingsRef = useRef({ brush: "inflate", radius: 0.65, strength: 0.3 });
   const animationTracksRef = useRef({});
   const skyMotionRef = useRef({ enabled: true, speed: 0.35, preset: "solid" });
+  const sceneEffectsRef = useRef(DEFAULT_SCENE_EFFECTS);
   const rotationDragRef = useRef(null);
   const cameraOrbitRef = useRef({ lastTheta: null, theta: 0 });
+  const cameraNavigationRef = useRef(null);
+  const cameraZoomHoldRef = useRef(null);
+  const cameraShotRef = useRef(null);
+  const viewportRecordingRef = useRef(null);
+  const recordingCountdownTimerRef = useRef(null);
   const applyingAnimationRef = useRef(false);
+  const environmentIsolationRef = useRef(null);
   const [objects, setObjects] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
@@ -297,6 +628,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const [environmentBackground, setEnvironmentBackground] = useState("solid");
   const [skyMotionEnabled, setSkyMotionEnabled] = useState(true);
   const [skyMotionSpeed, setSkyMotionSpeed] = useState(0.35);
+  const [sceneEffects, setSceneEffects] = useState(() => structuredClone(DEFAULT_SCENE_EFFECTS));
   const [gridVisible, setGridVisible] = useState(true);
   const [ambientIntensity, setAmbientIntensity] = useState(0.7);
   const [exposure, setExposure] = useState(1.15);
@@ -323,6 +655,29 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const [sculptBrush, setSculptBrush] = useState("inflate");
   const [sculptRadius, setSculptRadius] = useState(0.65);
   const [sculptStrength, setSculptStrength] = useState(0.3);
+  const [scaleLinked, setScaleLinked] = useState(true);
+  const [viewportRecording, setViewportRecording] = useState(false);
+  const [viewportRecordingBlob, setViewportRecordingBlob] = useState(null);
+  const [viewportConverting, setViewportConverting] = useState(false);
+  const [recordingCountdown, setRecordingCountdown] = useState(null);
+  const [activeCameraShot, setActiveCameraShot] = useState("");
+  const [cameraShotSelection, setCameraShotSelection] = useState("general");
+  const [libraryTab, setLibraryTab] = useState("objects");
+  const [environmentIsolated, setEnvironmentIsolated] = useState(false);
+  const [attachmentHand, setAttachmentHand] = useState("LeftHand");
+
+  useEffect(() => () => {
+    if (cameraZoomHoldRef.current) cancelAnimationFrame(cameraZoomHoldRef.current);
+    if (cameraShotRef.current?.frame) cancelAnimationFrame(cameraShotRef.current.frame);
+    if (recordingCountdownTimerRef.current) clearTimeout(recordingCountdownTimerRef.current);
+    const recording = viewportRecordingRef.current;
+    if (recording?.recorder && recording.recorder.state !== "inactive") {
+      recording.recorder.onstop = null;
+      recording.recorder.stop();
+    }
+    recording?.restoreOutput?.();
+    recording?.stream?.getTracks().forEach((track) => track.stop());
+  }, []);
 
   function applySculptStroke(hit) {
     const mesh = hit?.object;
@@ -386,11 +741,124 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     };
   }
 
+  function findEditorObject(id) {
+    let match = null;
+    runtimeRef.current?.content.traverse((object) => {
+      if (!match && object.userData?.editorId === id) match = object;
+    });
+    return match;
+  }
+
+  function findCharacterHand(character, side = "LeftHand") {
+    const expected = side.toLowerCase();
+    let fallback = null;
+    let match = null;
+    character?.traverse((object) => {
+      const normalized = String(object.name || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+      if (!normalized.endsWith(expected)) return;
+      if (object.isBone && !match) match = object;
+      else fallback ||= object;
+    });
+    return match || fallback;
+  }
+
+  function toggleEnvironmentIsolation() {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    if (!environmentIsolationRef.current) {
+      environmentIsolationRef.current = {
+        background: runtime.scene.background,
+        environment: runtime.scene.environment,
+        environmentIntensity: runtime.scene.environmentIntensity,
+        floorVisible: runtime.floor.visible,
+        effectsVisible: runtime.sceneEffectSystem.group.visible
+      };
+      runtime.scene.background = new Color("#111318");
+      runtime.scene.environment = null;
+      runtime.scene.environmentIntensity = 0;
+      runtime.floor.visible = false;
+      runtime.sceneEffectSystem.group.visible = false;
+      setEnvironmentIsolated(true);
+      setStatus("Modo personajes activo");
+      return;
+    }
+    const saved = environmentIsolationRef.current;
+    runtime.scene.background = saved.background;
+    runtime.scene.environment = saved.environment;
+    runtime.scene.environmentIntensity = saved.environmentIntensity;
+    runtime.floor.visible = saved.floorVisible;
+    runtime.sceneEffectSystem.group.visible = saved.effectsVisible;
+    environmentIsolationRef.current = null;
+    setEnvironmentIsolated(false);
+    setStatus("Fondo, piso y efectos restaurados");
+  }
+
+  function attachSelectedToHand() {
+    const runtime = runtimeRef.current;
+    const object = selectedRef.current;
+    if (!runtime || !object || object.isLight) return;
+    const objectWorldPosition = object.getWorldPosition(new Vector3());
+    const candidates = runtime.content.children
+      .filter((candidate) => candidate !== object && !candidate.userData?.editableAttachment)
+      .map((candidate) => ({ candidate, hand: findCharacterHand(candidate, attachmentHand) }))
+      .filter((entry) => entry.hand)
+      .sort((left, right) => left.hand.getWorldPosition(new Vector3()).distanceToSquared(objectWorldPosition)
+        - right.hand.getWorldPosition(new Vector3()).distanceToSquared(objectWorldPosition));
+    const target = candidates[0];
+    if (!target) {
+      const targetLabel = { LeftHand: "mano izquierda", RightHand: "mano derecha", Spine: "centro/ombligo", Hips: "cadera" }[attachmentHand];
+      setStatus(`No encontre un personaje con el punto ${targetLabel}`);
+      return;
+    }
+    pushHistory();
+    target.hand.attach(object);
+    object.position.set(0, 0, 0);
+    object.userData.editableAttachment = true;
+    object.userData.attachmentBone = target.hand.name;
+    object.userData.attachmentOwner = target.candidate.userData.editorId;
+    refreshObjects();
+    selectObject(object);
+    setMode("translate");
+    const targetLabel = { LeftHand: "mano izquierda", RightHand: "mano derecha", Spine: "centro/ombligo", Hips: "cadera" }[attachmentHand];
+    setStatus(`Objeto vinculado a ${targetLabel}`);
+  }
+
+  function detachSelectedFromHand() {
+    const runtime = runtimeRef.current;
+    const object = selectedRef.current;
+    if (!runtime || !object?.userData?.editableAttachment) return;
+    pushHistory();
+    runtime.content.attach(object);
+    delete object.userData.editableAttachment;
+    delete object.userData.attachmentBone;
+    delete object.userData.attachmentOwner;
+    refreshObjects();
+    selectObject(object);
+    setStatus("Objeto desvinculado de la mano");
+  }
+
+  function setAttachmentTransformMode(nextMode) {
+    const runtime = runtimeRef.current;
+    const object = selectedRef.current;
+    if (!runtime || !object) return;
+    setMode(nextMode);
+    runtime.transform.enabled = true;
+    runtime.transform.setMode(nextMode);
+    runtime.transform.setSpace(object.userData?.editableAttachment ? "local" : "world");
+    runtime.transform.setSize(object.userData?.editableAttachment ? 1.2 : 1);
+    runtime.transform.attach(object);
+    setStatus(nextMode === "rotate" ? "Arrastra los aros de color para rotar" : "Arrastra las flechas para mover");
+  }
+
   function refreshObjects() {
     const runtime = runtimeRef.current;
     if (!runtime) return;
     syncLightMarkers();
-    setObjects(runtime.content.children.map(objectSummary));
+    const editable = [...runtime.content.children];
+    runtime.content.traverse((object) => {
+      if (object.userData?.editableAttachment && !editable.includes(object)) editable.push(object);
+    });
+    setObjects(editable.map(objectSummary));
   }
 
   function syncLightMarkers() {
@@ -486,15 +954,18 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       else next.add(object.userData.editorId);
       selectedIdsRef.current = next;
       setSelectedIds([...next]);
-      object = next.has(object.userData.editorId) ? object : runtime.content.children.find((item) => next.has(item.userData.editorId)) || null;
+      object = next.has(object.userData.editorId) ? object : [...next].map(findEditorObject).find(Boolean) || null;
     } else {
       selectedIdsRef.current = new Set(object ? [object.userData.editorId] : []);
       setSelectedIds(object ? [object.userData.editorId] : []);
     }
     selectedRef.current = object || null;
     setSelectedId(object?.userData.editorId || "");
-    if (object && modeRef.current !== "sculpt") runtime.transform.attach(object);
-    else runtime.transform.detach();
+    if (object && modeRef.current !== "sculpt") {
+      runtime.transform.setSpace(object.userData?.editableAttachment ? "local" : "world");
+      runtime.transform.setSize(object.userData?.editableAttachment ? 1.2 : 1);
+      runtime.transform.attach(object);
+    } else runtime.transform.detach();
     if (object?.isPointLight) runtime.lightHelper = new THREE.PointLightHelper(object, 0.35, object.color);
     if (object?.isDirectionalLight) runtime.lightHelper = new THREE.DirectionalLightHelper(object, 0.7, object.color);
     if (object?.isSpotLight) runtime.lightHelper = new THREE.SpotLightHelper(object, object.color);
@@ -529,6 +1000,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       environmentBackground,
       skyMotionEnabled,
       skyMotionSpeed,
+      sceneEffects,
       gridVisible,
       ambientIntensity,
       exposure,
@@ -597,6 +1069,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setEnvironmentBackground(state.environmentBackground || "solid");
     setSkyMotionEnabled(state.skyMotionEnabled !== false);
     setSkyMotionSpeed(state.skyMotionSpeed ?? 0.35);
+    setSceneEffects(Object.fromEntries(Object.entries(DEFAULT_SCENE_EFFECTS).map(([key, defaults]) => [key, { ...defaults, ...state.sceneEffects?.[key] }])));
     setGridVisible(state.gridVisible !== false);
     setAmbientIntensity(state.ambientIntensity ?? 0.7);
     setExposure(state.exposure ?? 1.15);
@@ -620,7 +1093,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setSculptRadius(state.editor?.sculptRadius ?? 0.65);
     setSculptStrength(state.editor?.sculptStrength ?? 0.3);
     setMode(state.editor?.mode || "translate");
-    const restoredSelection = runtime.content.children.find((item) => item.userData.editorId === state.editor?.selectedId);
+    const restoredSelection = findEditorObject(state.editor?.selectedId);
     selectObject(restoredSelection || null);
   }
 
@@ -690,6 +1163,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     floor.position.y = -0.015;
     floor.receiveShadow = true;
     scene.add(floor);
+    const sceneEffectSystem = createSceneEffectSystem();
+    scene.add(sceneEffectSystem.group);
 
     const orbit = new OrbitControls(camera, renderer.domElement);
     orbit.enableDamping = true;
@@ -782,8 +1257,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       if (marker?.userData?.editorLightId) {
         object = content.children.find((item) => item.userData.editorId === marker.userData.editorLightId) || null;
       }
-      while (object?.parent && object.parent !== content) object = object.parent;
-      selectObject(object?.parent === content ? object : null, event.shiftKey);
+      while (object?.parent && object.parent !== content && !object.userData?.editorId) object = object.parent;
+      selectObject(object?.userData?.editorId ? object : null, event.shiftKey);
     };
     const onPointerMove = (event) => {
       if (modeRef.current !== "sculpt") return;
@@ -829,7 +1304,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     observer.observe(host);
     resize();
 
-    runtimeRef.current = { scene, camera, renderer, content, ambient, floor, grid, keyLight, orbit, transform, transformHelper, brushCursor, lightHelper: null, lightMarkers: new Map(), mixers: new Map(), backgroundTexture: null, baseEnvironment: environmentTexture };
+    runtimeRef.current = { scene, camera, renderer, content, ambient, floor, grid, keyLight, orbit, transform, transformHelper, brushCursor, sceneEffectSystem, lightHelper: null, lightMarkers: new Map(), mixers: new Map(), backgroundTexture: null, baseEnvironment: environmentTexture };
     let frame = 0;
     let previousRenderTime = 0;
     const render = (time = 0) => {
@@ -838,6 +1313,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       const delta = previousRenderTime ? Math.min((time - previousRenderTime) / 1000, 0.05) : 0;
       previousRenderTime = time;
       runtimeRef.current?.mixers?.forEach(({ mixer }) => mixer.update(delta));
+      animateSceneEffects(scene, sceneEffectSystem, sceneEffectsRef.current, delta, time);
       content.traverse((object) => {
         const spin = object.userData?.spin;
         if (!spin?.enabled || !object.rotation) return;
@@ -851,11 +1327,25 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         floorTexture.offset.set((time * 0.000012) % 1, (time * 0.000008) % 1);
       } else if (floorTexture && activeFloor.userData.surface === "gas") {
         floorTexture.offset.set((time * 0.000004) % 1, (time * 0.000006) % 1);
+      } else if (floorTexture && activeFloor.userData.surface === "infernal") {
+        floorTexture.offset.set((time * 0.000005) % 1, (time * 0.0000025) % 1);
+      } else if (floorTexture && activeFloor.userData.surface === "apocalypse") {
+        floorTexture.offset.set((time * 0.0000012) % 1, (time * 0.0000006) % 1);
+      } else if (floorTexture && activeFloor.userData.surface === "cemetery") {
+        floorTexture.offset.set((time * 0.0000018) % 1, (time * 0.0000028) % 1);
+      } else if (floorTexture && activeFloor.userData.surface === "medieval-apocalypse") {
+        floorTexture.offset.set((time * 0.0000016) % 1, (time * 0.0000007) % 1);
+      } else if (floorTexture && activeFloor.userData.surface === "gothic-church") {
+        floorTexture.offset.set((time * 0.00000008) % 1, 0);
+      } else if (floorTexture && activeFloor.userData.surface === "night-swamp") {
+        floorTexture.offset.set((time * 0.0000028) % 1, (time * 0.0000019) % 1);
+      } else if (floorTexture && activeFloor.userData.surface === "ruined-gothic-church") {
+        floorTexture.offset.set((time * 0.00000012) % 1, (time * 0.00000004) % 1);
       }
       const skyTexture = runtimeRef.current?.backgroundTexture;
       const skyMotion = skyMotionRef.current;
       if (skyTexture && skyMotion.enabled && skyMotion.preset.startsWith("sky-")) {
-        const presetRate = { "sky-clouds": 1, "sky-space": 0.4, "sky-sun": 0.65, "sky-night": 0.5, "sky-day": 0.8, "sky-sunset": 0.7 }[skyMotion.preset] || 0.7;
+        const presetRate = { "sky-clouds": 1, "sky-space": 0.4, "sky-sun": 0.65, "sky-night": 0.5, "sky-day": 0.8, "sky-sunset": 0.7, "sky-infernal": 0.82, "sky-apocalypse": 0.56, "sky-cemetery": 0.42, "sky-medieval-apocalypse": 0.5, "sky-gothic-church": 0.025, "sky-night-swamp": 0.36, "sky-ruined-gothic-church": 0.08, "sky-castle-interior": 0, "sky-castle-courtyard": 0.035, "sky-medieval-village": 0.025, "sky-moonlit-peaks": 0.12, "sky-spiderweb-ruins": 0.07 }[skyMotion.preset] ?? 0.7;
         const rotationStep = delta * skyMotion.speed * presetRate * 0.6;
         scene.backgroundRotation.y = (scene.backgroundRotation.y + rotationStep) % (Math.PI * 2);
         scene.environmentRotation.y = scene.backgroundRotation.y;
@@ -903,6 +1393,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       });
       runtimeRef.current?.backgroundTexture?.dispose?.();
       runtimeRef.current?.mixers?.forEach(({ mixer }) => mixer.stopAllAction());
+      Object.values(sceneEffectSystem.systems).forEach((points) => {
+        points.geometry.dispose();
+        points.material.map?.dispose?.();
+        points.material.dispose();
+      });
+      sceneEffectSystem.lightningBolt.geometry.dispose();
+      sceneEffectSystem.lightningBolt.material.dispose();
+      scene.remove(sceneEffectSystem.group);
       orbit.dispose();
       orbit.removeEventListener("change", trackCameraOrbit);
       disposeObject(content);
@@ -931,6 +1429,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.orbit.enabled = true;
       runtime.transform.enabled = true;
       runtime.transform.setMode(mode);
+      runtime.transform.setSpace(selectedRef.current?.userData?.editableAttachment ? "local" : "world");
+      runtime.transform.setSize(selectedRef.current?.userData?.editableAttachment ? 1.2 : 1);
       if (selectedRef.current) runtime.transform.attach(selectedRef.current);
     }
   }, [mode]);
@@ -948,6 +1448,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   useEffect(() => {
     skyMotionRef.current = { enabled: skyMotionEnabled, speed: skyMotionSpeed, preset: environmentBackground };
   }, [environmentBackground, skyMotionEnabled, skyMotionSpeed]);
+
+  useEffect(() => {
+    sceneEffectsRef.current = sceneEffects;
+  }, [sceneEffects]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;
@@ -1141,7 +1645,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       window.removeEventListener("studio:workspace-save", save);
       window.removeEventListener("studio:workspace-load", load);
     };
-  }, [background, environmentBackground, skyMotionEnabled, skyMotionSpeed, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, renderResolution, transparentPng, animationDuration, animationTracks, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, selectedId]);
+  }, [background, environmentBackground, skyMotionEnabled, skyMotionSpeed, sceneEffects, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, renderResolution, transparentPng, animationDuration, animationTracks, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, selectedId]);
 
   useEffect(() => {
     if (openProjectSignal) setStatus("Selecciona un proyecto desde Inicio");
@@ -1247,7 +1751,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const runtime = runtimeRef.current;
     if (!runtime) return;
     pushHistory();
+    const matchingScene = THEMED_SCENES.find((scenePreset) => scenePreset.sky === preset.id);
     setEnvironmentBackground(preset.id);
+    setFloorSurface(matchingScene?.floor || "shadow");
+    setFloorVisible(true);
     setAmbientIntensity(preset.ambient);
     setExposure(preset.exposure);
     runtime.keyLight.intensity = preset.key;
@@ -1256,6 +1763,82 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     runtime.ambient.groundColor.set(preset.ground);
     setStatus(`Cielo ${preset.name} aplicado`);
   }
+
+  function applyThemedScene(scenePreset) {
+    const skyPreset = SKY_BACKGROUNDS.find((preset) => preset.id === scenePreset.sky);
+    if (!skyPreset || !runtimeRef.current) return;
+    pushHistory();
+    setEnvironmentBackground(skyPreset.id);
+    setFloorSurface(scenePreset.floor);
+    setFloorVisible(true);
+    setSkyMotionEnabled(true);
+    setAmbientIntensity(skyPreset.ambient);
+    setExposure(skyPreset.exposure);
+    runtimeRef.current.keyLight.intensity = skyPreset.key;
+    runtimeRef.current.keyLight.color.set(skyPreset.light);
+  runtimeRef.current.ambient.color.set(skyPreset.light);
+  runtimeRef.current.ambient.groundColor.set(skyPreset.ground);
+
+  const themedEffects = {
+    "medieval-apocalypse": {
+      ...structuredClone(DEFAULT_SCENE_EFFECTS),
+      fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.34, color: "#6b4038" },
+      fire: { ...DEFAULT_SCENE_EFFECTS.fire, enabled: true, intensity: 0.62 },
+      particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.55 },
+    },
+    "gothic-church": {
+      ...structuredClone(DEFAULT_SCENE_EFFECTS),
+      fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.18, color: "#75849a" },
+      particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.18 },
+    },
+    "night-swamp": {
+      ...structuredClone(DEFAULT_SCENE_EFFECTS),
+      fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.58, color: "#41665f" },
+      particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.72 },
+    },
+    "ruined-gothic-church": {
+      ...structuredClone(DEFAULT_SCENE_EFFECTS),
+      fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.3, color: "#59637d" },
+      particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.42 },
+      storm: { ...DEFAULT_SCENE_EFFECTS.storm, enabled: true, intensity: 0.45 },
+    },
+    "castle-interior": {
+      ...structuredClone(DEFAULT_SCENE_EFFECTS),
+      fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.1, color: "#8a6b52" },
+      fire: { ...DEFAULT_SCENE_EFFECTS.fire, enabled: true, intensity: 0.34 },
+      particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.28, color: "#ffd08a" },
+    },
+    "castle-courtyard": {
+      ...structuredClone(DEFAULT_SCENE_EFFECTS),
+      fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.12, color: "#9aa69e" },
+      particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.2, color: "#e6c98d" },
+    },
+    "medieval-village": {
+      ...structuredClone(DEFAULT_SCENE_EFFECTS),
+      fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.22, color: "#7f8583" },
+      rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: true, intensity: 0.38, directionX: 0.16, directionZ: 0.04, color: "#b9d7e4" },
+      particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.12, color: "#d5bf96" },
+    },
+    "moonlit-peaks": {
+      ...structuredClone(DEFAULT_SCENE_EFFECTS),
+      fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.48, color: "#65758a" },
+      rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: true, intensity: 0.82, directionX: 0.3, directionZ: -0.08, color: "#b7d8f4" },
+      particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.16, color: "#d3e5ff" },
+      storm: { ...DEFAULT_SCENE_EFFECTS.storm, enabled: true, intensity: 0.38 },
+    },
+    "spiderweb-ruins": {
+      ...structuredClone(DEFAULT_SCENE_EFFECTS),
+      fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.5, color: "#647180" },
+      particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.58, color: "#d9e8f2" },
+      storm: { ...DEFAULT_SCENE_EFFECTS.storm, enabled: true, intensity: 0.22 },
+    },
+  };
+
+  if (themedEffects[scenePreset.id]) {
+    setSceneEffects(themedEffects[scenePreset.id]);
+  }
+  setStatus(`Escenario ${scenePreset.name} aplicado`);
+}
 
   function setCameraView(view) {
     const runtime = runtimeRef.current;
@@ -1274,6 +1857,289 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     runtime.camera.position.copy(center).add(directions[view].normalize().multiplyScalar(size * 1.45));
     runtime.camera.up.set(0, 1, 0);
     runtime.orbit.update();
+    setActiveCameraShot("");
+  }
+
+  function calculateCameraShotPose(shot, subject) {
+    const runtime = runtimeRef.current;
+    if (!runtime || !subject) return null;
+    const bounds = new Box3().setFromObject(subject);
+    if (bounds.isEmpty()) return null;
+
+    const size = bounds.getSize(new Vector3());
+    const subjectHeight = Math.max(size.y, 0.01);
+    const framedHeight = Math.max(subjectHeight * (1 - shot.crop), 0.25);
+    const target = bounds.getCenter(new Vector3());
+    target.y = bounds.min.y + subjectHeight * (shot.crop + (1 - shot.crop) / 2);
+
+    const direction = runtime.camera.position.clone().sub(runtime.orbit.target);
+    if (Number.isFinite(shot.angle)) {
+      const subjectRotation = subject.getWorldQuaternion(new THREE.Quaternion());
+      direction.set(0, 0, 1).applyQuaternion(subjectRotation);
+      direction.y = 0;
+      if (direction.lengthSq() < 0.0001) direction.set(0, 0, 1);
+      direction.normalize().applyAxisAngle(new Vector3(0, 1, 0), THREE.MathUtils.degToRad(shot.angle));
+      direction.y = Math.tan(THREE.MathUtils.degToRad(shot.elevation || 0));
+    }
+    direction.normalize();
+
+    const verticalFov = THREE.MathUtils.degToRad(shot.fov);
+    const verticalDistance = (framedHeight / shot.fill / 2) / Math.tan(verticalFov / 2);
+    const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * Math.max(runtime.camera.aspect, 0.1));
+    const horizontalDistance = (Math.max(size.x, 0.25) / 0.9 / 2) / Math.tan(horizontalFov / 2);
+    const distance = Math.max(verticalDistance, horizontalDistance, 0.35);
+    const position = target.clone().add(direction.multiplyScalar(distance));
+    const up = new Vector3(0, 1, 0).applyAxisAngle(direction, THREE.MathUtils.degToRad(shot.roll || 0));
+    return { fov: shot.fov, position, target, up };
+  }
+
+  function applyCameraShot(shot) {
+    const runtime = runtimeRef.current;
+    if (!runtime || !shot) return;
+    const subject = selectedRef.current && !selectedRef.current.isLight ? selectedRef.current : runtime.content;
+    const pose = calculateCameraShotPose(shot, subject);
+    if (!pose) {
+      setStatus("Selecciona un objeto para aplicar el plano");
+      return;
+    }
+
+    if (cameraShotRef.current?.frame) cancelAnimationFrame(cameraShotRef.current.frame);
+    const startPosition = runtime.camera.position.clone();
+    const startTarget = runtime.orbit.target.clone();
+    const startUp = runtime.camera.up.clone();
+    const startFov = runtime.camera.fov;
+    const startedAt = performance.now();
+    const duration = 900;
+    runtime.orbit.enabled = false;
+    setActiveCameraShot(shot.id);
+    setStatus(`Aplicando plano ${shot.name.toLowerCase()}`);
+
+    const animate = (now) => {
+      const progress = Math.min((now - startedAt) / duration, 1);
+      const eased = progress < 0.5
+        ? 4 * progress * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      runtime.camera.position.lerpVectors(startPosition, pose.position, eased);
+      runtime.orbit.target.lerpVectors(startTarget, pose.target, eased);
+      runtime.camera.up.lerpVectors(startUp, pose.up, eased).normalize();
+      runtime.camera.fov = THREE.MathUtils.lerp(startFov, pose.fov, eased);
+      runtime.camera.updateProjectionMatrix();
+      runtime.camera.lookAt(runtime.orbit.target);
+
+      if (progress < 1) {
+        cameraShotRef.current.frame = requestAnimationFrame(animate);
+        return;
+      }
+      runtime.orbit.enabled = true;
+      runtime.orbit.update();
+      const spherical = new THREE.Spherical().setFromVector3(runtime.camera.position.clone().sub(runtime.orbit.target));
+      cameraOrbitRef.current = { lastTheta: spherical.theta, theta: spherical.theta };
+      cameraShotRef.current = null;
+      setStatus(`Plano ${shot.name.toLowerCase()} listo`);
+    };
+
+    cameraShotRef.current = { frame: requestAnimationFrame(animate) };
+  }
+
+  function createAutomaticDirection(preset = "hollywood") {
+    const runtime = runtimeRef.current;
+    const subject = selectedRef.current;
+    if (!runtime || !subject || subject.isLight) {
+      setStatus("Selecciona un personaje u objeto para crear la direccion");
+      return;
+    }
+    const byId = Object.fromEntries(CAMERA_SHOTS.map((shot) => [shot.id, shot]));
+    const presets = {
+      hollywood: {
+        name: "Hollywood", duration: 14, shots: [
+          { ...byId.general, angle: 0, elevation: 4 },
+          { ...byId.full, angle: 18, elevation: 3 },
+          byId["three-quarter-right"],
+          { ...byId.medium, angle: -12, elevation: 2 },
+          { ...byId.profile, angle: -88, elevation: 1 },
+          { ...byId.close, angle: 32, elevation: 5 },
+          byId.hero,
+          { ...byId["three-quarter-left"], crop: 0.55, fov: 33 },
+          { ...byId.close, angle: -28, elevation: 3, fov: 29 },
+          { ...byId.american, angle: 0, elevation: -4, fov: 36 }
+        ]
+      },
+      dialogue: {
+        name: "Dialogo", duration: 12, shots: [
+          { ...byId.general, angle: 0, elevation: 4 },
+          { ...byId.medium, angle: -30, elevation: 3 },
+          { ...byId.close, angle: -24, elevation: 4 },
+          { ...byId.medium, angle: 30, elevation: 3 },
+          { ...byId.close, angle: 24, elevation: 4 },
+          { ...byId["three-quarter-left"], angle: 42, elevation: 2 },
+          { ...byId["three-quarter-right"], angle: -42, elevation: 2 },
+          { ...byId.close, angle: 0, elevation: 2, fov: 30 },
+          { ...byId.american, angle: 0, elevation: 3 }
+        ]
+      },
+      action: {
+        name: "Accion", duration: 10, shots: [
+          { ...byId.general, angle: 25, elevation: 10, fov: 48 },
+          byId.hero,
+          byId["low-angle"],
+          { ...byId.profile, angle: -82, elevation: 0 },
+          byId.dutch,
+          { ...byId.american, angle: 55, elevation: -5, fov: 34 },
+          { ...byId.profile, angle: 88, elevation: 2, fov: 32 },
+          { ...byId["high-angle"], angle: -35, elevation: 24 },
+          { ...byId.close, angle: -20, elevation: -6 },
+          { ...byId.hero, angle: 0, elevation: -12, fov: 31 }
+        ]
+      },
+      suspense: {
+        name: "Suspenso", duration: 16, shots: [
+          { ...byId.general, angle: 68, elevation: 8 },
+          { ...byId.full, angle: 58, elevation: 7, fov: 40 },
+          { ...byId.american, angle: 48, elevation: 5 },
+          { ...byId.medium, angle: 28, elevation: 4 },
+          { ...byId.profile, angle: 88, elevation: 2, fov: 32 },
+          { ...byId.close, angle: 12, elevation: 5, fov: 29 },
+          { ...byId.dutch, angle: -18, roll: -9, crop: 0.72, fov: 27 },
+          { ...byId.close, angle: -38, elevation: 1, fov: 26 },
+          { ...byId["high-angle"], angle: 20, elevation: 22, fov: 34 },
+          { ...byId.dutch, angle: 8, roll: 7, crop: 0.76, fov: 25 }
+        ]
+      },
+      orbit: {
+        name: "Orbita", duration: 14, shots: [0, 40, 80, 120, 160, 200, 240, 280, 320, 360].map((angle, index) => ({
+          ...byId.american,
+          angle,
+          elevation: index < 5 ? 5 + index * 2 : 13 - (index - 5) * 2,
+          fov: index === 0 || index === 9 ? 38 : 35
+        }))
+      },
+      rock: {
+        name: "Rock", duration: 14, shots: [
+          { ...byId.general, angle: 0, elevation: 6, fov: 46 },
+          { ...byId.full, angle: -24, elevation: 2, fov: 40 },
+          { ...byId.american, angle: 32, elevation: 1, fov: 36 },
+          { ...byId.profile, angle: -86, elevation: 2, fov: 37 },
+          { ...byId.medium, angle: 18, elevation: -4, fov: 34 },
+          { ...byId.close, angle: -28, elevation: 3, fov: 30 },
+          { ...byId["three-quarter-left"], angle: 45, elevation: 5 },
+          { ...byId.hero, angle: -18, elevation: -10, fov: 31 },
+          { ...byId.profile, angle: 88, elevation: 0, fov: 35 },
+          { ...byId.general, angle: 0, elevation: 8, fov: 43 }
+        ]
+      },
+      "hard-rock": {
+        name: "Hard Rock", duration: 12, shots: [
+          { ...byId.general, angle: 30, elevation: 12, fov: 49 },
+          { ...byId["low-angle"], angle: -22, elevation: -24, fov: 32 },
+          { ...byId.dutch, angle: 38, elevation: -5, roll: -14, fov: 34 },
+          { ...byId.close, angle: -42, elevation: 0, fov: 28 },
+          { ...byId.profile, angle: 90, elevation: -7, fov: 33 },
+          { ...byId.american, angle: -58, elevation: -10, fov: 34 },
+          { ...byId.dutch, angle: -28, elevation: 8, roll: 12, fov: 30 },
+          { ...byId.hero, angle: 24, elevation: -16, fov: 29 },
+          { ...byId.close, angle: 12, elevation: -8, crop: 0.74, fov: 27 },
+          { ...byId.full, angle: -36, elevation: 4, fov: 38 },
+          { ...byId["low-angle"], angle: 0, elevation: -26, fov: 31 }
+        ]
+      },
+      metal: {
+        name: "Metal", duration: 13, shots: [
+          { ...byId.dutch, angle: -55, elevation: 16, roll: 16, fov: 42 },
+          { ...byId["low-angle"], angle: 18, elevation: -30, fov: 30 },
+          { ...byId.close, angle: 48, elevation: -12, crop: 0.76, fov: 25 },
+          { ...byId.profile, angle: -92, elevation: -4, fov: 31 },
+          { ...byId["high-angle"], angle: 35, elevation: 34, fov: 36 },
+          { ...byId.dutch, angle: 12, elevation: -18, roll: -18, fov: 27 },
+          { ...byId.american, angle: 72, elevation: -8, fov: 32 },
+          { ...byId.close, angle: -58, elevation: 7, crop: 0.78, fov: 24 },
+          { ...byId.profile, angle: 94, elevation: 8, fov: 29 },
+          { ...byId.hero, angle: -34, elevation: -22, fov: 27 },
+          { ...byId.dutch, angle: 44, elevation: 4, roll: 14, crop: 0.62, fov: 28 },
+          { ...byId.general, angle: 0, elevation: 10, fov: 45 }
+        ]
+      }
+    };
+    const direction = presets[preset] || presets.hollywood;
+    const sequence = direction.shots;
+    const duration = direction.duration;
+    const frames = sequence.map((shot, index) => {
+      const pose = calculateCameraShotPose(shot, subject);
+      const spherical = new THREE.Spherical().setFromVector3(pose.position.clone().sub(pose.target));
+      return {
+        id: makeId(),
+        time: round((duration * index) / (sequence.length - 1)),
+        position: pose.position.toArray(),
+        target: pose.target.toArray(),
+        orbit: { radius: spherical.radius, phi: spherical.phi, theta: spherical.theta },
+        continuousOrbit: false,
+        up: pose.up.toArray(),
+        fov: pose.fov
+      };
+    });
+    const first = frames[0];
+    runtime.camera.position.fromArray(first.position);
+    runtime.orbit.target.fromArray(first.target);
+    runtime.camera.up.fromArray(first.up);
+    runtime.camera.fov = first.fov;
+    runtime.camera.updateProjectionMatrix();
+    runtime.orbit.update();
+    cameraOrbitRef.current = { lastTheta: first.orbit.theta, theta: first.orbit.theta };
+    setAnimationPlaying(false);
+    setAnimationDuration(duration);
+    setAnimationTime(0);
+    setAnimationTracks((current) => ({ ...current, [CAMERA_TRACK_ID]: frames }));
+    setStatus(`Direccion ${direction.name} creada: ${sequence.length} tomas en ${duration} segundos`);
+    setTimeout(() => setAnimationPlaying(true), 0);
+  }
+
+  function orbitCamera(deltaX, deltaY) {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    const viewportHeight = Math.max(runtime.renderer.domElement.clientHeight, 1);
+    const rotationScale = (Math.PI * 2 * runtime.orbit.rotateSpeed) / viewportHeight;
+    runtime.orbit._rotateLeft(deltaX * rotationScale);
+    runtime.orbit._rotateUp(deltaY * rotationScale);
+    runtime.orbit.update();
+    setActiveCameraShot("");
+  }
+
+  function zoomCamera(factor) {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    if (factor < 1) runtime.orbit.dollyIn(factor);
+    else runtime.orbit.dollyOut(1 / factor);
+    setActiveCameraShot("");
+  }
+
+  function stopContinuousZoom() {
+    if (cameraZoomHoldRef.current) cancelAnimationFrame(cameraZoomHoldRef.current);
+    cameraZoomHoldRef.current = null;
+  }
+
+  function startContinuousZoom(event, direction) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    stopContinuousZoom();
+    const step = () => {
+      zoomCamera(direction === "in" ? 0.99 : 1 / 0.99);
+      cameraZoomHoldRef.current = requestAnimationFrame(step);
+    };
+    step();
+  }
+
+  function startCameraNavigation(event) {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    cameraNavigationRef.current = { x: event.clientX, y: event.clientY };
+  }
+
+  function moveCameraNavigation(event) {
+    const previous = cameraNavigationRef.current;
+    if (!previous) return;
+    orbitCamera(event.clientX - previous.x, event.clientY - previous.y);
+    cameraNavigationRef.current = { x: event.clientX, y: event.clientY };
+  }
+
+  function stopCameraNavigation() {
+    cameraNavigationRef.current = null;
   }
 
   function addAnimationKeyframe() {
@@ -1353,7 +2219,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setStatus(kind === "camera" ? "Vista eliminada" : "Keyframe eliminado");
   }
 
-  function prepareRenderOutput({ transparent = false } = {}) {
+  function prepareRenderOutput({ clean = false, transparent = false } = {}) {
     const runtime = runtimeRef.current;
     const [width, height] = renderResolution.split("x").map(Number);
     const previousSize = runtime.renderer.getSize(new THREE.Vector2());
@@ -1361,10 +2227,20 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const previousAspect = runtime.camera.aspect;
     const previousBackground = runtime.scene.background;
     const floorWasVisible = runtime.floor.visible;
+    const gridWasVisible = runtime.grid.visible;
+    const transformWasVisible = runtime.transformHelper.visible;
+    const lightHelperWasVisible = runtime.lightHelper?.visible;
+    const markerVisibility = [...runtime.lightMarkers.values()].map((marker) => [marker, marker.visible]);
     runtime.renderer.setPixelRatio(1);
     runtime.renderer.setSize(width, height, false);
     runtime.camera.aspect = width / height;
     runtime.camera.updateProjectionMatrix();
+    if (clean) {
+      runtime.grid.visible = false;
+      runtime.transformHelper.visible = false;
+      if (runtime.lightHelper) runtime.lightHelper.visible = false;
+      markerVisibility.forEach(([marker]) => { marker.visible = false; });
+    }
     if (transparent) {
       runtime.scene.background = null;
       runtime.floor.visible = false;
@@ -1376,10 +2252,25 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.camera.updateProjectionMatrix();
       runtime.scene.background = previousBackground;
       runtime.floor.visible = floorWasVisible;
+      runtime.grid.visible = gridWasVisible;
+      runtime.transformHelper.visible = transformWasVisible;
+      if (runtime.lightHelper) runtime.lightHelper.visible = lightHelperWasVisible;
+      markerVisibility.forEach(([marker, visible]) => { marker.visible = visible; });
     };
   }
 
-  async function exportAnimation() {
+  async function convertToH264(blob, fileName) {
+    const body = new FormData();
+    body.append("video", blob, "studio-3d-source.webm");
+    const response = await fetch(`${API}/api/three/export-h264`, { method: "POST", body });
+    if (!response.ok) {
+      const details = await response.json().catch(() => null);
+      throw new Error(details?.error || "No se pudo codificar el video H.264");
+    }
+    downloadBlob(await response.blob(), fileName);
+  }
+
+  async function exportAnimation(format = "h264") {
     const runtime = runtimeRef.current;
     if (!runtime || animationExporting) return;
     if (!Object.values(animationTracks).some((frames) => frames.length > 1)) {
@@ -1427,8 +2318,15 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       recorder.stop();
       await stopped;
       stream.getTracks().forEach((track) => track.stop());
-      downloadBlob(new Blob(chunks, { type: mimeType }), "studio-3d-animation.webm");
-      setStatus("Animacion WebM exportada");
+      const blob = new Blob(chunks, { type: mimeType });
+      if (format === "h264") {
+        setStatus("Codificando MP4 H.264 en alta calidad...");
+        await convertToH264(blob, "studio-3d-animation-h264.mp4");
+        setStatus("Animacion MP4 H.264 exportada");
+      } else {
+        downloadBlob(blob, "studio-3d-animation.webm");
+        setStatus("Animacion WebM exportada");
+      }
     } catch (error) {
       console.error(error);
       setStatus("No se pudo exportar la animacion");
@@ -1450,7 +2348,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     pushHistory();
     runtime.mixers.get(object.userData.editorId)?.mixer.stopAllAction();
     runtime.mixers.delete(object.userData.editorId);
-    runtime.content.remove(object);
+    object.parent?.remove(object);
     setAnimationTracks((current) => {
       const next = { ...current };
       delete next[object.userData.editorId];
@@ -1657,6 +2555,97 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     syncSelection(object);
   }
 
+  function updateSceneEffect(effect, key, value) {
+    setSceneEffects((current) => ({
+      ...current,
+      [effect]: { ...current[effect], [key]: value }
+    }));
+  }
+
+  function applyEffectsPreset(preset) {
+    pushHistory();
+    const presets = {
+      infernal: {
+        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.38, color: "#6b3330" },
+        fire: { enabled: true, intensity: 0.9 },
+        rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: false }, particles: { enabled: true, intensity: 0.72 },
+        storm: { enabled: false, intensity: 0.6 }
+      },
+      storm: {
+        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.62, color: "#687887" },
+        fire: { enabled: false, intensity: 0.6 },
+        rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: true, intensity: 1.45, directionX: 0.38 },
+        particles: { enabled: false, intensity: 0.5 }, storm: { enabled: true, intensity: 0.8 }
+      },
+      mystic: {
+        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.45, color: "#74598f" },
+        fire: { enabled: false, intensity: 0.6 },
+        rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: false }, particles: { enabled: true, intensity: 0.9 },
+        storm: { enabled: false, intensity: 0.6 }
+      },
+      downpour: {
+        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.7, color: "#536575" },
+        fire: { enabled: false, intensity: 0.6 },
+        rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: true, intensity: 1.8, directionX: 0.9, directionZ: 0.35, color: "#a9dcff" },
+        particles: { enabled: false, intensity: 0.5 },
+        storm: { enabled: true, intensity: 1 }
+      },
+      acidRain: {
+        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.58, color: "#426b32" },
+        fire: { enabled: false, intensity: 0.6 },
+        rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: true, intensity: 1.35, directionX: 0.42, directionZ: -0.22, color: "#78ff32" },
+        particles: { enabled: true, intensity: 0.62 },
+        storm: { enabled: true, intensity: 0.52 }
+      },
+      spectralEclipse: {
+        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.72, color: "#382958" },
+        fire: { enabled: true, intensity: 0.28 },
+        rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: false },
+        particles: { enabled: true, intensity: 1 },
+        storm: { enabled: true, intensity: 0.7 }
+      },
+      castleInterior: {
+        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.1, color: "#8a6b52" },
+        fire: { enabled: true, intensity: 0.34 },
+        rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: false },
+        particles: { enabled: true, intensity: 0.28, color: "#ffd08a" },
+        storm: { enabled: false, intensity: 0.6 }
+      },
+      castleCourtyard: {
+        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.12, color: "#9aa69e" },
+        fire: { enabled: false, intensity: 0.6 },
+        rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: false },
+        particles: { enabled: true, intensity: 0.2, color: "#e6c98d" },
+        storm: { enabled: false, intensity: 0.6 }
+      },
+      medievalVillage: {
+        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.22, color: "#7f8583" },
+        fire: { enabled: false, intensity: 0.6 },
+        rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: true, intensity: 0.38, directionX: 0.16, directionZ: 0.04, color: "#b9d7e4" },
+        particles: { enabled: true, intensity: 0.12, color: "#d5bf96" },
+        storm: { enabled: false, intensity: 0.6 }
+      },
+      moonlitPeaks: {
+        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.48, color: "#65758a" },
+        fire: { enabled: false, intensity: 0.6 },
+        rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: true, intensity: 0.82, directionX: 0.3, directionZ: -0.08, color: "#b7d8f4" },
+        particles: { enabled: true, intensity: 0.16, color: "#d3e5ff" },
+        storm: { enabled: true, intensity: 0.38 }
+      },
+      spiderwebRuins: {
+        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.5, color: "#647180" },
+        fire: { enabled: false, intensity: 0.6 },
+        rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: false },
+        particles: { enabled: true, intensity: 0.58, color: "#d9e8f2" },
+        storm: { enabled: true, intensity: 0.22 }
+      },
+      clear: structuredClone(DEFAULT_SCENE_EFFECTS)
+    };
+    setSceneEffects(presets[preset]);
+    const names = { castleInterior: "Interior del castillo", castleCourtyard: "Patio medieval", medievalVillage: "Aldea humeda", moonlitPeaks: "Cumbres luna llena", spiderwebRuins: "Ruinas de telaranas" };
+    setStatus(`Efectos ${names[preset] || preset} aplicados`);
+  }
+
   function toggleModelAnimation() {
     const object = selectedRef.current;
     const entry = runtimeRef.current?.mixers.get(object?.userData.editorId);
@@ -1708,7 +2697,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   }
 
   function toggleObjectVisibility(id) {
-    const object = runtimeRef.current?.content.children.find((item) => item.userData.editorId === id);
+    const object = findEditorObject(id);
     if (!object) return;
     pushHistory();
     object.visible = !object.visible;
@@ -1758,6 +2747,13 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       const continuous = object.userData.animationRotation || [object.rotation.x, object.rotation.y, object.rotation.z];
       continuous[index] = THREE.MathUtils.degToRad(numeric);
       object.userData.animationRotation = continuous;
+    } else if (group === "scale" && scaleLinked) {
+      const previous = object.scale[axis];
+      if (Math.abs(previous) > 0.000001) {
+        object.scale.multiplyScalar(numeric / previous);
+      } else {
+        object.scale.setScalar(numeric);
+      }
     } else object[group][axis] = numeric;
     updateLightDirection(object);
     runtimeRef.current?.lightHelper?.update?.();
@@ -2007,6 +3003,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       group.position.sub(center);
       group.position.y -= new Box3().setFromObject(group).min.y;
       runtimeRef.current.content.add(group);
+      placeObjectInFreeSpot(group, runtimeRef.current.content);
       refreshObjects();
       selectObject(group);
       focusSelected();
@@ -2019,14 +3016,58 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     }
   }
 
+  function placeObjectInFreeSpot(object, content) {
+    object.updateWorldMatrix(true, true);
+    const bounds = new Box3().setFromObject(object);
+    if (bounds.isEmpty()) return;
+    const size = bounds.getSize(new Vector3());
+    const step = Math.max(size.x, size.z, 1.5) + 0.75;
+    const margin = 0.35;
+    const occupied = content.children
+      .filter((item) => item !== object && item.visible && !item.isLight)
+      .map((item) => new Box3().setFromObject(item))
+      .filter((itemBounds) => !itemBounds.isEmpty());
+    const origin = object.position.clone();
+
+    for (let radius = 0; radius <= 12; radius += 1) {
+      for (let gridZ = -radius; gridZ <= radius; gridZ += 1) {
+        for (let gridX = -radius; gridX <= radius; gridX += 1) {
+          if (radius && Math.max(Math.abs(gridX), Math.abs(gridZ)) !== radius) continue;
+          const offsetX = gridX * step;
+          const offsetZ = gridZ * step;
+          const candidate = bounds.clone().translate(new Vector3(offsetX, 0, offsetZ));
+          const overlaps = occupied.some((itemBounds) => !(
+            candidate.max.x + margin < itemBounds.min.x
+            || candidate.min.x - margin > itemBounds.max.x
+            || candidate.max.z + margin < itemBounds.min.z
+            || candidate.min.z - margin > itemBounds.max.z
+          ));
+          if (overlaps) continue;
+          object.position.set(origin.x + offsetX, origin.y, origin.z + offsetZ);
+          object.updateWorldMatrix(true, true);
+          return;
+        }
+      }
+    }
+  }
+
   async function importModel(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    const isHeavyModel = file.size > 80 * 1024 * 1024;
+    let url = "";
     try {
-      setStatus("Importando modelo...");
-      const url = URL.createObjectURL(file);
+      if (isHeavyModel) {
+        runtime.renderer.setPixelRatio(1);
+        setStatus(`Preparando modelo pesado (${Math.round(file.size / 1024 / 1024)} MB)...`);
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      } else {
+        setStatus("Importando modelo...");
+      }
+      url = URL.createObjectURL(file);
       const gltf = await new GLTFLoader().loadAsync(url);
-      URL.revokeObjectURL(url);
       pushHistory();
       const model = gltf.scene;
       model.name = file.name.replace(/\.(glb|gltf)$/i, "");
@@ -2042,6 +3083,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       bounds.setFromObject(model);
       model.position.y -= bounds.min.y;
       runtimeRef.current.content.add(model);
+      placeObjectInFreeSpot(model, runtimeRef.current.content);
       registerModelAnimations(model, gltf.animations);
       refreshObjects();
       selectObject(model);
@@ -2049,22 +3091,24 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setStatus(`${file.name} importado`);
     } catch (error) {
       console.error(error);
-      setStatus("No se pudo importar el modelo");
+      setStatus(isHeavyModel ? "No hay memoria suficiente para importar este GLB" : "No se pudo importar el modelo");
     } finally {
+      if (url) URL.revokeObjectURL(url);
       event.target.value = "";
     }
   }
 
-  async function addNeonboy() {
+  async function addNeonboy(modelPreset = CHARACTER_MODELS[0]) {
     const runtime = runtimeRef.current;
     if (!runtime) return;
     try {
-      setStatus("Cargando Neonboy...");
-      const gltf = await new GLTFLoader().loadAsync(neonboyModelUrl);
+      setStatus(`Cargando ${modelPreset.name}...`);
+      const modelUrl = modelPreset.url || await modelPreset.loadUrl();
+      const gltf = await new GLTFLoader().loadAsync(modelUrl);
       pushHistory();
       const model = gltf.scene;
-      model.name = "Neonboy";
-      model.userData = { ...model.userData, editorId: makeId(), editorType: "model", bundledModel: "neonboy" };
+      model.name = modelPreset.name;
+      model.userData = { ...model.userData, editorId: makeId(), editorType: "model", bundledModel: modelPreset.id };
       model.animations = gltf.animations;
       model.traverse((item) => {
         if (item.isMesh) { item.castShadow = true; item.receiveShadow = true; }
@@ -2075,14 +3119,186 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       bounds.setFromObject(model);
       model.position.y -= bounds.min.y;
       runtime.content.add(model);
+      placeObjectInFreeSpot(model, runtime.content);
       registerModelAnimations(model, gltf.animations);
+      let selectedObject = model;
+      if (modelPreset.id.startsWith("neon-guitar") && GUITAR_MODEL_LOADER) {
+        setStatus("Colocando la guitarra en la mano...");
+        const guitarUrl = await GUITAR_MODEL_LOADER();
+        const guitarGltf = await new GLTFLoader().loadAsync(guitarUrl);
+        const guitar = guitarGltf.scene;
+        const hand = findCharacterHand(model, "LeftHand") || findCharacterHand(model, "RightHand");
+        if (hand) {
+          const characterHeight = new Box3().setFromObject(model).getSize(new Vector3()).y;
+          guitar.name = "Guitarra del guitarrista";
+          guitar.userData = {
+            ...guitar.userData,
+            editorId: makeId(),
+            editorType: "model",
+            bundledStaticModel: "guitar",
+            editableAttachment: true,
+            attachmentBone: hand.name,
+            attachmentOwner: model.userData.editorId
+          };
+          guitar.traverse((item) => {
+            if (item.isMesh) { item.castShadow = true; item.receiveShadow = true; }
+          });
+          hand.add(guitar);
+          guitar.position.set(0, 0, 0);
+          guitar.rotation.set(0, 0, 0);
+          guitar.updateWorldMatrix(true, true);
+          const guitarSize = new Box3().setFromObject(guitar).getSize(new Vector3());
+          const guitarLength = Math.max(guitarSize.x, guitarSize.y, guitarSize.z, 0.001);
+          guitar.scale.multiplyScalar((characterHeight * 0.62) / guitarLength);
+          selectedObject = guitar;
+        }
+      }
+      refreshObjects();
+      selectObject(selectedObject);
+      setMode("translate");
+      setStatus(modelPreset.id.startsWith("neon-guitar")
+        ? "Guitarrista agregado. Acomoda la guitarra: seguira la mano durante la animacion"
+        : `${modelPreset.name} agregado con su animacion`);
+    } catch (error) {
+      console.error(error);
+      setStatus(`No se pudo cargar ${modelPreset.character}`);
+    }
+  }
+
+  async function addStaticModel(modelPreset) {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    try {
+      setStatus(`Cargando ${modelPreset.name}...`);
+      const modelUrl = modelPreset.url || await modelPreset.loadUrl();
+      const gltf = await new GLTFLoader().loadAsync(modelUrl);
+      pushHistory();
+      const model = gltf.scene;
+      model.name = modelPreset.name;
+      model.userData = { ...model.userData, editorId: makeId(), editorType: "model", bundledStaticModel: modelPreset.id };
+      model.animations = [];
+      model.traverse((item) => {
+        if (item.isMesh) { item.castShadow = true; item.receiveShadow = true; }
+      });
+      const bounds = new Box3().setFromObject(model);
+      const size = bounds.getSize(new Vector3());
+      model.scale.multiplyScalar(4.8 / Math.max(size.x, size.y, size.z, 1));
+      bounds.setFromObject(model);
+      model.position.y -= bounds.min.y;
+      runtime.content.add(model);
+      placeObjectInFreeSpot(model, runtime.content);
       refreshObjects();
       selectObject(model);
       focusSelected();
-      setStatus("Neonboy agregado con su animacion");
+      setStatus(`${modelPreset.name} agregado`);
     } catch (error) {
       console.error(error);
-      setStatus("No se pudo cargar Neonboy");
+      setStatus(`No se pudo cargar ${modelPreset.name}`);
+    }
+  }
+
+  function startViewportRecordingNow() {
+    const runtime = runtimeRef.current;
+    const canvas = runtime?.renderer?.domElement;
+    if (!canvas || viewportRecording || typeof canvas.captureStream !== "function" || typeof MediaRecorder === "undefined") {
+      setStatus("Este navegador no permite grabar el render 3D");
+      return;
+    }
+    let restoreOutput = null;
+    try {
+      const [width, height] = renderResolution.split("x").map(Number);
+      const pixels = width * height;
+      const bitrateMbps = Math.min(60, Math.max(16, (pixels / (1920 * 1080)) * 24));
+      restoreOutput = prepareRenderOutput({ clean: true });
+      const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"]
+        .find((type) => MediaRecorder.isTypeSupported(type));
+      const stream = canvas.captureStream(30);
+      const recorderOptions = { videoBitsPerSecond: Math.round(bitrateMbps * 1_000_000) };
+      if (mimeType) recorderOptions.mimeType = mimeType;
+      const recorder = new MediaRecorder(stream, recorderOptions);
+      const chunks = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) chunks.push(event.data);
+      };
+      recorder.onerror = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        restoreOutput?.();
+        viewportRecordingRef.current = null;
+        setViewportRecording(false);
+        setStatus("No se pudo completar la grabacion");
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: recorder.mimeType || "video/webm" });
+        stream.getTracks().forEach((track) => track.stop());
+        restoreOutput?.();
+        viewportRecordingRef.current = null;
+        setViewportRecording(false);
+        setViewportRecordingBlob(blob);
+        setStatus("Grabacion lista para descargar");
+      };
+      viewportRecordingRef.current = { recorder, stream, restoreOutput };
+      setViewportRecordingBlob(null);
+      setViewportRecording(true);
+      recorder.start(250);
+      setStatus(`Grabando ${width} x ${height} a ${Math.round(bitrateMbps)} Mbps...`);
+    } catch (error) {
+      console.error(error);
+      restoreOutput?.();
+      setStatus("No se pudo iniciar la grabacion");
+    }
+  }
+
+  function startViewportRecording() {
+    if (viewportRecording || recordingCountdown !== null) return;
+    let count = 3;
+    setRecordingCountdown(count);
+    setStatus("Preparando grabacion...");
+    const tick = () => {
+      count -= 1;
+      setRecordingCountdown(count);
+      if (count > 0) {
+        recordingCountdownTimerRef.current = setTimeout(tick, 1000);
+      } else {
+        recordingCountdownTimerRef.current = setTimeout(() => {
+          recordingCountdownTimerRef.current = null;
+          setRecordingCountdown(null);
+          startViewportRecordingNow();
+        }, 650);
+      }
+    };
+    recordingCountdownTimerRef.current = setTimeout(tick, 1000);
+  }
+
+  function stopViewportRecording() {
+    if (recordingCountdownTimerRef.current) {
+      clearTimeout(recordingCountdownTimerRef.current);
+      recordingCountdownTimerRef.current = null;
+      setRecordingCountdown(null);
+      setStatus("Grabacion cancelada");
+      return;
+    }
+    const recorder = viewportRecordingRef.current?.recorder;
+    if (!recorder || recorder.state === "inactive") return;
+    recorder.stop();
+  }
+
+  async function downloadViewportRecording(format = "webm") {
+    if (!viewportRecordingBlob || viewportConverting) return;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    if (format === "webm") {
+      downloadBlob(viewportRecordingBlob, `neonboy-3d-${timestamp}.webm`);
+      return;
+    }
+    setViewportConverting(true);
+    setStatus("Codificando MP4 H.264 en alta calidad...");
+    try {
+      await convertToH264(viewportRecordingBlob, `neonboy-3d-${timestamp}-h264.mp4`);
+      setStatus("Video MP4 H.264 exportado");
+    } catch (error) {
+      console.error(error);
+      setStatus("No se pudo exportar H.264");
+    } finally {
+      setViewportConverting(false);
     }
   }
 
@@ -2147,6 +3363,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           <button disabled={selectedIds.length < 2} data-tooltip="Fusionar mallas" onClick={mergeSelected} type="button"><Combine size={18} /></button>
           <button disabled={!selectedId} data-tooltip="Eliminar objeto" onClick={removeSelected} type="button"><Trash2 size={18} /></button>
         </div>
+        <div className="three-tool-group">
+          <button className={environmentIsolated ? "active" : ""} data-tooltip={environmentIsolated ? "Restaurar ambiente" : "Ocultar fondo, piso y efectos"} onClick={toggleEnvironmentIsolation} type="button">
+            {environmentIsolated ? <Eye size={18} /> : <EyeOff size={18} />}
+          </button>
+        </div>
         <div className="three-toolbar-spacer" />
         <button className="three-action" onClick={onRequestProjectSave} type="button"><Download size={17} /> Guardar</button>
         <button className="three-action" onClick={exportPng} type="button"><ImageDown size={17} /> PNG</button>
@@ -2155,34 +3376,47 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
 
       <div className="three-workspace">
         <aside className="three-library" data-wizard="three-objects">
-          <div className="three-panel-heading"><span>CREAR</span><strong>Objetos</strong></div>
-          <div className="three-add-grid">
-            <button onClick={() => addPrimitive("box")} type="button"><Box size={22} /><span>Cubo</span></button>
-            <button onClick={() => addPrimitive("sphere")} type="button"><Circle size={22} /><span>Esfera</span></button>
-            <button onClick={() => addPrimitive("cylinder")} type="button"><Cylinder size={22} /><span>Cilindro</span></button>
-            <button onClick={() => addPrimitive("cone")} type="button"><Cone size={22} /><span>Cono</span></button>
-            <button onClick={() => addPrimitive("plane")} type="button"><Square size={22} /><span>Plano</span></button>
-            <button onClick={() => addPrimitive("torus")} type="button"><CircleDot size={22} /><span>Toroide</span></button>
-            <button onClick={() => addPrimitive("capsule")} type="button"><Pill size={22} /><span>Capsula</span></button>
-            <button onClick={addNeonboy} type="button"><Sparkles size={22} /><span>Neonboy</span></button>
-            <button onClick={() => addLight("point")} type="button"><Lightbulb size={22} /><span>Puntual</span></button>
-            <button onClick={() => addLight("directional")} type="button"><Sun size={22} /><span>Solar</span></button>
-            <button onClick={() => addLight("spot")} type="button"><Flashlight size={22} /><span>Foco</span></button>
-            <label className="three-import"><Upload size={22} /><span>Modelo</span><input accept=".glb,.gltf,model/gltf-binary,model/gltf+json" onChange={importModel} type="file" /></label>
-            <label className="three-import"><Palette size={22} /><span>SVG 3D</span><input accept=".svg,image/svg+xml" onChange={importSvg} type="file" /></label>
-          </div>
-          <div className="three-create-text">
-            <label><span>Texto 3D</span><input maxLength="42" onChange={(event) => changeTextDraft(event.target.value)} onFocus={pushHistory} value={textDraft} /></label>
-            <label><span>Tipografia</span><select onChange={(event) => changeTextFont(event.target.value)} value={textFont}>{Object.entries(THREE_FONTS).map(([id, entry]) => <option key={id} value={id}>{entry.name}</option>)}</select></label>
-            <label><span>Profundidad</span><input max="1.5" min="0.05" onChange={(event) => changeTextDepth(event.target.value)} onFocus={pushHistory} step="0.05" type="number" value={extrudeDepth} /></label>
-            <button disabled={!textDraft.trim()} onClick={selectedRef.current?.userData.editorType === "text" ? () => updateSelectedText() : addText} type="button"><Type size={16} /> {selectedRef.current?.userData.editorType === "text" ? "Aplicar cambios" : "Agregar texto"}</button>
-          </div>
+          <div className="three-panel-heading"><span>CREAR</span><strong>Biblioteca</strong></div>
+          <nav aria-label="Biblioteca 3D" className="three-library-tabs">
+            <button className={libraryTab === "objects" ? "active" : ""} onClick={() => setLibraryTab("objects")} type="button"><Box size={15} /> Objetos 3D</button>
+            <button className={libraryTab === "characters" ? "active" : ""} onClick={() => setLibraryTab("characters")} type="button"><Sparkles size={15} /> Personajes</button>
+          </nav>
+          {libraryTab === "objects" ? <>
+            <div className="three-add-grid">
+              <button onClick={() => addPrimitive("box")} type="button"><Box size={22} /><span>Cubo</span></button>
+              <button onClick={() => addPrimitive("sphere")} type="button"><Circle size={22} /><span>Esfera</span></button>
+              <button onClick={() => addPrimitive("cylinder")} type="button"><Cylinder size={22} /><span>Cilindro</span></button>
+              <button onClick={() => addPrimitive("cone")} type="button"><Cone size={22} /><span>Cono</span></button>
+              <button onClick={() => addPrimitive("plane")} type="button"><Square size={22} /><span>Plano</span></button>
+              <button onClick={() => addPrimitive("torus")} type="button"><CircleDot size={22} /><span>Toroide</span></button>
+              <button onClick={() => addPrimitive("capsule")} type="button"><Pill size={22} /><span>Capsula</span></button>
+              {STATIC_MODELS.map((model) => <button key={model.id} onClick={() => addStaticModel(model)} type="button"><Box size={22} /><span>{model.name}</span></button>)}
+              <button onClick={() => addLight("point")} type="button"><Lightbulb size={22} /><span>Luz puntual</span></button>
+              <button onClick={() => addLight("directional")} type="button"><Sun size={22} /><span>Luz solar</span></button>
+              <button onClick={() => addLight("spot")} type="button"><Flashlight size={22} /><span>Foco</span></button>
+              <label className="three-import"><Upload size={22} /><span>Importar modelo</span><input accept=".glb,.gltf,model/gltf-binary,model/gltf+json" onChange={importModel} type="file" /></label>
+              <label className="three-import"><Palette size={22} /><span>Importar SVG</span><input accept=".svg,image/svg+xml" onChange={importSvg} type="file" /></label>
+            </div>
+            <div className="three-create-text">
+              <label><span>Texto 3D</span><input maxLength="42" onChange={(event) => changeTextDraft(event.target.value)} onFocus={pushHistory} value={textDraft} /></label>
+              <label><span>Tipografia</span><select onChange={(event) => changeTextFont(event.target.value)} value={textFont}>{Object.entries(THREE_FONTS).map(([id, entry]) => <option key={id} value={id}>{entry.name}</option>)}</select></label>
+              <label><span>Profundidad</span><input max="1.5" min="0.05" onChange={(event) => changeTextDepth(event.target.value)} onFocus={pushHistory} step="0.05" type="number" value={extrudeDepth} /></label>
+              <button disabled={!textDraft.trim()} onClick={selectedRef.current?.userData.editorType === "text" ? () => updateSelectedText() : addText} type="button"><Type size={16} /> {selectedRef.current?.userData.editorType === "text" ? "Aplicar cambios" : "Agregar texto"}</button>
+            </div>
+          </> : <div className="three-character-library">
+            {["Neonboy", "Neoncruzader"].map((character) => <section key={character}>
+              <div className="three-library-section-title"><strong>{character}</strong><span>{CHARACTER_MODELS.filter((model) => model.character === character).length}</span></div>
+              <div className="three-add-grid">
+                {CHARACTER_MODELS.filter((model) => model.character === character).map((model) => <button key={model.id} onClick={() => addNeonboy(model)} type="button"><Sparkles size={22} /><span>{model.animation}</span></button>)}
+              </div>
+            </section>)}
+          </div>}
           <div className="three-panel-heading three-scene-heading"><span>ESCENA</span><strong>Objetos</strong></div>
           <div className="three-outliner">
             {objects.map((item) => {
               const ItemIcon = iconForType(item.type);
               return <div className={`three-outliner-row ${selectedIds.includes(item.id) ? "active" : ""}`} key={item.id}>
-                <button className="three-outliner-select" onClick={(event) => selectObject(runtimeRef.current?.content.children.find((object) => object.userData.editorId === item.id), event.shiftKey)} type="button"><ItemIcon size={16} /><span>{item.name}</span></button>
+                <button className="three-outliner-select" onClick={(event) => selectObject(findEditorObject(item.id), event.shiftKey)} type="button"><ItemIcon size={16} /><span>{item.name}</span></button>
                 <button className="three-outliner-visibility" data-tooltip={item.visible ? "Ocultar" : "Mostrar"} onClick={() => toggleObjectVisibility(item.id)} type="button">{item.visible ? <Eye size={15} /> : <EyeOff size={15} />}</button>
               </div>;
             })}
@@ -2192,16 +3426,52 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         <div className="three-viewport-wrap" data-wizard="three-viewport">
           <div className="three-viewport" ref={hostRef} />
           <div className="three-viewport-label"><Circle size={8} fill="currentColor" /> Perspectiva</div>
+          {recordingCountdown !== null && <div className="three-recording-countdown" key={recordingCountdown}>{recordingCountdown}</div>}
           {status && <div className="three-status">{status}</div>}
         </div>
 
         <aside className="three-properties" data-tab={propertyTab} data-wizard="three-properties">
           <div className="three-panel-heading"><span>PROPIEDADES</span><strong>{selection?.name || "Escena"}</strong></div>
+          <div className="three-camera-navigation">
+            <div
+              aria-label="Orbitar camara"
+              className="three-camera-trackpad"
+              onPointerCancel={stopCameraNavigation}
+              onPointerDown={startCameraNavigation}
+              onPointerMove={moveCameraNavigation}
+              onPointerUp={stopCameraNavigation}
+              role="button"
+              tabIndex="0"
+            ><Move3D size={20} /></div>
+            <button aria-label="Acercar" onClick={(event) => event.detail === 0 && zoomCamera(0.92)} onPointerCancel={stopContinuousZoom} onPointerDown={(event) => startContinuousZoom(event, "in")} onPointerLeave={stopContinuousZoom} onPointerUp={stopContinuousZoom} type="button"><ZoomIn size={18} /></button>
+            <button aria-label="Alejar" onClick={(event) => event.detail === 0 && zoomCamera(1.09)} onPointerCancel={stopContinuousZoom} onPointerDown={(event) => startContinuousZoom(event, "out")} onPointerLeave={stopContinuousZoom} onPointerUp={stopContinuousZoom} type="button"><ZoomOut size={18} /></button>
+          </div>
+          <div className="three-camera-shots">
+            <div className="three-camera-shots-title"><Film size={15} /><span>PLANOS</span></div>
+            <div className="three-camera-shot-picker">
+              <select onChange={(event) => setCameraShotSelection(event.target.value)} value={cameraShotSelection}>
+                <optgroup label="Encuadres clasicos">
+                  {CAMERA_SHOTS.slice(0, 5).map((shot) => <option key={shot.id} value={shot.id}>{shot.name}</option>)}
+                </optgroup>
+                <optgroup label="Angulos cinematograficos">
+                  {CAMERA_SHOTS.slice(5).map((shot) => <option key={shot.id} value={shot.id}>{shot.name}</option>)}
+                </optgroup>
+              </select>
+              <button className={activeCameraShot === cameraShotSelection ? "active" : ""} data-tooltip="Aplicar plano" onClick={() => applyCameraShot(CAMERA_SHOTS.find((shot) => shot.id === cameraShotSelection))} type="button"><Camera size={16} /></button>
+            </div>
+          </div>
+          <div className="three-camera-recording three-recording-controls">
+            <button aria-label="Grabar render" className={viewportRecording ? "recording" : ""} disabled={viewportRecording || recordingCountdown !== null || viewportConverting} onClick={startViewportRecording} type="button"><Circle fill="currentColor" size={15} /><span>REC</span></button>
+            <button aria-label="Detener grabacion" disabled={!viewportRecording && recordingCountdown === null} onClick={stopViewportRecording} type="button"><Square fill="currentColor" size={14} /><span>STOP</span></button>
+            <button aria-label="Descargar grabacion WebM" disabled={!viewportRecordingBlob || viewportRecording || recordingCountdown !== null || viewportConverting} onClick={() => downloadViewportRecording("webm")} type="button"><Download size={16} /><span>WebM</span></button>
+            <button aria-label="Descargar grabacion MP4 H.264" disabled={!viewportRecordingBlob || viewportRecording || recordingCountdown !== null || viewportConverting} onClick={() => downloadViewportRecording("h264")} type="button"><Film size={16} /><span>{viewportConverting ? "Procesando" : "H.264"}</span></button>
+          </div>
           <nav aria-label="Panel de propiedades 3D" className="three-property-tabs">
             <button className={propertyTab === "object" ? "active" : ""} onClick={() => setPropertyTab("object")} type="button">Objeto</button>
             <button className={propertyTab === "model" ? "active" : ""} onClick={() => setPropertyTab("model")} type="button">Modelar</button>
             <button className={propertyTab === "material" ? "active" : ""} onClick={() => setPropertyTab("material")} type="button">Material</button>
             <button className={propertyTab === "scene" ? "active" : ""} onClick={() => setPropertyTab("scene")} type="button">Escena</button>
+            <button className={propertyTab === "effects" ? "active" : ""} onClick={() => setPropertyTab("effects")} type="button">Efectos</button>
             <button className={propertyTab === "output" ? "active" : ""} onClick={() => setPropertyTab("output")} type="button">Salida</button>
           </nav>
           {selection ? (
@@ -2210,9 +3480,32 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                 <legend>Objeto</legend>
                 <label><span>Nombre</span><input maxLength="80" onChange={(event) => renameSelected(event.target.value)} onFocus={pushHistory} value={selection.name} /></label>
               </fieldset>
+              {!selection.isLight && (
+                <fieldset className="three-tab-object">
+                  <legend>Vincular a personaje</legend>
+                  <label><span>Punto</span><select disabled={Boolean(selectedRef.current?.userData?.editableAttachment)} onChange={(event) => setAttachmentHand(event.target.value)} value={attachmentHand}>
+                    <option value="LeftHand">Izquierda</option>
+                    <option value="RightHand">Derecha</option>
+                    <option value="Spine">Centro / ombligo</option>
+                    <option value="Hips">Cadera</option>
+                  </select></label>
+                  {selectedRef.current?.userData?.editableAttachment
+                    ? <>
+                      <div className="three-model-actions">
+                        <button className={mode === "translate" ? "active" : ""} onClick={() => setAttachmentTransformMode("translate")} type="button"><Move3D size={16} /> Mover</button>
+                        <button className={mode === "rotate" ? "active" : ""} onClick={() => setAttachmentTransformMode("rotate")} type="button"><Rotate3D size={16} /> Rotar</button>
+                      </div>
+                      <button onClick={detachSelectedFromHand} type="button"><Unlink2 size={16} /> Desvincular</button>
+                    </>
+                    : <button onClick={attachSelectedToHand} type="button"><Link2 size={16} /> Vincular</button>}
+                </fieldset>
+              )}
               {["position", "rotation", "scale"].map((group) => (
                 <fieldset className="three-tab-object" key={group}>
-                  <legend>{group === "position" ? "Posicion" : group === "rotation" ? "Rotacion" : "Escala"}</legend>
+                  <legend className={group === "scale" ? "three-transform-legend" : undefined}>
+                    <span>{group === "position" ? "Posicion" : group === "rotation" ? "Rotacion" : "Escala"}</span>
+                    {group === "scale" && <button className={scaleLinked ? "active" : ""} data-tooltip={scaleLinked ? "Escala proporcional" : "Escala por eje"} onClick={() => setScaleLinked((linked) => !linked)} type="button">{scaleLinked ? <Link2 size={14} /> : <Unlink2 size={14} />}</button>}
+                  </legend>
                   <div className="three-vector-inputs">
                     {["X", "Y", "Z"].map((axis, index) => <label key={axis}><span>{axis}</span><input onBlur={() => pushHistory()} onChange={(event) => updateTransform(group, index, event.target.value)} step="0.1" type="number" value={selection[group][index]} /></label>)}
                   </div>
@@ -2308,11 +3601,15 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           <fieldset className="three-tab-scene">
             <legend>Entorno</legend>
             <div className="three-background-presets">
-              {ENVIRONMENT_BACKGROUNDS.map((preset) => <button className={environmentBackground === preset.id ? "active" : ""} key={preset.id} onClick={() => { pushHistory(); setEnvironmentBackground(preset.id); if (preset.id !== "solid") { setFloorVisible(true); setFloorSurface("shadow"); } }} style={preset.image ? { backgroundImage: `url(${preset.image})` } : { background: background }} type="button"><span>{preset.name}</span></button>)}
+              {ENVIRONMENT_BACKGROUNDS.map((preset) => <button className={environmentBackground === preset.id ? "active" : ""} key={preset.id} onClick={() => { pushHistory(); setEnvironmentBackground(preset.id); if (preset.id !== "solid") { setFloorVisible(true); setFloorSurface("shadow"); } }} style={preset.image ? { backgroundImage: `url(${environmentThumbnail(preset)})` } : { background: background }} type="button"><span>{preset.name}</span></button>)}
+            </div>
+            <div className="three-sublegend">Escenarios animados</div>
+            <div className="three-scene-presets">
+              {THEMED_SCENES.map((preset) => <button className={environmentBackground === preset.sky && floorSurface === preset.floor ? "active" : ""} key={preset.id} onClick={() => applyThemedScene(preset)} style={{ backgroundImage: `url(${environmentThumbnail({ id: preset.sky, image: preset.image })})` }} type="button"><span>{preset.name}</span></button>)}
             </div>
             <div className="three-sublegend">Cielo e iluminacion</div>
             <div className="three-sky-presets">
-              {SKY_BACKGROUNDS.map((preset) => <button className={environmentBackground === preset.id ? "active" : ""} key={preset.id} onClick={() => applySkyPreset(preset)} style={{ backgroundImage: `url(${preset.image})` }} type="button"><span>{preset.name}</span></button>)}
+              {SKY_BACKGROUNDS.map((preset) => <button className={environmentBackground === preset.id ? "active" : ""} key={preset.id} onClick={() => applySkyPreset(preset)} style={{ backgroundImage: `url(${environmentThumbnail(preset)})` }} type="button"><span>{preset.name}</span></button>)}
             </div>
             <label className="three-check"><input checked={skyMotionEnabled} disabled={!environmentBackground.startsWith("sky-")} onChange={(event) => { pushHistory(); setSkyMotionEnabled(event.target.checked); }} type="checkbox" /><Sparkles size={16} /> Animar cielo</label>
             <label><span>Velocidad cielo</span><input disabled={!environmentBackground.startsWith("sky-") || !skyMotionEnabled} max="1.5" min="0.05" onChange={(event) => setSkyMotionSpeed(Number(event.target.value))} onPointerDown={pushHistory} step="0.05" type="range" value={skyMotionSpeed} /></label>
@@ -2331,6 +3628,42 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
             <label className="three-check"><input checked={floorVisible} onChange={(event) => setFloorVisible(event.target.checked)} type="checkbox" /><Square size={16} /> Mostrar piso</label>
             <label className="three-check"><input checked={gridVisible} onChange={(event) => setGridVisible(event.target.checked)} type="checkbox" /><Grid3X3 size={16} /> Mostrar grilla</label>
           </fieldset>
+          <fieldset className="three-tab-effects">
+            <legend>Combinaciones</legend>
+            <div className="three-effects-presets">
+              <button onClick={() => applyEffectsPreset("infernal")} type="button"><Flame size={15} /> Infernal</button>
+              <button onClick={() => applyEffectsPreset("storm")} type="button"><CloudRain size={15} /> Tormenta</button>
+              <button onClick={() => applyEffectsPreset("mystic")} type="button"><Sparkles size={15} /> Mistico</button>
+              <button onClick={() => applyEffectsPreset("downpour")} type="button"><CloudRain size={15} /> Diluvio</button>
+              <button onClick={() => applyEffectsPreset("acidRain")} type="button"><CloudRain size={15} /> Lluvia acida</button>
+              <button onClick={() => applyEffectsPreset("spectralEclipse")} type="button"><CloudLightning size={15} /> Eclipse</button>
+              <button onClick={() => applyEffectsPreset("castleInterior")} type="button"><Flame size={15} /> Castillo interior</button>
+              <button onClick={() => applyEffectsPreset("castleCourtyard")} type="button"><Sparkles size={15} /> Patio medieval</button>
+              <button onClick={() => applyEffectsPreset("medievalVillage")} type="button"><CloudRain size={15} /> Aldea humeda</button>
+              <button onClick={() => applyEffectsPreset("moonlitPeaks")} type="button"><CloudLightning size={15} /> Cumbres luna</button>
+              <button onClick={() => applyEffectsPreset("spiderwebRuins")} type="button"><Sparkles size={15} /> Telaranas nocturnas</button>
+              <button onClick={() => applyEffectsPreset("clear")} type="button">Limpiar</button>
+            </div>
+          </fieldset>
+          {[
+            { id: "fog", label: "Niebla", icon: CloudFog },
+            { id: "fire", label: "Fuego y brasas", icon: Flame },
+            { id: "rain", label: "Agua / lluvia", icon: CloudRain },
+            { id: "particles", label: "Particulas", icon: Sparkles },
+            { id: "storm", label: "Nubes y rayos", icon: CloudLightning }
+          ].map(({ id, label, icon: EffectIcon }) => (
+            <fieldset className="three-tab-effects" key={id}>
+              <legend>{label}</legend>
+              <label className="three-check"><input checked={sceneEffects[id].enabled} onChange={(event) => { pushHistory(); updateSceneEffect(id, "enabled", event.target.checked); }} type="checkbox" /><EffectIcon size={16} /> Activar</label>
+              <label><span>Intensidad</span><input disabled={!sceneEffects[id].enabled} max={id === "rain" ? 1.8 : 1} min="0.05" onChange={(event) => updateSceneEffect(id, "intensity", Number(event.target.value))} onPointerDown={pushHistory} step="0.05" type="range" value={sceneEffects[id].intensity} /></label>
+              {id === "fog" && <label className="three-color-field"><span>Color</span><input disabled={!sceneEffects.fog.enabled} onChange={(event) => updateSceneEffect("fog", "color", event.target.value)} type="color" value={sceneEffects.fog.color} /></label>}
+              {id === "rain" && <>
+                <label className="three-color-field"><span>Color</span><input disabled={!sceneEffects.rain.enabled} onChange={(event) => updateSceneEffect("rain", "color", event.target.value)} type="color" value={sceneEffects.rain.color || DEFAULT_SCENE_EFFECTS.rain.color} /></label>
+                <label><span>Direccion X</span><input disabled={!sceneEffects.rain.enabled} max="1" min="-1" onChange={(event) => updateSceneEffect("rain", "directionX", Number(event.target.value))} onPointerDown={pushHistory} step="0.05" type="range" value={sceneEffects.rain.directionX} /></label>
+                <label><span>Direccion Z</span><input disabled={!sceneEffects.rain.enabled} max="1" min="-1" onChange={(event) => updateSceneEffect("rain", "directionZ", Number(event.target.value))} onPointerDown={pushHistory} step="0.05" type="range" value={sceneEffects.rain.directionZ} /></label>
+              </>}
+            </fieldset>
+          ))}
           <fieldset className="three-tab-output">
             <legend>Salida</legend>
             <label><span>Resolucion</span><select onChange={(event) => setRenderResolution(event.target.value)} value={renderResolution}>
@@ -2351,6 +3684,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         keyframes={animationTracks[selectedId] || []}
         onAddKeyframe={addAnimationKeyframe}
         onAddCameraKeyframe={addCameraKeyframe}
+        onAutoDirect={createAutomaticDirection}
         onClear={clearSelectedAnimation}
         onClearCamera={clearCameraAnimation}
         onDurationChange={(value) => {

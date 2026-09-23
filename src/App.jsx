@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo.png";
 import { AuthLoading, Dashboard as DashboardView, DesktopAccessDenied, Login as LoginView, ProjectSaveDialog as ProjectSaveDialogView, ViewerDemo } from "./components/AppInterfaces";
-import AdminUsers from "./components/AdminUsers.jsx";
 import { useAuth } from "./auth/AuthProvider.jsx";
-import { canManageUsers, canUseDesktop, canUseFullWeb } from "./auth/permissions.js";
+import { canUseDesktop, canUseFullWeb } from "./auth/permissions.js";
 import { CustomTooltip, Wizard } from "./components/Guidance";
 import VideoEditor from "./editors/VideoEditor";
 import AudioEditor from "./editors/AudioEditor";
@@ -4992,22 +4991,13 @@ export default function App() {
         <div>
           <strong className="header-brand">
             <img alt="" src={logo} />
-            Neon Studio
+            Neon Studio <span className="header-edition">Neonboy 3D</span>
           </strong>
           <span>{user.email} | {role}</span>
         </div>
         <nav className="tabs">
           <button className={tab === "home" ? "active" : ""} onClick={() => setTab("home")}>
             <House size={17} /> Inicio
-          </button>
-          <button className={tab === "image" ? "active" : ""} onClick={() => setTab("image")}>
-            <ImageIcon size={17} /> Imagen
-          </button>
-          <button className={tab === "design" ? "active" : ""} onClick={() => setTab("design")}>
-            <Type size={17} /> Diseno
-          </button>
-          <button className={tab === "pdf" ? "active" : ""} onClick={() => setTab("pdf")}>
-            <FileText size={17} /> PDF
           </button>
           <button className={tab === "video" ? "active" : ""} onClick={() => setTab("video")}>
             <Film size={17} /> Video
@@ -5016,13 +5006,8 @@ export default function App() {
             <FileAudio size={17} /> Audio
           </button>
           <button className={tab === "three" ? "active" : ""} onClick={() => setTab("three")}>
-            <Box size={17} /> 3D
+            <Box size={17} /> Estudio 3D
           </button>
-          {canManageUsers(role) && (
-            <button className={tab === "users" ? "active" : ""} onClick={() => setTab("users")}>
-              <Users size={17} /> Usuarios
-            </button>
-          )}
         </nav>
         <div className="header-actions">
           <button className="icon-button" data-tooltip="Guardar proyecto" onClick={() => setSaveDialogOpen(true)}>
@@ -5052,6 +5037,7 @@ export default function App() {
         <div className={tab === "home" ? "editor-pane" : "editor-pane is-hidden"}>
           <DashboardView
             downloadUrl={IS_DESKTOP_APP ? "" : WINDOWS_DOWNLOAD_URL}
+            enabledKinds={["video", "audio", "three"]}
             onCreate={createProject}
             onDeleteProject={deleteWorkspace}
             onDuplicateProject={duplicateWorkspace}
@@ -5060,15 +5046,6 @@ export default function App() {
             onTemplate={useTemplate}
             projects={projects}
           />
-        </div>
-        <div className={tab === "image" ? "editor-pane" : "editor-pane is-hidden"}>
-          <ImageEditor openProjectSignal={openSignals.image} templateRequest={imageTemplate} />
-        </div>
-        <div className={tab === "design" ? "editor-pane" : "editor-pane is-hidden"}>
-          <DesignEditor templateRequest={designTemplate} />
-        </div>
-        <div className={tab === "pdf" ? "editor-pane" : "editor-pane is-hidden"}>
-          <PdfEditor openProjectSignal={openSignals.pdf} templateRequest={pdfTemplate} />
         </div>
         <div className={tab === "video" ? "editor-pane" : "editor-pane is-hidden"}>
           <VideoEditor
@@ -5089,11 +5066,6 @@ export default function App() {
             openProjectSignal={openSignals.three}
           />
         </div>
-        {canManageUsers(role) && (
-          <div className={tab === "users" ? "editor-pane" : "editor-pane is-hidden"}>
-            <AdminUsers currentUser={user} />
-          </div>
-        )}
       </div>
       <CustomTooltip />
       {saveDialogOpen && (

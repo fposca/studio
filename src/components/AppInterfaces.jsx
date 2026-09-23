@@ -207,7 +207,8 @@ export function ProjectSaveDialog({ defaultName, canUpdate, onClose, onSave, onU
   );
 }
 
-export function Dashboard({ downloadUrl, onCreate, onTemplate, projects, readOnly = false, onOpenProject, onRenameProject, onDuplicateProject, onDeleteProject }) {
+export function Dashboard({ downloadUrl, enabledKinds = ["image", "design", "pdf", "video", "audio", "three"], onCreate, onTemplate, projects, readOnly = false, onOpenProject, onRenameProject, onDuplicateProject, onDeleteProject }) {
+  const enabled = new Set(enabledKinds);
   const cards = [
     { id: "image", className: "dashboard-card-image", icon: ImageIcon, kicker: "EDITOR", title: "Imagen", text: "Editar, recortar, retocar y exportar." },
     { id: "design", className: "dashboard-card-design", icon: Type, kicker: "VECTORIAL", title: "Diseno", text: "Texto, formas vectoriales y fotos combinadas." },
@@ -215,7 +216,8 @@ export function Dashboard({ downloadUrl, onCreate, onTemplate, projects, readOnl
     { id: "video", className: "dashboard-card-video", icon: Film, kicker: "POSTPRODUCCION", title: "Video", text: "Timeline, cortes, efectos y exportacion." },
     { id: "audio", className: "dashboard-card-audio", icon: Music2, kicker: "SONIDO", title: "Audio", text: "Recorta, nivela, aplica fundidos y exporta." },
     { id: "three", className: "dashboard-card-three", icon: Box, kicker: "ESPACIO", title: "3D", text: "Modela escenas, materiales, luces y camaras." }
-  ];
+  ].filter((card) => enabled.has(card.id));
+  const visibleProjects = projects.filter((project) => enabled.has(project.tab));
   return (
     <section className="dashboard">
       <div className="dashboard-hero"><div><h1>Neon Studio</h1><p>{readOnly ? "Conoce las herramientas disponibles en la aplicacion." : "Elegi que queres crear o recupera un proyecto guardado."}</p></div></div>
@@ -242,7 +244,7 @@ export function Dashboard({ downloadUrl, onCreate, onTemplate, projects, readOnl
       </div>
       <div className="dashboard-section" data-wizard="home-recents">
         <h2>Recientes</h2>
-        {projects.length ? <div className="recent-project-grid">{projects.map((project) => (
+        {visibleProjects.length ? <div className="recent-project-grid">{visibleProjects.map((project) => (
           <article className="recent-project-card" key={project.id}>
             <button className="recent-project-preview" disabled={readOnly} onClick={() => onOpenProject(project)} type="button">{project.thumbnail ? <img alt="" src={project.thumbnail} /> : <Square size={38} />}</button>
             <div className="recent-project-info"><strong>{project.name}</strong><span>{project.tab} | {new Date(project.savedAt).toLocaleString()}</span></div>
@@ -258,12 +260,9 @@ export function Dashboard({ downloadUrl, onCreate, onTemplate, projects, readOnl
       <div className="dashboard-section" data-wizard="home-templates">
         <h2>Plantillas</h2>
         <div className="template-grid">
-          <button disabled={readOnly} onClick={() => onTemplate("image", { name: "Cuadrada 1080", w: 1080, h: 1080, background: "checker" })} type="button">Imagen 1080x1080</button>
-          <button disabled={readOnly} onClick={() => onTemplate("image", { name: "Historia 1080x1920", w: 1080, h: 1920, background: "checker" })} type="button">Historia 9:16</button>
-          <button disabled={readOnly} onClick={() => onTemplate("design", { name: "Post con texto", w: 1080, h: 1080, backgroundColor: "#ffffff" })} type="button">Diseno 1080x1080</button>
-          <button disabled={readOnly} onClick={() => onTemplate("pdf", { name: "PDF A4", pageSize: "a4", fit: "contain", quality: 0.82, maxEdge: 1600 })} type="button">PDF A4</button>
-          <button disabled={readOnly} onClick={() => onTemplate("video", { name: "Video 1080p H.265", resolution: "1920:1080", codec: "h265", format: "mp4", crf: 24, timelineScale: 90 })} type="button">Video 1080p</button>
-          <button disabled={readOnly} onClick={() => onCreate("three")} type="button">Escena 3D</button>
+          {enabled.has("video") && <button disabled={readOnly} onClick={() => onTemplate("video", { name: "Video 1080p H.265", resolution: "1920:1080", codec: "h265", format: "mp4", crf: 24, timelineScale: 90 })} type="button">Video 1080p</button>}
+          {enabled.has("audio") && <button disabled={readOnly} onClick={() => onCreate("audio")} type="button">Proyecto de audio</button>}
+          {enabled.has("three") && <button disabled={readOnly} onClick={() => onCreate("three")} type="button">Escena Neonboy 3D</button>}
         </div>
       </div>
     </section>

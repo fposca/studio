@@ -8,6 +8,7 @@ export default function ThreeAnimationPanel({
   keyframes,
   onAddKeyframe,
   onAddCameraKeyframe,
+  onAutoDirect,
   onClear,
   onClearCamera,
   onDurationChange,
@@ -22,6 +23,8 @@ export default function ThreeAnimationPanel({
   selectedName
 }) {
   const [selectedMarker, setSelectedMarker] = useState(null);
+  const [directorPreset, setDirectorPreset] = useState("hollywood");
+  const [exportFormat, setExportFormat] = useState("h264");
   const markers = [
     ...keyframes.map((keyframe) => ({ ...keyframe, kind: "object", left: `${(keyframe.time / duration) * 100}%` })),
     ...cameraKeyframes.map((keyframe) => ({ ...keyframe, kind: "camera", left: `${(keyframe.time / duration) * 100}%` }))
@@ -53,6 +56,19 @@ export default function ThreeAnimationPanel({
         <button disabled={!selectedName} onClick={onAddKeyframe} type="button"><Diamond size={16} /> Keyframe</button>
         <button disabled={!keyframes.length} data-tooltip="Borrar animacion del objeto" onClick={onClear} type="button"><Trash2 size={16} /></button>
         <button data-tooltip="Guardar rotacion y vista de la escena" onClick={onAddCameraKeyframe} type="button"><Camera size={16} /> Vista {cameraKeyframes.length}</button>
+        <div className="three-director-control">
+          <select aria-label="Estilo de direccion automatica" onChange={(event) => setDirectorPreset(event.target.value)} value={directorPreset}>
+            <option value="hollywood">Hollywood</option>
+            <option value="dialogue">Dialogo</option>
+            <option value="action">Accion</option>
+            <option value="suspense">Suspenso</option>
+            <option value="orbit">Orbita</option>
+            <option value="rock">Rock</option>
+            <option value="hard-rock">Hard Rock</option>
+            <option value="metal">Metal</option>
+          </select>
+          <button disabled={!selectedName} data-tooltip="Crear secuencia cinematografica para la seleccion" onClick={() => onAutoDirect(directorPreset)} type="button"><Film size={16} /> Director</button>
+        </div>
         <button disabled={!selectedMarker} data-tooltip="Eliminar marcador seleccionado (Delete)" onClick={deleteSelectedMarker} type="button"><Trash2 size={16} /></button>
         <button disabled={!cameraKeyframes.length} data-tooltip="Borrar animacion de vista" onClick={onClearCamera} type="button"><CameraOff size={16} /></button>
       </div>
@@ -72,11 +88,15 @@ export default function ThreeAnimationPanel({
       </div>
       <div className="three-animation-time"><strong>{currentTime.toFixed(2)} s</strong><label>Duracion<input max="60" min="1" onChange={(event) => onDurationChange(Number(event.target.value))} step="1" type="number" value={duration} /></label></div>
       <div className="three-animation-export">
+        <select aria-label="Formato de video" disabled={exporting} onChange={(event) => setExportFormat(event.target.value)} value={exportFormat}>
+          <option value="h264">MP4 H.264</option>
+          <option value="webm">WebM</option>
+        </select>
         <select aria-label="Fotogramas por segundo" disabled={exporting} onChange={(event) => onFpsChange(Number(event.target.value))} value={fps}>
           <option value="30">30 FPS</option>
           <option value="60">60 FPS</option>
         </select>
-        <button disabled={exporting} onClick={onExport} type="button">{exporting ? <Loader2 className="spin" size={16} /> : <Film size={16} />} {exporting ? "Renderizando" : "Exportar WebM"}</button>
+        <button disabled={exporting} onClick={() => onExport(exportFormat)} type="button">{exporting ? <Loader2 className="spin" size={16} /> : <Film size={16} />} {exporting ? "Procesando" : `Exportar ${exportFormat === "h264" ? "H.264" : "WebM"}`}</button>
       </div>
     </section>
   );
