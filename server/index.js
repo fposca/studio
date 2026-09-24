@@ -598,7 +598,6 @@ app.post("/api/three/export-h264", renderUpload.single("video"), async (req, res
       req.file.path,
       "-vf",
       "scale=trunc(iw/2)*2:trunc(ih/2)*2",
-      "-an",
       "-c:v",
       "libx264",
       "-preset",
@@ -607,6 +606,10 @@ app.post("/api/three/export-h264", renderUpload.single("video"), async (req, res
       "17",
       "-pix_fmt",
       "yuv420p",
+      "-c:a",
+      "aac",
+      "-b:a",
+      "192k",
       "-movflags",
       "+faststart",
       outPath

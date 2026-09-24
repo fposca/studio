@@ -1033,7 +1033,7 @@ label {
 .three-editor {
   background: #111419;
   display: grid;
-  grid-template-rows: 50px minmax(0, 1fr) 88px;
+  grid-template-rows: 50px minmax(0, 1fr) 124px;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -1045,7 +1045,11 @@ label {
   border-top: 1px solid #353d46;
   display: grid;
   gap: 12px;
+  grid-template-areas:
+    "heading controls timeline time export"
+    "heading audio audio audio export";
   grid-template-columns: 130px auto minmax(200px, 1fr) 140px auto;
+  grid-template-rows: auto auto;
   min-width: 0;
   padding: 10px 12px;
 }
@@ -1053,6 +1057,7 @@ label {
 .three-animation-heading {
   display: grid;
   gap: 3px;
+  grid-area: heading;
   min-width: 0;
 }
 
@@ -1072,6 +1077,7 @@ label {
   align-items: center;
   display: flex;
   gap: 5px;
+  grid-area: controls;
 }
 
 .three-animation-controls button {
@@ -1081,8 +1087,42 @@ label {
 }
 
 .three-animation-timeline {
+  grid-area: timeline;
   min-width: 0;
+  padding-top: 17px;
   position: relative;
+}
+
+.three-animation-clips {
+  height: 15px;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+.three-animation-clips button {
+  align-items: center;
+  background: #17465a;
+  border: 1px solid #43bfe9;
+  border-radius: 3px;
+  color: #d9f6ff;
+  display: flex;
+  font-size: 8px;
+  gap: 2px;
+  height: 14px;
+  justify-content: center;
+  min-height: 14px;
+  min-width: 12px;
+  overflow: hidden;
+  padding: 0 3px;
+  position: absolute;
+  top: 0;
+}
+
+.three-animation-clips button.selected {
+  background: #8b16d7;
+  border-color: #e3b6ff;
 }
 
 .three-animation-timeline input {
@@ -1098,7 +1138,7 @@ label {
   left: 8px;
   position: absolute;
   right: 8px;
-  top: -4px;
+  top: 13px;
   z-index: 2;
 }
 
@@ -1126,10 +1166,40 @@ label {
   z-index: 2;
 }
 
+.three-loop-toggle {
+  align-items: center;
+  background: #20262c;
+  border: 1px solid #39434d;
+  border-radius: 5px;
+  color: #dce2e8;
+  display: flex;
+  font-size: 10px;
+  gap: 5px;
+  min-height: 34px;
+  padding: 5px 7px;
+  white-space: nowrap;
+}
+
+.three-loop-toggle input {
+  accent-color: #a100ff;
+  margin: 0;
+}
+
+.three-animation-markers .is-beat {
+  background: #ee3f8f;
+  height: 13px;
+  opacity: 0.72;
+  position: absolute;
+  top: -2px;
+  transform: translateX(-50%);
+  width: 2px;
+}
+
 .three-animation-time {
   align-items: center;
   display: flex;
   gap: 10px;
+  grid-area: time;
   justify-content: flex-end;
 }
 
@@ -1156,6 +1226,7 @@ label {
   align-items: center;
   display: flex;
   gap: 6px;
+  grid-area: export;
   justify-content: flex-end;
 }
 
@@ -1170,6 +1241,161 @@ label {
   min-width: 130px;
   padding: 6px 9px;
   white-space: nowrap;
+}
+
+.three-shot-editor {
+  align-items: center;
+  background: #171c21;
+  border: 1px solid #303942;
+  display: flex;
+  gap: 8px;
+  padding: 5px 8px;
+}
+
+.three-shot-editor strong {
+  color: #c8d1da;
+  font-size: 10px;
+}
+
+.three-shot-editor label {
+  align-items: center;
+  color: #8995a1;
+  display: flex;
+  font-size: 10px;
+  gap: 5px;
+}
+
+.three-shot-editor input,
+.three-shot-editor select {
+  background: #20262c;
+  border: 1px solid #39434d;
+  border-radius: 4px;
+  color: #e7edf3;
+  font-size: 10px;
+  height: 26px;
+  padding: 3px 6px;
+}
+
+.three-shot-editor input {
+  width: 58px;
+}
+
+.three-camera-shake {
+  align-items: center;
+  border-left: 1px solid #303942;
+  display: flex;
+  gap: 9px;
+  padding: 0 8px;
+}
+
+.three-camera-shake label {
+  align-items: center;
+  color: #8995a1;
+  display: flex;
+  font-size: 10px;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.three-camera-shake input[type="range"] {
+  accent-color: #a100ff;
+  width: 76px;
+}
+
+.three-camera-follow {
+  align-items: center;
+  border-left: 1px solid #303942;
+  display: flex;
+  gap: 8px;
+  padding-left: 8px;
+}
+
+.three-camera-follow label {
+  align-items: center;
+  color: #8995a1;
+  display: flex;
+  font-size: 10px;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.three-camera-follow input[type="range"] {
+  accent-color: #00b8d9;
+  width: 68px;
+}
+
+.three-slow-motion {
+  align-items: center;
+  border-left: 1px solid #303942;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 7px;
+  padding-left: 8px;
+}
+
+.three-slow-motion label {
+  align-items: center;
+  color: #8995a1;
+  display: flex;
+  font-size: 10px;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.three-slow-motion input[type="number"] {
+  background: #20262c;
+  border: 1px solid #39434d;
+  border-radius: 4px;
+  color: #e7edf3;
+  height: 24px;
+  padding: 2px 4px;
+  width: 48px;
+}
+
+.three-slow-motion input[type="range"] {
+  accent-color: #ffcf5a;
+  width: 68px;
+}
+
+.three-animation-audio {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  grid-area: audio;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.three-animation-audio > span {
+  color: #8995a1;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.three-audio-upload {
+  align-items: center;
+  background: #242a31;
+  border: 1px solid #38414b;
+  border-radius: 5px;
+  color: #d6dee6;
+  cursor: pointer;
+  display: flex;
+  font-size: 10px;
+  gap: 6px;
+  max-width: 220px;
+  min-height: 32px;
+  padding: 6px 9px;
+}
+
+.three-audio-upload span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.three-audio-upload input {
+  display: none;
 }
 
 .three-toolbar {
@@ -1490,6 +1716,13 @@ label {
   padding: 6px 4px;
 }
 
+.three-autosave-status {
+  color: #8995a1;
+  flex: 0 0 auto;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
 .three-property-tabs {
   border-bottom: 1px solid #303740;
   display: grid;
@@ -1659,7 +1892,7 @@ label {
   align-items: center;
   border-radius: 4px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 30px;
+  grid-template-columns: minmax(0, 1fr) 30px 30px;
 }
 
 .three-outliner-row.active {
@@ -1682,14 +1915,16 @@ label {
   white-space: nowrap;
 }
 
-.three-outliner .three-outliner-visibility {
+.three-outliner .three-outliner-visibility,
+.three-outliner .three-outliner-lock {
   justify-content: center;
   min-width: 30px;
   opacity: 0.66;
   padding: 6px;
 }
 
-.three-outliner .three-outliner-visibility:hover {
+.three-outliner .three-outliner-visibility:hover,
+.three-outliner .three-outliner-lock:hover {
   color: #ffffff;
   opacity: 1;
 }
@@ -2085,6 +2320,7 @@ label {
   }
 
   .three-animation {
+    grid-template-areas: "heading" "controls" "timeline" "time" "audio" "export";
     grid-template-columns: 1fr;
     min-width: 390px;
   }

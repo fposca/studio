@@ -64,14 +64,15 @@ import neonboyModelUrl from "../assets/Meshy_AI_Midnight_Jester_Axe_Breathe_and_
 import neonboyLogoModelUrl from "../assets/logo.glb?url";
 import {
   ArrowDownToLine, Box, Camera, Circle, CircleDot, ClipboardPaste, CloudFog, CloudLightning, CloudRain, Combine, Cone, Copy, Cylinder, Download, Eye,
-  EyeOff, Film, Flashlight, Focus, Grid3X3, ImageDown, Lightbulb, LocateFixed,
-  Flame, Group, Hammer, Link2, MousePointer2, Move3D, Palette, Pause, Pill, Play, Redo2, Rotate3D, Scale3D, Sparkles, Square,
-  Sun, Trash2, Type, Undo2, Ungroup, Unlink2, Upload, ZoomIn, ZoomOut
+  EyeOff, Film, Flashlight, FlipHorizontal2, Focus, Grid3X3, ImageDown, Lightbulb, LocateFixed,
+  Flame, Group, Hammer, Link2, Lock, MousePointer2, Move3D, Palette, Pause, Pill, Play, Redo2, Rotate3D, RotateCcw, Scale3D, Sparkles, Square,
+  Sun, Trash2, Type, Undo2, Ungroup, Unlink2, Unlock, Upload, ZoomIn, ZoomOut
 } from "lucide-react";
 import { getProject, putProject } from "../storage/projectDb.js";
 import ThreeAnimationPanel from "./ThreeAnimationPanel.jsx";
 
 const THREE_PROJECT_ID = "three";
+const THREE_AUTOSAVE_ID = "autosave:three";
 const CAMERA_TRACK_ID = "__camera__";
 const DEFAULT_BACKGROUND = "#17191d";
 const API = window.location.port === "5173" ? "http://127.0.0.1:5174" : window.location.origin;
@@ -89,6 +90,16 @@ const CAMERA_SHOTS = [
   { id: "high-angle", name: "Picado", crop: 0.3, fill: 0.86, fov: 38, angle: -18, elevation: 30 },
   { id: "dutch", name: "Plano holandes", crop: 0.38, fill: 0.84, fov: 35, angle: 30, elevation: 3, roll: -12 }
 ];
+const POSE_BONES = [
+  { id: "LeftShoulder", name: "Hombro izquierdo" },
+  { id: "LeftArm", name: "Brazo izquierdo" },
+  { id: "LeftForeArm", name: "Antebrazo izquierdo" },
+  { id: "RightShoulder", name: "Hombro derecho" },
+  { id: "RightArm", name: "Brazo derecho" },
+  { id: "RightForeArm", name: "Antebrazo derecho" },
+  { id: "Head", name: "Cabeza" },
+  { id: "Spine", name: "Torso" }
+];
 const NEONBOY_ANIMATION_URLS = import.meta.glob("../assets/neonboy-animaciones/*.glb", { import: "default", query: "?url" });
 const GUITAR_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/guitar.glb"];
 const STATIC_MODEL_URLS = import.meta.glob("../assets/3destatic/*.glb", { import: "default", query: "?url" });
@@ -104,8 +115,13 @@ const CHARACTER_ANIMATION_NAMES = {
   "neon-hablando-mano": { character: "Neonboy", animation: "Hablando con manos", order: 13 },
   "neon-guitar": { character: "Neonboy", animation: "Guitarrista", order: 14 },
   "neon-guitar-3": { character: "Neonboy", animation: "Guitarrista 2", order: 15 },
-  "neon-guitar-4": { character: "Neonboy", animation: "Guitarrista 3", order: 16 }
+  "neon-guitar-4": { character: "Neonboy", animation: "Guitarrista 3", order: 16 },
+  "calm-guitar": { character: "Neonboy", animation: "Guitarrista calmo", order: 17 },
+  "neon-rock": { character: "Neonboy", animation: "Neon Rock", order: 18 },
+  "neonrock6": { character: "Neonboy", animation: "Neon Rock 6", order: 19 },
+  "neonHead": { character: "Neonboy", animation: "Neon Head", order: 20 }
 };
+const isGuitaristModel = (id) => id?.startsWith("neon-guitar") || ["calm-guitar", "neon-rock", "neonrock6", "neonHead"].includes(id);
 const CHARACTER_MODELS = [
   { id: "breathe-look", character: "Neoncruzader", animation: "Base", name: "Neoncruzader - Base", order: 0, url: neonboyModelUrl },
   ...Object.entries(NEONBOY_ANIMATION_URLS).filter(([path]) => !path.endsWith("/guitar.glb")).map(([path, loadUrl]) => {
@@ -609,6 +625,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const sculptingRef = useRef(false);
   const sculptSettingsRef = useRef({ brush: "inflate", radius: 0.65, strength: 0.3 });
   const animationTracksRef = useRef({});
+  const animationTimeRef = useRef(0);
   const skyMotionRef = useRef({ enabled: true, speed: 0.35, preset: "solid" });
   const sceneEffectsRef = useRef(DEFAULT_SCENE_EFFECTS);
   const rotationDragRef = useRef(null);
@@ -620,6 +637,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const recordingCountdownTimerRef = useRef(null);
   const applyingAnimationRef = useRef(false);
   const environmentIsolationRef = useRef(null);
+  const cleanRenderRef = useRef(false);
+  const cameraShakeRef = useRef({ enabled: false, intensity: 0.35, speed: 1 });
+  const cameraFollowRef = useRef({ enabled: false, strength: 0.85, subject: null, localTarget: new Vector3() });
+  const slowMotionRef = useRef({ enabled: false, start: 3, end: 8, speed: 0.25 });
+  const autosaveReadyRef = useRef(false);
+  const soundtrackAudioRef = useRef(null);
+  const soundtrackBufferRef = useRef(null);
+  const poseGizmoRef = useRef(null);
   const [objects, setObjects] = useState([]);
   const [selectedId, setSelectedId] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
@@ -648,6 +673,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const [animationTracks, setAnimationTracks] = useState({});
   const [animationFps, setAnimationFps] = useState(30);
   const [animationExporting, setAnimationExporting] = useState(false);
+  const [animationLoop, setAnimationLoop] = useState(false);
+  const [cameraShake, setCameraShake] = useState({ enabled: false, intensity: 0.35, speed: 1 });
+  const [cameraFollow, setCameraFollow] = useState({ enabled: false, strength: 0.85 });
+  const [slowMotion, setSlowMotion] = useState({ enabled: false, start: 3, end: 8, speed: 0.25 });
   const [propertyTab, setPropertyTab] = useState("object");
   const [historyCounts, setHistoryCounts] = useState({ undo: 0, redo: 0 });
   const [hasClipboard, setHasClipboard] = useState(false);
@@ -665,6 +694,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const [libraryTab, setLibraryTab] = useState("objects");
   const [environmentIsolated, setEnvironmentIsolated] = useState(false);
   const [attachmentHand, setAttachmentHand] = useState("LeftHand");
+  const [attachmentPrecision, setAttachmentPrecision] = useState(false);
+  const [attachmentOwnerPaused, setAttachmentOwnerPaused] = useState(false);
+  const [autosaveStatus, setAutosaveStatus] = useState("Preparando autosave");
+  const [soundtrack, setSoundtrack] = useState(null);
+  const [poseBone, setPoseBone] = useState("LeftArm");
+  const [poseVersion, setPoseVersion] = useState(0);
 
   useEffect(() => () => {
     if (cameraZoomHoldRef.current) cancelAnimationFrame(cameraZoomHoldRef.current);
@@ -737,6 +772,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       name: object.name,
       type: object.userData.editorType || "model",
       visible: object.visible,
+      locked: Boolean(object.userData.locked),
       color: material?.color ? `#${material.color.getHexString()}` : "#8b5cf6"
     };
   }
@@ -750,7 +786,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   }
 
   function findCharacterHand(character, side = "LeftHand") {
-    const expected = side.toLowerCase();
+    const expected = typeof side === "string" ? side.toLowerCase() : "lefthand";
     let fallback = null;
     let match = null;
     character?.traverse((object) => {
@@ -760,6 +796,85 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       else fallback ||= object;
     });
     return match || fallback;
+  }
+
+  function findRigBone(character, boneId) {
+    const expected = String(boneId || "").toLowerCase();
+    let match = null;
+    character?.traverse((object) => {
+      const normalized = String(object.name || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+      if (!match && object.isBone && normalized.endsWith(expected)) match = object;
+    });
+    return match;
+  }
+
+  function updateBonePose(axis, degrees) {
+    const character = selectedRef.current;
+    const bone = findRigBone(character, poseBone);
+    if (!character || !bone || character.userData?.locked) return;
+    const offsets = { ...(character.userData.poseOffsets || {}) };
+    const current = [...(offsets[bone.name] || [0, 0, 0])];
+    current[axis] = THREE.MathUtils.degToRad(Number(degrees));
+    offsets[bone.name] = current;
+    character.userData.poseOffsets = offsets;
+    setPoseVersion((version) => version + 1);
+    setStatus(`${POSE_BONES.find((entry) => entry.id === poseBone)?.name || "Hueso"} ajustado`);
+  }
+
+  function resetBonePose() {
+    const character = selectedRef.current;
+    const bone = findRigBone(character, poseBone);
+    if (!character || !bone || character.userData?.locked) return;
+    pushHistory();
+    const offsets = { ...(character.userData.poseOffsets || {}) };
+    delete offsets[bone.name];
+    character.userData.poseOffsets = offsets;
+    setPoseVersion((version) => version + 1);
+    setStatus("Ajuste del hueso restablecido");
+  }
+
+  function closeBoneGizmo() {
+    const runtime = runtimeRef.current;
+    const gizmo = poseGizmoRef.current;
+    if (!runtime || !gizmo) return;
+    runtime.transform.detach();
+    runtime.scene.remove(gizmo.proxy);
+    poseGizmoRef.current = null;
+    setPoseVersion((version) => version + 1);
+    if (selectedRef.current && !selectedRef.current.userData?.locked && modeRef.current !== "sculpt") runtime.transform.attach(selectedRef.current);
+    setStatus("Manipulador de hueso cerrado");
+  }
+
+  function openBoneGizmo() {
+    const runtime = runtimeRef.current;
+    const character = selectedRef.current;
+    const bone = findRigBone(character, poseBone);
+    if (!runtime || !character || !bone || character.userData?.locked) return;
+    closeBoneGizmo();
+    const proxy = new THREE.Object3D();
+    proxy.name = `Pose ${bone.name}`;
+    bone.getWorldPosition(proxy.position);
+    bone.getWorldQuaternion(proxy.quaternion);
+    runtime.scene.add(proxy);
+    const values = character.userData?.poseOffsets?.[bone.name] || [0, 0, 0];
+    poseGizmoRef.current = {
+      proxy,
+      bone,
+      character,
+      dragging: false,
+      baseWorldQuaternion: proxy.quaternion.clone(),
+      baseOffset: new THREE.Quaternion().setFromEuler(new THREE.Euler(...values, "XYZ"))
+    };
+    setPoseVersion((version) => version + 1);
+    setMode("rotate");
+    requestAnimationFrame(() => {
+      if (poseGizmoRef.current?.proxy !== proxy || !runtimeRef.current) return;
+      runtime.transform.setMode("rotate");
+      runtime.transform.setSpace("local");
+      runtime.transform.setSize(0.82);
+      runtime.transform.attach(proxy);
+    });
+    setStatus(`Rotador activo sobre ${POSE_BONES.find((entry) => entry.id === poseBone)?.name || bone.name}`);
   }
 
   function toggleEnvironmentIsolation() {
@@ -793,20 +908,22 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setStatus("Fondo, piso y efectos restaurados");
   }
 
-  function attachSelectedToHand() {
+  function attachSelectedToHand(targetPoint = attachmentHand) {
     const runtime = runtimeRef.current;
     const object = selectedRef.current;
     if (!runtime || !object || object.isLight) return;
+    const validPoints = new Set(["LeftHand", "RightHand", "Spine", "Hips"]);
+    const resolvedPoint = validPoints.has(targetPoint) ? targetPoint : attachmentHand;
     const objectWorldPosition = object.getWorldPosition(new Vector3());
     const candidates = runtime.content.children
       .filter((candidate) => candidate !== object && !candidate.userData?.editableAttachment)
-      .map((candidate) => ({ candidate, hand: findCharacterHand(candidate, attachmentHand) }))
+      .map((candidate) => ({ candidate, hand: findCharacterHand(candidate, resolvedPoint) }))
       .filter((entry) => entry.hand)
       .sort((left, right) => left.hand.getWorldPosition(new Vector3()).distanceToSquared(objectWorldPosition)
         - right.hand.getWorldPosition(new Vector3()).distanceToSquared(objectWorldPosition));
     const target = candidates[0];
     if (!target) {
-      const targetLabel = { LeftHand: "mano izquierda", RightHand: "mano derecha", Spine: "centro/ombligo", Hips: "cadera" }[attachmentHand];
+      const targetLabel = { LeftHand: "mano izquierda", RightHand: "mano derecha", Spine: "centro/ombligo", Hips: "cadera" }[resolvedPoint];
       setStatus(`No encontre un personaje con el punto ${targetLabel}`);
       return;
     }
@@ -819,7 +936,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     refreshObjects();
     selectObject(object);
     setMode("translate");
-    const targetLabel = { LeftHand: "mano izquierda", RightHand: "mano derecha", Spine: "centro/ombligo", Hips: "cadera" }[attachmentHand];
+    const targetLabel = { LeftHand: "mano izquierda", RightHand: "mano derecha", Spine: "centro/ombligo", Hips: "cadera" }[resolvedPoint];
     setStatus(`Objeto vinculado a ${targetLabel}`);
   }
 
@@ -840,14 +957,87 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   function setAttachmentTransformMode(nextMode) {
     const runtime = runtimeRef.current;
     const object = selectedRef.current;
-    if (!runtime || !object) return;
+    if (!runtime || !object || object.userData?.locked) return;
     setMode(nextMode);
     runtime.transform.enabled = true;
     runtime.transform.setMode(nextMode);
     runtime.transform.setSpace(object.userData?.editableAttachment ? "local" : "world");
     runtime.transform.setSize(object.userData?.editableAttachment ? 1.2 : 1);
     runtime.transform.attach(object);
-    setStatus(nextMode === "rotate" ? "Arrastra los aros de color para rotar" : "Arrastra las flechas para mover");
+    setStatus(nextMode === "rotate"
+      ? "Arrastra los aros de color para rotar"
+      : nextMode === "scale" ? "Arrastra los controles para escalar" : "Arrastra las flechas para mover");
+  }
+
+  function toggleAttachmentPrecision() {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    const enabled = !attachmentPrecision;
+    runtime.transform.setTranslationSnap(enabled ? 0.05 : null);
+    runtime.transform.setRotationSnap(enabled ? THREE.MathUtils.degToRad(15) : null);
+    runtime.transform.setScaleSnap(enabled ? 0.05 : null);
+    setAttachmentPrecision(enabled);
+    setStatus(enabled ? "Ajuste preciso activo: rotacion cada 15 grados" : "Ajuste libre activo");
+  }
+
+  function toggleAttachmentOwnerAnimation() {
+    const object = selectedRef.current;
+    const ownerId = object?.userData?.attachmentOwner;
+    const entry = runtimeRef.current?.mixers.get(ownerId);
+    const owner = findEditorObject(ownerId);
+    if (!entry || !owner?.userData?.modelAnimation) {
+      setStatus("Este personaje no tiene una animacion controlable");
+      return;
+    }
+    const paused = !entry.active.paused;
+    entry.active.paused = paused;
+    owner.userData.modelAnimation.playing = !paused;
+    setAttachmentOwnerPaused(paused);
+    setStatus(paused ? "Personaje pausado para acomodar el accesorio" : "Animacion del personaje reanudada");
+  }
+
+  function centerAttachmentOnAnchor() {
+    const object = selectedRef.current;
+    if (!object?.userData?.editableAttachment) return;
+    pushHistory();
+    object.position.set(0, 0, 0);
+    syncSelection(object);
+    setStatus("Accesorio centrado en el punto de anclaje");
+  }
+
+  function straightenAttachment() {
+    const object = selectedRef.current;
+    if (!object?.userData?.editableAttachment) return;
+    pushHistory();
+    object.rotation.set(0, 0, 0);
+    object.userData.animationRotation = [0, 0, 0];
+    syncSelection(object);
+    setStatus("Rotacion local restablecida");
+  }
+
+  function saveAttachmentPose() {
+    const object = selectedRef.current;
+    if (!object?.userData?.editableAttachment) return;
+    object.userData.savedAttachmentTransform = {
+      position: object.position.toArray(),
+      quaternion: object.quaternion.toArray(),
+      scale: object.scale.toArray()
+    };
+    syncSelection(object);
+    setStatus("Pose de guitarra guardada");
+  }
+
+  function restoreAttachmentPose() {
+    const object = selectedRef.current;
+    const saved = object?.userData?.savedAttachmentTransform;
+    if (!object?.userData?.editableAttachment || !saved) return;
+    pushHistory();
+    object.position.fromArray(saved.position);
+    object.quaternion.fromArray(saved.quaternion);
+    object.scale.fromArray(saved.scale);
+    object.userData.animationRotation = [object.rotation.x, object.rotation.y, object.rotation.z];
+    syncSelection(object);
+    setStatus("Pose de guitarra restaurada");
   }
 
   function refreshObjects() {
@@ -906,10 +1096,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       metalness: round(material?.metalness ?? 0),
       roughness: round(material?.roughness ?? 0.5),
       isLight: Boolean(object.isLight),
+      locked: Boolean(object.userData.locked),
       lightColor: object.isLight ? `#${object.color.getHexString()}` : "#ffffff",
       intensity: object.isLight ? round(object.intensity) : 1,
       distance: object.isPointLight || object.isSpotLight ? round(object.distance) : 0,
       angle: object.isSpotLight ? round(THREE.MathUtils.radToDeg(object.angle)) : 30,
+      lightLink: object.isLight ? { targetId: "", follow: true, aim: true, offset: [0, 3, 2], ...(object.userData.lightLink || {}) } : null,
       textureName: object.userData.textureName || "",
       textureRepeat: material?.map ? [round(material.map.repeat.x), round(material.map.repeat.y)] : [1, 1],
       spin: {
@@ -943,6 +1135,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   function selectObject(object, additive = false) {
     const runtime = runtimeRef.current;
     if (!runtime) return;
+    if (poseGizmoRef.current && object !== selectedRef.current) closeBoneGizmo();
     if (runtime.lightHelper) {
       runtime.scene.remove(runtime.lightHelper);
       runtime.lightHelper.dispose?.();
@@ -961,7 +1154,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     }
     selectedRef.current = object || null;
     setSelectedId(object?.userData.editorId || "");
-    if (object && modeRef.current !== "sculpt") {
+    if (object && !object.userData?.locked && modeRef.current !== "sculpt") {
       runtime.transform.setSpace(object.userData?.editableAttachment ? "local" : "world");
       runtime.transform.setSize(object.userData?.editableAttachment ? 1.2 : 1);
       runtime.transform.attach(object);
@@ -1021,6 +1214,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       },
       animationDuration,
       animationTracks,
+      animationLoop,
+      cameraShake,
+      cameraFollow,
+      slowMotion,
       editor: { mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, selectedId }
     };
   }
@@ -1084,6 +1281,17 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     runtime.ambient.groundColor.set(state.ambientGroundColor || "#384152");
     setAnimationDuration(state.animationDuration || 5);
     setAnimationTracks(state.animationTracks || {});
+    setAnimationLoop(Boolean(state.animationLoop));
+    const restoredCameraShake = { enabled: false, intensity: 0.35, speed: 1, ...(state.cameraShake || {}) };
+    cameraShakeRef.current = restoredCameraShake;
+    setCameraShake(restoredCameraShake);
+    const restoredCameraFollow = { enabled: false, strength: 0.85, ...(state.cameraFollow || {}) };
+    cameraFollowRef.current = { ...cameraFollowRef.current, ...restoredCameraFollow, subject: null };
+    setCameraFollow(restoredCameraFollow);
+    const restoredSlowMotion = { enabled: false, start: 3, end: 8, speed: 0.25, ...(state.slowMotion || {}) };
+    slowMotionRef.current = restoredSlowMotion;
+    setSlowMotion(restoredSlowMotion);
+    animationTimeRef.current = 0;
     setAnimationTime(0);
     setAnimationPlaying(false);
     refreshObjects();
@@ -1182,7 +1390,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const transform = new TransformControls(camera, renderer.domElement);
     const transformHelper = transform.getHelper();
     scene.add(transformHelper);
-    transform.addEventListener("dragging-changed", (event) => { orbit.enabled = !event.value; });
+    transform.addEventListener("dragging-changed", (event) => {
+      orbit.enabled = !event.value;
+      if (poseGizmoRef.current) poseGizmoRef.current.dragging = event.value;
+    });
     transform.addEventListener("mouseDown", () => {
       pushHistory();
       const object = selectedRef.current;
@@ -1192,6 +1403,17 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       rotationDragRef.current = { object, last: current, accumulated: [...accumulated] };
     });
     transform.addEventListener("objectChange", () => {
+      const poseGizmo = poseGizmoRef.current;
+      if (poseGizmo && transform.object === poseGizmo.proxy) {
+        const delta = poseGizmo.baseWorldQuaternion.clone().invert().multiply(poseGizmo.proxy.quaternion);
+        const offset = poseGizmo.baseOffset.clone().multiply(delta);
+        const euler = new THREE.Euler().setFromQuaternion(offset, "XYZ");
+        poseGizmo.character.userData.poseOffsets = {
+          ...(poseGizmo.character.userData.poseOffsets || {}),
+          [poseGizmo.bone.name]: [euler.x, euler.y, euler.z]
+        };
+        return;
+      }
       const drag = rotationDragRef.current;
       if (drag?.object === selectedRef.current && modeRef.current === "rotate") {
         const current = [drag.object.rotation.x, drag.object.rotation.y, drag.object.rotation.z];
@@ -1206,6 +1428,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       syncSelection();
     });
     transform.addEventListener("mouseUp", () => {
+      const poseGizmo = poseGizmoRef.current;
+      if (poseGizmo && transform.object === poseGizmo.proxy) {
+        const values = poseGizmo.character.userData?.poseOffsets?.[poseGizmo.bone.name] || [0, 0, 0];
+        poseGizmo.baseWorldQuaternion.copy(poseGizmo.proxy.quaternion);
+        poseGizmo.baseOffset.setFromEuler(new THREE.Euler(...values, "XYZ"));
+        setPoseVersion((version) => version + 1);
+        setStatus("Pose del hueso ajustada");
+      }
       rotationDragRef.current = null;
       refreshObjects();
     });
@@ -1248,6 +1478,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     };
     const onSelectionPointerDown = (event) => {
       if (modeRef.current === "sculpt" || transform.dragging) return;
+      cameraNavigationRef.current = { x: event.clientX, y: event.clientY, canvas: true };
       setPointerRay(event);
       const markers = [...(runtimeRef.current?.lightMarkers?.values() || [])];
       const hits = raycaster.intersectObjects([...content.children, ...markers], true);
@@ -1261,6 +1492,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       selectObject(object?.userData?.editorId ? object : null, event.shiftKey);
     };
     const onPointerMove = (event) => {
+      const navigationStart = cameraNavigationRef.current;
+      if (navigationStart?.canvas && !transform.dragging && Math.hypot(event.clientX - navigationStart.x, event.clientY - navigationStart.y) > 5) {
+        releaseCameraForManualNavigation();
+        cameraNavigationRef.current = null;
+      }
       if (modeRef.current !== "sculpt") return;
       const hit = sculptHit(event);
       brushCursor.visible = Boolean(hit);
@@ -1270,6 +1506,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       if (sculptingRef.current) applySculptStroke(hit);
     };
     const onPointerUp = (event) => {
+      if (cameraNavigationRef.current?.canvas) cameraNavigationRef.current = null;
       if (!sculptingRef.current) return;
       sculptingRef.current = false;
       orbit.enabled = true;
@@ -1284,6 +1521,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setStatus("Trazo de escultura aplicado");
     };
     const onPointerLeave = () => {
+      if (cameraNavigationRef.current?.canvas) cameraNavigationRef.current = null;
       if (!sculptingRef.current) brushCursor.visible = false;
     };
     renderer.domElement.addEventListener("pointerdown", onSculptPointerDown, true);
@@ -1304,15 +1542,46 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     observer.observe(host);
     resize();
 
-    runtimeRef.current = { scene, camera, renderer, content, ambient, floor, grid, keyLight, orbit, transform, transformHelper, brushCursor, sceneEffectSystem, lightHelper: null, lightMarkers: new Map(), mixers: new Map(), backgroundTexture: null, baseEnvironment: environmentTexture };
+    const runtime = { scene, camera, renderer, content, ambient, floor, grid, keyLight, orbit, transform, transformHelper, brushCursor, sceneEffectSystem, lightHelper: null, lightMarkers: new Map(), mixers: new Map(), poseApplications: new Map(), backgroundTexture: null, baseEnvironment: environmentTexture };
+    runtimeRef.current = runtime;
     let frame = 0;
     let previousRenderTime = 0;
+    const cameraPositionBeforeShake = new Vector3();
+    const cameraQuaternionBeforeShake = new THREE.Quaternion();
+    const cameraFollowBounds = new Box3();
+    const cameraFollowTarget = new Vector3();
+    const cameraFollowQuaternion = new THREE.Quaternion();
+    const linkedLightBounds = new Box3();
+    const linkedLightTarget = new Vector3();
+    const linkedLightPosition = new Vector3();
+    const linkedLightOffset = new Vector3();
     const render = (time = 0) => {
       frame = requestAnimationFrame(render);
       orbit.update();
       const delta = previousRenderTime ? Math.min((time - previousRenderTime) / 1000, 0.05) : 0;
       previousRenderTime = time;
-      runtimeRef.current?.mixers?.forEach(({ mixer }) => mixer.update(delta));
+      runtime.poseApplications.forEach(({ bone, rotation }) => bone.quaternion.multiply(rotation.clone().invert()));
+      runtime.poseApplications.clear();
+      const slow = slowMotionRef.current;
+      const slowActive = slow.enabled && animationTimeRef.current >= slow.start && animationTimeRef.current <= slow.end;
+      runtimeRef.current?.mixers?.forEach(({ mixer }) => mixer.update(delta * (slowActive ? slow.speed : 1)));
+      content.children.forEach((character) => {
+        Object.entries(character.userData?.poseOffsets || {}).forEach(([boneName, values]) => {
+          const bone = character.getObjectByName(boneName) || findRigBone(character, boneName);
+          if (!bone) return;
+          const rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(...values, "XYZ"));
+          bone.quaternion.multiply(rotation);
+          runtime.poseApplications.set(bone.uuid, { bone, rotation });
+        });
+      });
+      const poseGizmo = poseGizmoRef.current;
+      if (poseGizmo && !poseGizmo.dragging) {
+        poseGizmo.bone.getWorldPosition(poseGizmo.proxy.position);
+        poseGizmo.bone.getWorldQuaternion(poseGizmo.proxy.quaternion);
+        poseGizmo.baseWorldQuaternion.copy(poseGizmo.proxy.quaternion);
+        const values = poseGizmo.character.userData?.poseOffsets?.[poseGizmo.bone.name] || [0, 0, 0];
+        poseGizmo.baseOffset.setFromEuler(new THREE.Euler(...values, "XYZ"));
+      }
       animateSceneEffects(scene, sceneEffectSystem, sceneEffectsRef.current, delta, time);
       content.traverse((object) => {
         const spin = object.userData?.spin;
@@ -1356,7 +1625,56 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         marker.position.copy(light.position);
         marker.material.color.copy(light.color);
       });
+      content.children.forEach((light) => {
+        const link = light.isLight ? light.userData.lightLink : null;
+        if (!link?.targetId) return;
+        const target = findEditorObject(link.targetId);
+        if (!target || target === light) return;
+        linkedLightBounds.setFromObject(target).getCenter(linkedLightTarget);
+        if (link.follow) {
+          linkedLightOffset.fromArray(link.offset || [0, 3, 2]);
+          linkedLightPosition.copy(linkedLightTarget).add(linkedLightOffset);
+          light.position.copy(content.worldToLocal(linkedLightPosition));
+        }
+        if (link.aim && (light.isSpotLight || light.isDirectionalLight)) {
+          light.target.position.copy(linkedLightTarget);
+          light.target.updateMatrixWorld(true);
+        }
+        if (selectedRef.current === light) runtime.lightHelper?.update?.();
+      });
+      if (cleanRenderRef.current) {
+        transformHelper.visible = false;
+        if (runtime.lightHelper) runtime.lightHelper.visible = false;
+        runtime.lightMarkers.forEach((marker) => { marker.visible = false; });
+      }
+      const shake = cameraShakeRef.current;
+      cameraPositionBeforeShake.copy(camera.position);
+      cameraQuaternionBeforeShake.copy(camera.quaternion);
+      const follow = cameraFollowRef.current;
+      const followSubject = selectedRef.current;
+      if (follow.enabled && followSubject && !followSubject.isLight) {
+        if (follow.subject !== followSubject) {
+          cameraFollowBounds.setFromObject(followSubject).getCenter(cameraFollowTarget);
+          follow.localTarget.copy(followSubject.worldToLocal(cameraFollowTarget));
+          follow.subject = followSubject;
+        }
+        cameraFollowTarget.copy(follow.localTarget);
+        followSubject.localToWorld(cameraFollowTarget);
+        camera.lookAt(cameraFollowTarget);
+        cameraFollowQuaternion.copy(camera.quaternion);
+        camera.quaternion.copy(cameraQuaternionBeforeShake).slerp(cameraFollowQuaternion, follow.strength);
+      }
+      if (shake.enabled && shake.intensity > 0) {
+        const phase = time * 0.001 * Math.max(shake.speed, 0.1);
+        const amount = shake.intensity;
+        camera.translateX((Math.sin(phase * 7.1) + Math.sin(phase * 13.7) * 0.45) * amount * 0.018);
+        camera.translateY((Math.sin(phase * 8.9 + 1.7) + Math.sin(phase * 17.3) * 0.35) * amount * 0.012);
+        camera.rotateZ(Math.sin(phase * 5.3 + 0.8) * amount * 0.004);
+        camera.rotateX(Math.sin(phase * 6.7 + 2.1) * amount * 0.0025);
+      }
       renderer.render(scene, camera);
+      camera.position.copy(cameraPositionBeforeShake);
+      camera.quaternion.copy(cameraQuaternionBeforeShake);
     };
     render();
 
@@ -1431,7 +1749,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.transform.setMode(mode);
       runtime.transform.setSpace(selectedRef.current?.userData?.editableAttachment ? "local" : "world");
       runtime.transform.setSize(selectedRef.current?.userData?.editableAttachment ? 1.2 : 1);
-      if (selectedRef.current) runtime.transform.attach(selectedRef.current);
+      if (selectedRef.current && !selectedRef.current.userData?.locked) runtime.transform.attach(selectedRef.current);
+      else runtime.transform.detach();
     }
   }, [mode]);
 
@@ -1521,23 +1840,31 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       const { before, after, alpha } = animationFramePair(frames, time);
       if (objectId === CAMERA_TRACK_ID) {
         applyingAnimationRef.current = true;
-        const target = new Vector3().fromArray(before.target).lerp(new Vector3().fromArray(after.target), alpha);
+        const transition = after.transition || "linear";
+        const cameraAlpha = transition === "cut"
+          ? (alpha >= 1 ? 1 : 0)
+          : transition === "cinematic"
+            ? alpha * alpha * alpha * (alpha * (alpha * 6 - 15) + 10)
+            : transition === "smooth"
+              ? alpha * alpha * (3 - 2 * alpha)
+              : alpha;
+        const target = new Vector3().fromArray(before.target).lerp(new Vector3().fromArray(after.target), cameraAlpha);
         runtime.orbit.target.copy(target);
         if (before.orbit && after.orbit) {
-          const radius = THREE.MathUtils.lerp(before.orbit.radius, after.orbit.radius, alpha);
-          const phi = THREE.MathUtils.lerp(before.orbit.phi, after.orbit.phi, alpha);
+          const radius = THREE.MathUtils.lerp(before.orbit.radius, after.orbit.radius, cameraAlpha);
+          const phi = THREE.MathUtils.lerp(before.orbit.phi, after.orbit.phi, cameraAlpha);
           const thetaDelta = before.continuousOrbit && after.continuousOrbit
             ? after.orbit.theta - before.orbit.theta
             : Math.atan2(Math.sin(after.orbit.theta - before.orbit.theta), Math.cos(after.orbit.theta - before.orbit.theta));
-          const theta = before.orbit.theta + thetaDelta * alpha;
+          const theta = before.orbit.theta + thetaDelta * cameraAlpha;
           runtime.camera.position.copy(target).add(new Vector3().setFromSpherical(new THREE.Spherical(radius, phi, theta)));
-          if (before.up && after.up) runtime.camera.up.fromArray(before.up).lerp(new Vector3().fromArray(after.up), alpha).normalize();
-          runtime.camera.fov = THREE.MathUtils.lerp(before.fov ?? 45, after.fov ?? 45, alpha);
+          if (before.up && after.up) runtime.camera.up.fromArray(before.up).lerp(new Vector3().fromArray(after.up), cameraAlpha).normalize();
+          runtime.camera.fov = THREE.MathUtils.lerp(before.fov ?? 45, after.fov ?? 45, cameraAlpha);
           runtime.camera.updateProjectionMatrix();
           cameraOrbitRef.current.theta = theta;
           cameraOrbitRef.current.lastTheta = new THREE.Spherical().setFromVector3(runtime.camera.position.clone().sub(target)).theta;
         } else {
-          runtime.camera.position.fromArray(before.position).lerp(new Vector3().fromArray(after.position), alpha);
+          runtime.camera.position.fromArray(before.position).lerp(new Vector3().fromArray(after.position), cameraAlpha);
         }
         runtime.camera.lookAt(runtime.orbit.target);
         runtime.orbit.update();
@@ -1569,9 +1896,114 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
 
   function seekAnimation(time) {
     const next = THREE.MathUtils.clamp(time, 0, animationDuration);
+    animationTimeRef.current = next;
     setAnimationTime(next);
     applyAnimationAt(next);
+    if (soundtrackAudioRef.current) soundtrackAudioRef.current.currentTime = Math.min(next, soundtrackAudioRef.current.duration || next);
   }
+
+  async function importSoundtrack(file) {
+    if (!file) return;
+    try {
+      setStatus("Analizando ritmo...");
+      const data = await file.arrayBuffer();
+      const context = new AudioContext();
+      const buffer = await context.decodeAudioData(data.slice(0));
+      await context.close();
+      const samples = buffer.getChannelData(0);
+      const sampleRate = buffer.sampleRate;
+      const windowSize = Math.max(512, Math.floor(sampleRate * 0.045));
+      const energies = [];
+      for (let offset = 0; offset < samples.length; offset += windowSize) {
+        let energy = 0;
+        const end = Math.min(samples.length, offset + windowSize);
+        for (let index = offset; index < end; index += 4) energy += samples[index] * samples[index];
+        energies.push(energy / Math.max(1, Math.ceil((end - offset) / 4)));
+      }
+      const candidates = [];
+      for (let index = 8; index < energies.length - 1; index += 1) {
+        const local = energies.slice(Math.max(0, index - 8), index).reduce((sum, value) => sum + value, 0) / 8;
+        if (energies[index] > local * 1.55 && energies[index] > energies[index - 1] && energies[index] >= energies[index + 1]) {
+          candidates.push({ time: (index * windowSize) / sampleRate, strength: energies[index] / Math.max(local, 0.000001) });
+        }
+      }
+      const beats = [];
+      candidates.forEach((beat) => {
+        const previous = beats.at(-1);
+        if (!previous || beat.time - previous.time >= 0.32) beats.push(beat);
+        else if (beat.strength > previous.strength) beats[beats.length - 1] = beat;
+      });
+      if (soundtrack?.url) URL.revokeObjectURL(soundtrack.url);
+      const url = URL.createObjectURL(file);
+      soundtrackBufferRef.current = buffer;
+      setSoundtrack({ name: file.name, url, duration: buffer.duration, beats });
+      setAnimationDuration(Math.max(1, Math.min(60, Math.ceil(buffer.duration))));
+      animationTimeRef.current = 0;
+      setAnimationTime(0);
+      setStatus(`${beats.length} golpes detectados en ${file.name}`);
+    } catch (error) {
+      console.error(error);
+      setStatus("No se pudo analizar el audio");
+    }
+  }
+
+  function removeSoundtrack() {
+    soundtrackAudioRef.current?.pause();
+    if (soundtrack?.url) URL.revokeObjectURL(soundtrack.url);
+    soundtrackBufferRef.current = null;
+    setSoundtrack(null);
+    setStatus("Audio eliminado de la linea de tiempo");
+  }
+
+  function createBeatDirection(preset = "rock", transition = "cut") {
+    const runtime = runtimeRef.current;
+    const subject = selectedRef.current;
+    if (!runtime || !subject || subject.isLight || !soundtrack?.beats.length) {
+      setStatus("Selecciona un personaje y carga una cancion con beats");
+      return;
+    }
+    const byId = Object.fromEntries(CAMERA_SHOTS.map((shot) => [shot.id, shot]));
+    const styles = {
+      rock: [byId.general, byId["three-quarter-left"], byId.medium, byId.profile, byId.hero, byId.close],
+      "hard-rock": [byId["low-angle"], byId.dutch, byId.close, byId.profile, byId.hero, byId["three-quarter-right"]],
+      metal: [byId.dutch, byId["low-angle"], byId.close, byId["high-angle"], byId.profile, byId.hero]
+    };
+    const shots = styles[preset] || styles.rock;
+    const duration = Math.min(60, soundtrack.duration);
+    const beatTimes = soundtrack.beats
+      .filter((beat) => beat.time <= duration)
+      .reduce((times, beat) => (!times.length || beat.time - times.at(-1) >= 0.55 ? [...times, beat.time] : times), [])
+      .slice(0, 30);
+    const times = [...new Set([0, ...beatTimes, duration].map((time) => round(time)))];
+    const frames = times.map((time, index) => {
+      const source = shots[index % shots.length];
+      const variation = index % 2 ? -1 : 1;
+      const shot = { ...source, angle: (source.angle || 0) + variation * ((index * 17) % 24) };
+      const pose = calculateCameraShotPose(shot, subject);
+      const spherical = new THREE.Spherical().setFromVector3(pose.position.clone().sub(pose.target));
+      return { id: makeId(), time, position: pose.position.toArray(), target: pose.target.toArray(), orbit: { radius: spherical.radius, phi: spherical.phi, theta: spherical.theta }, continuousOrbit: false, up: pose.up.toArray(), fov: pose.fov, transition };
+    });
+    setAnimationPlaying(false);
+    setAnimationDuration(duration);
+    setAnimationTracks((current) => ({ ...current, [CAMERA_TRACK_ID]: frames }));
+    seekAnimation(0);
+    setStatus(`Director al ritmo creado: ${frames.length} tomas ${preset}`);
+  }
+
+  useEffect(() => {
+    const audio = soundtrackAudioRef.current;
+    if (!audio) return;
+    if (!animationPlaying) {
+      audio.pause();
+      return;
+    }
+    audio.currentTime = Math.min(animationTime, audio.duration || animationTime);
+    audio.play().catch(() => {});
+  }, [animationPlaying, soundtrack?.url]);
+
+  useEffect(() => () => {
+    if (soundtrack?.url) URL.revokeObjectURL(soundtrack.url);
+  }, [soundtrack?.url]);
 
   useEffect(() => {
     if (!animationPlaying) return undefined;
@@ -1580,16 +2012,22 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const tick = (now) => {
       const delta = (now - previous) / 1000;
       previous = now;
-      setAnimationTime((current) => {
-        const next = (current + delta) % animationDuration;
-        applyAnimationAt(next);
-        return next;
-      });
+      const shouldLoop = animationLoop && !animationExporting;
+      const next = shouldLoop
+        ? (animationTimeRef.current + delta) % animationDuration
+        : Math.min(animationTimeRef.current + delta, animationDuration);
+      animationTimeRef.current = next;
+      applyAnimationAt(next);
+      setAnimationTime(next);
+      if (!shouldLoop && next >= animationDuration) {
+        setAnimationPlaying(false);
+        return;
+      }
       frame = requestAnimationFrame(tick);
     };
     frame = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frame);
-  }, [animationPlaying, animationDuration, animationTracks]);
+  }, [animationPlaying, animationDuration, animationTracks, animationLoop, animationExporting]);
 
   useEffect(() => {
     if (!active) return undefined;
@@ -1645,7 +2083,55 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       window.removeEventListener("studio:workspace-save", save);
       window.removeEventListener("studio:workspace-load", load);
     };
-  }, [background, environmentBackground, skyMotionEnabled, skyMotionSpeed, sceneEffects, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, renderResolution, transparentPng, animationDuration, animationTracks, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, selectedId]);
+  }, [background, environmentBackground, skyMotionEnabled, skyMotionSpeed, sceneEffects, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, renderResolution, transparentPng, animationDuration, animationTracks, animationLoop, cameraShake, cameraFollow, slowMotion, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, selectedId]);
+
+  useEffect(() => {
+    if (!active || autosaveReadyRef.current || !runtimeRef.current) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const saved = await getProject(THREE_AUTOSAVE_ID);
+        if (cancelled) return;
+        if (saved?.content) {
+          historyRef.current.restoring = true;
+          loadSceneState(saved);
+          historyRef.current.restoring = false;
+          historyRef.current.undo = [];
+          historyRef.current.redo = [];
+          setHistoryCounts({ undo: 0, redo: 0 });
+          setStatus("Ultimo borrador recuperado");
+          const savedTime = saved.autosavedAt ? new Date(saved.autosavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+          setAutosaveStatus(savedTime ? `Recuperado ${savedTime}` : "Borrador recuperado");
+        } else setAutosaveStatus("Autosave activo");
+      } catch (error) {
+        console.error(error);
+        setAutosaveStatus("Autosave no disponible");
+      } finally {
+        if (!cancelled) autosaveReadyRef.current = true;
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [active]);
+
+  useEffect(() => {
+    if (!active || !autosaveReadyRef.current || viewportRecording || animationExporting) return undefined;
+    setAutosaveStatus("Cambios pendientes");
+    const timer = setTimeout(async () => {
+      const state = serializeScene();
+      if (!state) return;
+      try {
+        setAutosaveStatus("Guardando...");
+        const autosavedAt = new Date().toISOString();
+        await putProject(THREE_AUTOSAVE_ID, { ...state, autosavedAt });
+        const savedTime = new Date(autosavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        setAutosaveStatus(`Guardado ${savedTime}`);
+      } catch (error) {
+        console.error(error);
+        setAutosaveStatus("Error de autosave");
+      }
+    }, 1800);
+    return () => clearTimeout(timer);
+  }, [active, objects, selection, background, environmentBackground, skyMotionEnabled, skyMotionSpeed, sceneEffects, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, renderResolution, transparentPng, animationDuration, animationTracks, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, viewportRecording, animationExporting]);
 
   useEffect(() => {
     if (openProjectSignal) setStatus("Selecciona un proyecto desde Inicio");
@@ -1724,6 +2210,36 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const direction = new Vector3(0, 0, -1).applyQuaternion(light.quaternion).normalize();
     light.target.position.copy(light.position).add(direction.multiplyScalar(5));
     light.target.updateMatrixWorld();
+  }
+
+  function updateLightLink(patch) {
+    const runtime = runtimeRef.current;
+    const light = selectedRef.current;
+    if (!runtime || !light?.isLight) return;
+    pushHistory();
+    const current = { targetId: "", follow: true, aim: true, offset: [0, 3, 2], ...(light.userData.lightLink || {}) };
+    const next = { ...current, ...patch };
+    if (patch.targetId) {
+      const target = findEditorObject(patch.targetId);
+      if (target) {
+        const lightWorld = light.getWorldPosition(new Vector3());
+        const targetCenter = new Box3().setFromObject(target).getCenter(new Vector3());
+        next.offset = lightWorld.sub(targetCenter).toArray().map(round);
+      }
+    }
+    light.userData.lightLink = next;
+    syncSelection(light);
+    setStatus(next.targetId ? "Luz vinculada al objetivo" : "Vinculo de luz eliminado");
+  }
+
+  function updateLightLinkOffset(index, value) {
+    const light = selectedRef.current;
+    if (!light?.isLight) return;
+    const link = { targetId: "", follow: true, aim: true, offset: [0, 3, 2], ...(light.userData.lightLink || {}) };
+    link.offset = [...link.offset];
+    link.offset[index] = Number(value) || 0;
+    light.userData.lightLink = link;
+    syncSelection(light);
   }
 
   function applyScenePreset(preset) {
@@ -1843,6 +2359,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   function setCameraView(view) {
     const runtime = runtimeRef.current;
     if (!runtime) return;
+    releaseCameraForManualNavigation();
     const bounds = new Box3().setFromObject(runtime.content);
     const empty = bounds.isEmpty();
     const center = empty ? new Vector3(0, 1, 0) : bounds.getCenter(new Vector3());
@@ -1941,7 +2458,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     cameraShotRef.current = { frame: requestAnimationFrame(animate) };
   }
 
-  function createAutomaticDirection(preset = "hollywood") {
+  function createAutomaticDirection(preset = "hollywood", transition = "cinematic") {
     const runtime = runtimeRef.current;
     const subject = selectedRef.current;
     if (!runtime || !subject || subject.isLight) {
@@ -2013,6 +2530,35 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           fov: index === 0 || index === 9 ? 38 : 35
         }))
       },
+      matrix: {
+        name: "Matrix", duration: 12, shots: [
+          { ...byId.general, angle: 0, elevation: 5, fov: 45, time: 0 },
+          { ...byId.general, angle: 0, elevation: 5, fov: 45, time: 1.4 },
+          { ...byId.american, angle: 8, elevation: 3, fov: 38, time: 3.2 },
+          { ...byId.medium, angle: 24, elevation: 2, fov: 33, time: 5.2 },
+          { ...byId.close, angle: 48, elevation: 1, crop: 0.76, fov: 27, time: 7.1 },
+          { ...byId.close, angle: 55, elevation: 3, crop: 0.78, fov: 26, time: 8 },
+          { ...byId.medium, angle: 24, elevation: 3, fov: 34, time: 9.8 },
+          { ...byId.general, angle: 0, elevation: 5, fov: 45, time: 12 }
+        ]
+      },
+      "rail-lateral": {
+        name: "Travelling lateral", duration: 10, shots: [-1.5, -1, -0.5, 0, 0.5, 1, 1.5].map((railOffset) => ({
+          ...byId.american,
+          angle: 0,
+          elevation: 3,
+          fov: 37,
+          railOffset
+        }))
+      },
+      "rail-arc": {
+        name: "Arco", duration: 11, shots: [-62, -42, -22, 0, 22, 42, 62].map((angle, index) => ({
+          ...byId.american,
+          angle,
+          elevation: 2 + Math.sin((index / 6) * Math.PI) * 5,
+          fov: 36
+        }))
+      },
       rock: {
         name: "Rock", duration: 14, shots: [
           { ...byId.general, angle: 0, elevation: 6, fov: 46 },
@@ -2062,18 +2608,26 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const direction = presets[preset] || presets.hollywood;
     const sequence = direction.shots;
     const duration = direction.duration;
+    const subjectSize = new Box3().setFromObject(subject).getSize(new Vector3());
+    const railUnit = Math.max(subjectSize.x, subjectSize.y * 0.45, 1);
     const frames = sequence.map((shot, index) => {
       const pose = calculateCameraShotPose(shot, subject);
+      if (shot.railOffset) {
+        const backward = pose.position.clone().sub(pose.target).normalize();
+        const right = new Vector3().crossVectors(pose.up, backward).normalize();
+        pose.position.addScaledVector(right, shot.railOffset * railUnit);
+      }
       const spherical = new THREE.Spherical().setFromVector3(pose.position.clone().sub(pose.target));
       return {
         id: makeId(),
-        time: round((duration * index) / (sequence.length - 1)),
+        time: round(shot.time ?? (duration * index) / (sequence.length - 1)),
         position: pose.position.toArray(),
         target: pose.target.toArray(),
         orbit: { radius: spherical.radius, phi: spherical.phi, theta: spherical.theta },
         continuousOrbit: false,
         up: pose.up.toArray(),
-        fov: pose.fov
+        fov: pose.fov,
+        transition
       };
     });
     const first = frames[0];
@@ -2086,15 +2640,22 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     cameraOrbitRef.current = { lastTheta: first.orbit.theta, theta: first.orbit.theta };
     setAnimationPlaying(false);
     setAnimationDuration(duration);
+    animationTimeRef.current = 0;
     setAnimationTime(0);
     setAnimationTracks((current) => ({ ...current, [CAMERA_TRACK_ID]: frames }));
-    setStatus(`Direccion ${direction.name} creada: ${sequence.length} tomas en ${duration} segundos`);
+    if (preset === "matrix") {
+      const matrixSlowMotion = { enabled: true, start: 3.2, end: 9.8, speed: 0.25 };
+      slowMotionRef.current = matrixSlowMotion;
+      setSlowMotion(matrixSlowMotion);
+    }
+    setStatus(`Direccion ${direction.name} en reproduccion`);
     setTimeout(() => setAnimationPlaying(true), 0);
   }
 
   function orbitCamera(deltaX, deltaY) {
     const runtime = runtimeRef.current;
     if (!runtime) return;
+    releaseCameraForManualNavigation();
     const viewportHeight = Math.max(runtime.renderer.domElement.clientHeight, 1);
     const rotationScale = (Math.PI * 2 * runtime.orbit.rotateSpeed) / viewportHeight;
     runtime.orbit._rotateLeft(deltaX * rotationScale);
@@ -2106,9 +2667,26 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   function zoomCamera(factor) {
     const runtime = runtimeRef.current;
     if (!runtime) return;
+    releaseCameraForManualNavigation();
     if (factor < 1) runtime.orbit.dollyIn(factor);
     else runtime.orbit.dollyOut(1 / factor);
     setActiveCameraShot("");
+  }
+
+  function releaseCameraForManualNavigation() {
+    const runtime = runtimeRef.current;
+    setAnimationPlaying(false);
+    if (cameraShotRef.current?.frame) cancelAnimationFrame(cameraShotRef.current.frame);
+    cameraShotRef.current = null;
+    stopContinuousZoom();
+    if (runtime) {
+      runtime.orbit.enabled = true;
+      runtime.transform.dragging = false;
+    }
+    if (!cameraFollowRef.current.enabled) return;
+    const next = { enabled: false, strength: cameraFollowRef.current.strength };
+    cameraFollowRef.current = { ...cameraFollowRef.current, ...next };
+    setCameraFollow(next);
   }
 
   function stopContinuousZoom() {
@@ -2219,6 +2797,34 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setStatus(kind === "camera" ? "Vista eliminada" : "Keyframe eliminado");
   }
 
+  function updateAnimationMarker(kind, markerId, patch) {
+    const trackId = kind === "camera" ? CAMERA_TRACK_ID : selectedRef.current?.userData.editorId;
+    if (!trackId) return;
+    const nextPatch = { ...patch };
+    if (Object.hasOwn(nextPatch, "time")) nextPatch.time = round(THREE.MathUtils.clamp(Number(nextPatch.time), 0, animationDuration));
+    setAnimationTracks((current) => ({
+      ...current,
+      [trackId]: (current[trackId] || [])
+        .map((frame) => frame.id === markerId ? { ...frame, ...nextPatch } : frame)
+        .sort((a, b) => a.time - b.time)
+    }));
+    if (Object.hasOwn(nextPatch, "time")) seekAnimation(nextPatch.time);
+    setStatus(kind === "camera" ? "Toma actualizada" : "Keyframe actualizado");
+  }
+
+  function duplicateAnimationMarker(kind, markerId) {
+    const trackId = kind === "camera" ? CAMERA_TRACK_ID : selectedRef.current?.userData.editorId;
+    if (!trackId) return;
+    setAnimationTracks((current) => {
+      const source = (current[trackId] || []).find((frame) => frame.id === markerId);
+      if (!source) return current;
+      const copyTime = source.time + 0.25 <= animationDuration ? source.time + 0.25 : Math.max(0, source.time - 0.25);
+      const copy = { ...source, id: makeId(), time: round(copyTime) };
+      return { ...current, [trackId]: [...(current[trackId] || []), copy].sort((a, b) => a.time - b.time) };
+    });
+    setStatus(kind === "camera" ? "Toma duplicada" : "Keyframe duplicado");
+  }
+
   function prepareRenderOutput({ clean = false, transparent = false } = {}) {
     const runtime = runtimeRef.current;
     const [width, height] = renderResolution.split("x").map(Number);
@@ -2229,6 +2835,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const floorWasVisible = runtime.floor.visible;
     const gridWasVisible = runtime.grid.visible;
     const transformWasVisible = runtime.transformHelper.visible;
+    const transformWasEnabled = runtime.transform.enabled;
+    const cleanRenderWasActive = cleanRenderRef.current;
     const lightHelperWasVisible = runtime.lightHelper?.visible;
     const markerVisibility = [...runtime.lightMarkers.values()].map((marker) => [marker, marker.visible]);
     runtime.renderer.setPixelRatio(1);
@@ -2236,6 +2844,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     runtime.camera.aspect = width / height;
     runtime.camera.updateProjectionMatrix();
     if (clean) {
+      cleanRenderRef.current = true;
+      runtime.transform.enabled = false;
       runtime.grid.visible = false;
       runtime.transformHelper.visible = false;
       if (runtime.lightHelper) runtime.lightHelper.visible = false;
@@ -2253,7 +2863,9 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.scene.background = previousBackground;
       runtime.floor.visible = floorWasVisible;
       runtime.grid.visible = gridWasVisible;
+      runtime.transform.enabled = transformWasEnabled;
       runtime.transformHelper.visible = transformWasVisible;
+      cleanRenderRef.current = cleanRenderWasActive;
       if (runtime.lightHelper) runtime.lightHelper.visible = lightHelperWasVisible;
       markerVisibility.forEach(([marker, visible]) => { marker.visible = visible; });
     };
@@ -2282,7 +2894,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       return;
     }
 
-    const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"]
+    const mimeCandidates = soundtrackBufferRef.current
+      ? ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
+      : ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+    const mimeType = mimeCandidates
       .find((type) => MediaRecorder.isTypeSupported(type));
     if (!mimeType) {
       setStatus("No hay un codificador WebM disponible");
@@ -2292,16 +2907,21 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setAnimationExporting(true);
     setAnimationPlaying(false);
     seekAnimation(0);
-    runtime.transformHelper.visible = false;
-    if (runtime.lightHelper) runtime.lightHelper.visible = false;
-    setLightMarkersVisible(false);
-    const gridWasVisible = runtime.grid.visible;
-    runtime.grid.visible = false;
-    const restoreOutput = prepareRenderOutput();
+    const restoreOutput = prepareRenderOutput({ clean: true });
 
     try {
       await new Promise((resolve) => requestAnimationFrame(resolve));
       const stream = runtime.renderer.domElement.captureStream(animationFps);
+      let exportAudioContext = null;
+      let exportAudioSource = null;
+      if (soundtrackBufferRef.current) {
+        exportAudioContext = new AudioContext();
+        const destination = exportAudioContext.createMediaStreamDestination();
+        exportAudioSource = exportAudioContext.createBufferSource();
+        exportAudioSource.buffer = soundtrackBufferRef.current;
+        exportAudioSource.connect(destination);
+        destination.stream.getAudioTracks().forEach((track) => stream.addTrack(track));
+      }
       const chunks = [];
       const [outputWidth] = renderResolution.split("x").map(Number);
       const baseBitrate = outputWidth >= 3840 ? 24_000_000 : outputWidth >= 1920 ? 12_000_000 : 7_000_000;
@@ -2317,6 +2937,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setAnimationPlaying(false);
       recorder.stop();
       await stopped;
+      exportAudioSource?.stop();
+      await exportAudioContext?.close();
       stream.getTracks().forEach((track) => track.stop());
       const blob = new Blob(chunks, { type: mimeType });
       if (format === "h264") {
@@ -2331,10 +2953,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       console.error(error);
       setStatus("No se pudo exportar la animacion");
     } finally {
-      runtime.transformHelper.visible = true;
-      if (runtime.lightHelper) runtime.lightHelper.visible = true;
-      setLightMarkersVisible(true);
-      runtime.grid.visible = gridWasVisible;
       restoreOutput();
       setAnimationExporting(false);
       seekAnimation(0);
@@ -2345,6 +2963,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const runtime = runtimeRef.current;
     const object = selectedRef.current;
     if (!runtime || !object) return;
+    if (object.userData?.locked) {
+      setStatus("Desbloquea el objeto antes de eliminarlo");
+      return;
+    }
     pushHistory();
     runtime.mixers.get(object.userData.editorId)?.mixer.stopAllAction();
     runtime.mixers.delete(object.userData.editorId);
@@ -2705,18 +3327,55 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     refreshObjects();
   }
 
+  function toggleObjectLock(id) {
+    const runtime = runtimeRef.current;
+    const object = findEditorObject(id);
+    if (!runtime || !object) return;
+    pushHistory();
+    object.userData.locked = !object.userData.locked;
+    if (selectedRef.current === object) {
+      if (object.userData.locked) runtime.transform.detach();
+      else if (modeRef.current !== "sculpt") runtime.transform.attach(object);
+      syncSelection(object);
+    }
+    refreshObjects();
+    setStatus(object.userData.locked ? `${object.name} bloqueado` : `${object.name} desbloqueado`);
+  }
+
   function centerSelected() {
     const object = selectedRef.current;
-    if (!object) return;
+    if (!object || object.userData?.locked) return;
     pushHistory();
     object.position.x = 0;
     object.position.z = 0;
     syncSelection(object);
   }
 
+  function mirrorSelected() {
+    const object = selectedRef.current;
+    if (!object || object.isLight || object.userData?.locked) return;
+    pushHistory();
+    object.scale.x *= -1;
+    object.userData.mirrored = object.scale.x < 0;
+    const objectId = object.userData.editorId;
+    setAnimationTracks((current) => {
+      if (!current[objectId]?.length) return current;
+      return {
+        ...current,
+        [objectId]: current[objectId].map((frame) => ({
+          ...frame,
+          scale: [-frame.scale[0], frame.scale[1], frame.scale[2]]
+        }))
+      };
+    });
+    object.updateWorldMatrix(true, true);
+    syncSelection(object);
+    setStatus(object.userData.mirrored ? `${object.name} espejado` : `Espejado quitado de ${object.name}`);
+  }
+
   function placeOnFloor() {
     const object = selectedRef.current;
-    if (!object || object.isLight) return;
+    if (!object || object.isLight || object.userData?.locked) return;
     pushHistory();
     const bounds = new Box3().setFromObject(object);
     object.position.y -= bounds.min.y;
@@ -2737,7 +3396,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
 
   function updateTransform(group, index, value) {
     const object = selectedRef.current;
-    if (!object) return;
+    if (!object || object.userData?.locked) return;
     const numeric = Number(value);
     if (!Number.isFinite(numeric)) return;
     const axes = ["x", "y", "z"];
@@ -3122,7 +3781,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       placeObjectInFreeSpot(model, runtime.content);
       registerModelAnimations(model, gltf.animations);
       let selectedObject = model;
-      if (modelPreset.id.startsWith("neon-guitar") && GUITAR_MODEL_LOADER) {
+      if (isGuitaristModel(modelPreset.id) && GUITAR_MODEL_LOADER) {
         setStatus("Colocando la guitarra en la mano...");
         const guitarUrl = await GUITAR_MODEL_LOADER();
         const guitarGltf = await new GLTFLoader().loadAsync(guitarUrl);
@@ -3156,7 +3815,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       refreshObjects();
       selectObject(selectedObject);
       setMode("translate");
-      setStatus(modelPreset.id.startsWith("neon-guitar")
+      setStatus(isGuitaristModel(modelPreset.id)
         ? "Guitarrista agregado. Acomoda la guitarra: seguira la mano durante la animacion"
         : `${modelPreset.name} agregado con su animacion`);
     } catch (error) {
@@ -3240,6 +3899,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setViewportRecordingBlob(null);
       setViewportRecording(true);
       recorder.start(250);
+      exportAudioSource?.start(0, 0, Math.min(animationDuration, soundtrackBufferRef.current.duration));
       setStatus(`Grabando ${width} x ${height} a ${Math.round(bitrateMbps)} Mbps...`);
     } catch (error) {
       console.error(error);
@@ -3305,20 +3965,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   function exportPng() {
     const runtime = runtimeRef.current;
     if (!runtime) return;
-    const gridWasVisible = runtime.grid.visible;
-    runtime.grid.visible = false;
-    runtime.transformHelper.visible = false;
-    if (runtime.lightHelper) runtime.lightHelper.visible = false;
-    setLightMarkersVisible(false);
-    const restoreOutput = prepareRenderOutput({ transparent: transparentPng });
+    const restoreOutput = prepareRenderOutput({ clean: true, transparent: transparentPng });
     runtime.renderer.render(runtime.scene, runtime.camera);
     runtime.renderer.domElement.toBlob((blob) => {
       if (blob) downloadBlob(blob, "studio-3d.png");
       restoreOutput();
-      runtime.grid.visible = gridWasVisible;
-      runtime.transformHelper.visible = true;
-      if (runtime.lightHelper) runtime.lightHelper.visible = true;
-      setLightMarkersVisible(true);
     }, "image/png");
   }
 
@@ -3356,12 +4007,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           <button disabled={!selectedId} data-tooltip="Enfocar objeto" onClick={focusSelected} type="button"><Focus size={18} /></button>
           <button disabled={!selectedId} data-tooltip="Copiar (Ctrl+C)" onClick={copySelected} type="button"><Copy size={18} /></button>
           <button disabled={!hasClipboard} data-tooltip="Pegar (Ctrl+V)" onClick={pasteClipboard} type="button"><ClipboardPaste size={18} /></button>
-          <button disabled={!selectedId} data-tooltip="Centrar en la escena" onClick={centerSelected} type="button"><LocateFixed size={18} /></button>
-          <button disabled={!selectedId || selectedRef.current?.isLight} data-tooltip="Apoyar sobre el piso" onClick={placeOnFloor} type="button"><ArrowDownToLine size={18} /></button>
+          <button disabled={!selectedId || selectedRef.current?.userData?.locked} data-tooltip="Centrar en la escena" onClick={centerSelected} type="button"><LocateFixed size={18} /></button>
+          <button disabled={!selectedId || selectedRef.current?.isLight || selectedRef.current?.userData?.locked} data-tooltip="Apoyar sobre el piso" onClick={placeOnFloor} type="button"><ArrowDownToLine size={18} /></button>
           <button disabled={selectedIds.length < 2} data-tooltip="Agrupar seleccion (Ctrl+G)" onClick={groupSelected} type="button"><Group size={18} /></button>
           <button disabled={!selectedRef.current?.isGroup} data-tooltip="Desagrupar (Ctrl+Shift+G)" onClick={ungroupSelected} type="button"><Ungroup size={18} /></button>
           <button disabled={selectedIds.length < 2} data-tooltip="Fusionar mallas" onClick={mergeSelected} type="button"><Combine size={18} /></button>
-          <button disabled={!selectedId} data-tooltip="Eliminar objeto" onClick={removeSelected} type="button"><Trash2 size={18} /></button>
+          <button disabled={!selectedId || selectedRef.current?.userData?.locked} data-tooltip="Eliminar objeto" onClick={removeSelected} type="button"><Trash2 size={18} /></button>
         </div>
         <div className="three-tool-group">
           <button className={environmentIsolated ? "active" : ""} data-tooltip={environmentIsolated ? "Restaurar ambiente" : "Ocultar fondo, piso y efectos"} onClick={toggleEnvironmentIsolation} type="button">
@@ -3369,6 +4020,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           </button>
         </div>
         <div className="three-toolbar-spacer" />
+        <span className="three-autosave-status">{autosaveStatus}</span>
         <button className="three-action" onClick={onRequestProjectSave} type="button"><Download size={17} /> Guardar</button>
         <button className="three-action" onClick={exportPng} type="button"><ImageDown size={17} /> PNG</button>
         <button className="three-action" onClick={exportGlb} type="button"><Download size={17} /> GLB</button>
@@ -3417,6 +4069,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
               const ItemIcon = iconForType(item.type);
               return <div className={`three-outliner-row ${selectedIds.includes(item.id) ? "active" : ""}`} key={item.id}>
                 <button className="three-outliner-select" onClick={(event) => selectObject(findEditorObject(item.id), event.shiftKey)} type="button"><ItemIcon size={16} /><span>{item.name}</span></button>
+                <button className="three-outliner-lock" data-tooltip={item.locked ? "Desbloquear" : "Bloquear"} onClick={() => toggleObjectLock(item.id)} type="button">{item.locked ? <Lock size={14} /> : <Unlock size={14} />}</button>
                 <button className="three-outliner-visibility" data-tooltip={item.visible ? "Ocultar" : "Mostrar"} onClick={() => toggleObjectVisibility(item.id)} type="button">{item.visible ? <Eye size={15} /> : <EyeOff size={15} />}</button>
               </div>;
             })}
@@ -3479,11 +4132,17 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
               <fieldset className="three-tab-object">
                 <legend>Objeto</legend>
                 <label><span>Nombre</span><input maxLength="80" onChange={(event) => renameSelected(event.target.value)} onFocus={pushHistory} value={selection.name} /></label>
+                <label className="three-check"><input checked={selection.locked} onChange={() => toggleObjectLock(selectedId)} type="checkbox" />{selection.locked ? <Lock size={16} /> : <Unlock size={16} />} Bloquear transformaciones</label>
+                {!selection.isLight && <button className={selectedRef.current?.userData?.mirrored ? "active" : ""} disabled={selection.locked} onClick={mirrorSelected} type="button"><FlipHorizontal2 size={16} /> {selectedRef.current?.userData?.mirrored ? "Quitar espejo" : "Espejar horizontal"}</button>}
               </fieldset>
               {!selection.isLight && (
                 <fieldset className="three-tab-object">
                   <legend>Vincular a personaje</legend>
-                  <label><span>Punto</span><select disabled={Boolean(selectedRef.current?.userData?.editableAttachment)} onChange={(event) => setAttachmentHand(event.target.value)} value={attachmentHand}>
+                  <label><span>Punto</span><select onChange={(event) => {
+                    const point = event.target.value;
+                    setAttachmentHand(point);
+                    if (selectedRef.current?.userData?.editableAttachment) attachSelectedToHand(point);
+                  }} value={attachmentHand}>
                     <option value="LeftHand">Izquierda</option>
                     <option value="RightHand">Derecha</option>
                     <option value="Spine">Centro / ombligo</option>
@@ -3494,10 +4153,21 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                       <div className="three-model-actions">
                         <button className={mode === "translate" ? "active" : ""} onClick={() => setAttachmentTransformMode("translate")} type="button"><Move3D size={16} /> Mover</button>
                         <button className={mode === "rotate" ? "active" : ""} onClick={() => setAttachmentTransformMode("rotate")} type="button"><Rotate3D size={16} /> Rotar</button>
+                        <button className={mode === "scale" ? "active" : ""} onClick={() => setAttachmentTransformMode("scale")} type="button"><Scale3D size={16} /> Escalar</button>
+                        <button className={attachmentPrecision ? "active" : ""} onClick={toggleAttachmentPrecision} type="button"><Focus size={16} /> Precision</button>
+                      </div>
+                      <div className="three-model-actions">
+                        <button className={attachmentOwnerPaused ? "active" : ""} onClick={toggleAttachmentOwnerAnimation} type="button">{attachmentOwnerPaused ? <Play size={16} /> : <Pause size={16} />} {attachmentOwnerPaused ? "Reanudar" : "Pausar"}</button>
+                        <button onClick={centerAttachmentOnAnchor} type="button"><LocateFixed size={16} /> Centrar</button>
+                        <button onClick={straightenAttachment} type="button"><RotateCcw size={16} /> Enderezar</button>
+                        <button disabled={!historyCounts.undo} onClick={undo} type="button"><Undo2 size={16} /> Deshacer ajuste</button>
+                        <button disabled={!historyCounts.redo} onClick={redo} type="button"><Redo2 size={16} /> Rehacer ajuste</button>
+                        <button onClick={saveAttachmentPose} type="button"><Download size={16} /> Guardar pose</button>
+                        <button disabled={!selectedRef.current?.userData?.savedAttachmentTransform} onClick={restoreAttachmentPose} type="button"><RotateCcw size={16} /> Restaurar pose</button>
                       </div>
                       <button onClick={detachSelectedFromHand} type="button"><Unlink2 size={16} /> Desvincular</button>
                     </>
-                    : <button onClick={attachSelectedToHand} type="button"><Link2 size={16} /> Vincular</button>}
+                    : <button onClick={() => attachSelectedToHand()} type="button"><Link2 size={16} /> Vincular</button>}
                 </fieldset>
               )}
               {["position", "rotation", "scale"].map((group) => (
@@ -3521,6 +4191,20 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                   {selectedRef.current?.isSpotLight && <label><span>Apertura</span><input max="80" min="5" onChange={(event) => updateLight("angle", event.target.value)} step="1" type="range" value={selection.angle} /></label>}
                 </fieldset>
               )}
+              {selection.isLight && (
+                <fieldset className="three-tab-object">
+                  <legend>Vincular luz</legend>
+                  <label><span>Objetivo</span><select onChange={(event) => updateLightLink({ targetId: event.target.value })} value={selection.lightLink.targetId}>
+                    <option value="">Sin vincular</option>
+                    {objects.filter((item) => item.type !== "light").map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                  </select></label>
+                  <label className="three-check"><input checked={selection.lightLink.follow} disabled={!selection.lightLink.targetId} onChange={(event) => updateLightLink({ follow: event.target.checked })} type="checkbox" /><Move3D size={16} /> Seguir posicion</label>
+                  {(selectedRef.current?.isSpotLight || selectedRef.current?.isDirectionalLight) && <label className="three-check"><input checked={selection.lightLink.aim} disabled={!selection.lightLink.targetId} onChange={(event) => updateLightLink({ aim: event.target.checked })} type="checkbox" /><Focus size={16} /> Apuntar al objetivo</label>}
+                  <div className="three-vector-inputs">
+                    {["X", "Y", "Z"].map((axis, index) => <label key={axis}><span>{axis}</span><input disabled={!selection.lightLink.targetId || !selection.lightLink.follow} onBlur={pushHistory} onChange={(event) => updateLightLinkOffset(index, event.target.value)} step="0.1" type="number" value={selection.lightLink.offset[index]} /></label>)}
+                  </div>
+                </fieldset>
+              )}
               {!selection.isLight && (
                 <>
                   {selection.modelAnimation && (
@@ -3529,6 +4213,21 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                       <label><span>Clip</span><select onChange={(event) => selectModelAnimation(event.target.value)} value={selection.modelAnimation.clip}>{selection.modelAnimation.clips.map((clip) => <option key={clip} value={clip}>{clip}</option>)}</select></label>
                       <button className="three-sculpt-toggle" onClick={toggleModelAnimation} type="button">{selection.modelAnimation.playing ? <Pause size={16} /> : <Play size={16} />} {selection.modelAnimation.playing ? "Pausar" : "Reproducir"}</button>
                       <label><span>Velocidad</span><input max="2.5" min="0" onChange={(event) => setModelAnimationSpeed(event.target.value)} step="0.05" type="range" value={selection.modelAnimation.speed} /></label>
+                    </fieldset>
+                  )}
+                  {POSE_BONES.some((entry) => findRigBone(selectedRef.current, entry.id)) && (
+                    <fieldset className="three-tab-model" key={`pose:${poseVersion}`}>
+                      <legend>Pose del personaje</legend>
+                      <label><span>Parte</span><select onChange={(event) => { if (poseGizmoRef.current) closeBoneGizmo(); setPoseBone(event.target.value); }} value={poseBone}>
+                        {POSE_BONES.filter((entry) => findRigBone(selectedRef.current, entry.id)).map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+                      </select></label>
+                      {['X', 'Y', 'Z'].map((axis, index) => {
+                        const bone = findRigBone(selectedRef.current, poseBone);
+                        const value = THREE.MathUtils.radToDeg(selectedRef.current?.userData?.poseOffsets?.[bone?.name]?.[index] || 0);
+                        return <label key={axis}><span>Rotacion {axis}</span><input disabled={selection.locked} max="180" min="-180" onChange={(event) => updateBonePose(index, event.target.value)} onPointerDown={pushHistory} step="1" type="range" value={value} /></label>;
+                      })}
+                      <button disabled={selection.locked} onClick={resetBonePose} type="button"><RotateCcw size={16} /> Restaurar parte</button>
+                      <button className={poseGizmoRef.current ? "active" : ""} disabled={selection.locked} onClick={poseGizmoRef.current ? closeBoneGizmo : openBoneGizmo} type="button"><Rotate3D size={16} /> {poseGizmoRef.current ? "Cerrar rotador" : "Rotar sobre el personaje"}</button>
                     </fieldset>
                   )}
                   <fieldset className="three-tab-model">
@@ -3678,30 +4377,63 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         </aside>
       </div>
       <ThreeAnimationPanel
+        cameraFollow={cameraFollow}
+        cameraShake={cameraShake}
         cameraKeyframes={animationTracks[CAMERA_TRACK_ID] || []}
+        animationLoop={animationLoop}
         currentTime={animationTime}
         duration={animationDuration}
         keyframes={animationTracks[selectedId] || []}
         onAddKeyframe={addAnimationKeyframe}
         onAddCameraKeyframe={addCameraKeyframe}
+        onAudioImport={importSoundtrack}
+        onAnimationLoopChange={setAnimationLoop}
         onAutoDirect={createAutomaticDirection}
+        onBeatDirect={createBeatDirection}
         onClear={clearSelectedAnimation}
         onClearCamera={clearCameraAnimation}
+        onCameraFollowChange={(patch) => {
+          const next = { ...cameraFollow, ...patch };
+          cameraFollowRef.current = { ...cameraFollowRef.current, ...next, subject: patch.enabled ? null : cameraFollowRef.current.subject };
+          setCameraFollow(next);
+        }}
+        onCameraShakeChange={(patch) => {
+          const next = { ...cameraShakeRef.current, ...patch };
+          cameraShakeRef.current = next;
+          setCameraShake(next);
+        }}
         onDurationChange={(value) => {
           const nextDuration = Math.max(1, value);
           setAnimationDuration(nextDuration);
           seekAnimation(Math.min(animationTime, nextDuration));
         }}
         onDeleteMarker={deleteAnimationMarker}
-        onPlayingChange={setAnimationPlaying}
+        onDuplicateMarker={duplicateAnimationMarker}
+        onUpdateMarker={updateAnimationMarker}
+        onPlayingChange={(playing) => {
+          if (playing && animationTimeRef.current >= animationDuration - 0.001) seekAnimation(0);
+          setAnimationPlaying(playing);
+        }}
+        onRemoveAudio={removeSoundtrack}
         onExport={exportAnimation}
         onFpsChange={setAnimationFps}
         onSeek={seekAnimation}
         exporting={animationExporting}
         fps={animationFps}
         playing={animationPlaying}
+        soundtrack={soundtrack}
+        slowMotion={slowMotion}
+        onSlowMotionChange={(patch) => {
+          const next = { ...slowMotionRef.current, ...patch };
+          next.start = THREE.MathUtils.clamp(Number(next.start), 0, animationDuration);
+          next.end = THREE.MathUtils.clamp(Number(next.end), next.start, animationDuration);
+          next.speed = THREE.MathUtils.clamp(Number(next.speed), 0.05, 1);
+          slowMotionRef.current = next;
+          setSlowMotion(next);
+        }}
         selectedName={selection?.name || ""}
       />
+      {soundtrack && <audio loop={animationLoop} ref={soundtrackAudioRef} src={soundtrack.url} />}
     </section>
   );
 }
