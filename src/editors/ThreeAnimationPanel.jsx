@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Camera, CameraOff, Copy, Diamond, Film, Loader2, Music, Pause, Play, RotateCcw, Trash2, Upload } from "lucide-react";
+import { Camera, CameraOff, Copy, Diamond, Film, Loader2, Music, Pause, Play, Plus, RotateCcw, Square, Trash2, Upload } from "lucide-react";
 
 export default function ThreeAnimationPanel({
   animationLoop,
@@ -24,19 +24,25 @@ export default function ThreeAnimationPanel({
   onDuplicateMarker,
   onUpdateMarker,
   onExport,
+  onFreezeMotionChange,
+  onFreezeMotionAdd,
+  onFreezeMotionDelete,
   onFpsChange,
   onPlayingChange,
   onRemoveAudio,
   onSeek,
   onSlowMotionChange,
+  onStop,
   exporting,
   fps,
+  freezeMotion,
   playing,
   soundtrack,
   slowMotion,
   selectedName
 }) {
   const [selectedMarker, setSelectedMarker] = useState(null);
+  const [selectedFreeze, setSelectedFreeze] = useState(null);
   const [directorPreset, setDirectorPreset] = useState("hollywood");
   const [directorTransition, setDirectorTransition] = useState("cinematic");
   const [exportFormat, setExportFormat] = useState("h264");
@@ -53,9 +59,13 @@ export default function ThreeAnimationPanel({
   const activeMarker = selectedMarker
     ? markers.find((marker) => marker.id === selectedMarker.id && marker.kind === selectedMarker.kind)
     : null;
+  const activeFreeze = freezeMotion.find((segment) => segment.id === selectedFreeze) || null;
   useEffect(() => {
     if (selectedMarker && !markers.some((marker) => marker.id === selectedMarker.id && marker.kind === selectedMarker.kind)) setSelectedMarker(null);
   }, [keyframes, cameraKeyframes, selectedMarker]);
+  useEffect(() => {
+    if (selectedFreeze && !freezeMotion.some((segment) => segment.id === selectedFreeze)) setSelectedFreeze(null);
+  }, [freezeMotion, selectedFreeze]);
 
   const deleteSelectedMarker = () => {
     if (!selectedMarker) return;
@@ -75,7 +85,9 @@ export default function ThreeAnimationPanel({
         <span>{selectedName || "Selecciona un objeto"}</span>
       </div>
       <div className="three-animation-controls">
-        <button data-tooltip={playing ? "Pausar" : "Reproducir"} onClick={() => onPlayingChange(!playing)} type="button">{playing ? <Pause size={17} /> : <Play size={17} />}</button>
+        <button className={playing ? "active" : ""} data-tooltip="Reproducir todas las animaciones" onClick={() => onPlayingChange(true)} type="button"><Play size={17} /></button>
+        <button className={!playing ? "active" : ""} data-tooltip="Congelar todas las animaciones" onClick={() => onPlayingChange(false)} type="button"><Pause size={17} /></button>
+        <button data-tooltip="Detener y volver al inicio" onClick={onStop} type="button"><Square size={16} /></button>
         <button data-tooltip="Volver al inicio" onClick={() => onSeek(0)} type="button"><RotateCcw size={17} /></button>
         <label className="three-loop-toggle"><input checked={animationLoop} onChange={(event) => onAnimationLoopChange(event.target.checked)} type="checkbox" /><RotateCcw size={15} /> Bucle</label>
         <button disabled={!selectedName} onClick={onAddKeyframe} type="button"><Diamond size={16} /> Keyframe</button>
@@ -106,6 +118,15 @@ export default function ThreeAnimationPanel({
         <button disabled={!cameraKeyframes.length} data-tooltip="Borrar animacion de vista" onClick={onClearCamera} type="button"><CameraOff size={16} /></button>
       </div>
       <div className="three-animation-timeline" onDragOver={(event) => event.preventDefault()} onDrop={(event) => {
+        const freezeId = event.dataTransfer.getData("application/x-neon-freeze");
+        if (freezeId) {
+          const bounds = event.currentTarget.getBoundingClientRect();
+          const start = Math.max(0, Math.min(duration, ((event.clientX - bounds.left) / bounds.width) * duration));
+          const segment = freezeMotion.find((item) => item.id === freezeId);
+          if (segment) onFreezeMotionChange(freezeId, { start, end: Math.min(duration, start + segment.end - segment.start) });
+          setSelectedFreeze(freezeId);
+          return;
+        }
         const markerId = event.dataTransfer.getData("application/x-neon-camera-marker");
         if (!markerId) return;
         const bounds = event.currentTarget.getBoundingClientRect();
@@ -114,6 +135,16 @@ export default function ThreeAnimationPanel({
         setSelectedMarker({ id: markerId, kind: "camera" });
       }}>
         <div className="three-animation-clips">
+          {freezeMotion.map((segment, index) => <button
+            className={`is-freeze ${selectedFreeze === segment.id ? "selected" : ""}`}
+            draggable
+            key={`freeze:${segment.id}`}
+            onClick={() => { setSelectedFreeze(segment.id); setSelectedMarker(null); onSeek(segment.start); }}
+            onDragStart={(event) => { event.dataTransfer.setData("application/x-neon-freeze", segment.id); event.dataTransfer.effectAllowed = "move"; }}
+            style={{ left: `${(segment.start / duration) * 100}%`, width: `${Math.max(((segment.end - segment.start) / duration) * 100, 1.5)}%` }}
+            title={`Freeze ${index + 1}: ${segment.start.toFixed(2)} s - ${segment.end.toFixed(2)} s`}
+            type="button"
+          ><Pause size={9} /><span>F{index + 1}</span></button>)}
           {cameraClips.map((clip, index) => <button
             className={selectedMarker?.id === clip.id && selectedMarker?.kind === "camera" ? "selected" : ""}
             draggable
@@ -161,6 +192,16 @@ export default function ThreeAnimationPanel({
           <label><span>Desde</span><input disabled={!slowMotion.enabled} max={duration} min="0" onChange={(event) => onSlowMotionChange({ start: event.target.value })} step="0.1" type="number" value={slowMotion.start} /></label>
           <label><span>Hasta</span><input disabled={!slowMotion.enabled} max={duration} min={slowMotion.start} onChange={(event) => onSlowMotionChange({ end: event.target.value })} step="0.1" type="number" value={slowMotion.end} /></label>
           <label><span>Velocidad</span><input disabled={!slowMotion.enabled} max="1" min="0.05" onChange={(event) => onSlowMotionChange({ speed: Number(event.target.value) })} step="0.05" type="range" value={slowMotion.speed} /></label>
+        </div>
+        <div className="three-slow-motion three-freeze-editor">
+          <button onClick={() => setSelectedFreeze(onFreezeMotionAdd())} type="button"><Plus size={14} /> Freeze</button>
+          {activeFreeze && <>
+            <label><span>Desde</span><input max={duration} min="0" onChange={(event) => onFreezeMotionChange(activeFreeze.id, { start: event.target.value })} step="0.1" type="number" value={activeFreeze.start} /></label>
+            <label><span>Hasta</span><input max={duration} min={activeFreeze.start} onChange={(event) => onFreezeMotionChange(activeFreeze.id, { end: event.target.value })} step="0.1" type="number" value={activeFreeze.end} /></label>
+            <label><span>Retorno</span><select onChange={(event) => onFreezeMotionChange(activeFreeze.id, { resume: event.target.value })} value={activeFreeze.resume}><option value="quick">Rapido</option><option value="smooth">Suave</option></select></label>
+            {activeFreeze.resume === "smooth" && <label><span>Aceleracion</span><input max="5" min="0.1" onChange={(event) => onFreezeMotionChange(activeFreeze.id, { resumeDuration: event.target.value })} step="0.1" type="number" value={activeFreeze.resumeDuration} /></label>}
+            <button data-tooltip="Eliminar freeze" onClick={() => onFreezeMotionDelete(activeFreeze.id)} type="button"><Trash2 size={14} /></button>
+          </>}
         </div>
         {activeMarker && <div className="three-shot-editor">
           <strong>{activeMarker.kind === "camera" ? "Toma seleccionada" : "Keyframe seleccionado"}</strong>
