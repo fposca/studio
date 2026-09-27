@@ -102,6 +102,7 @@ const PDF_PROJECT_ID = "pdf";
 const DESIGN_PROJECT_ID = "design";
 const WORKSPACE_META_KEY = "studio:workspace-meta:v1";
 const WORKSPACE_PROJECTS_KEY = "studio:workspace-projects:v1";
+const WORKSPACE_PROJECTS_INDEX_ID = "workspace:index";
 const WIZARD_SEEN_PREFIX = "studio:wizard-seen:";
 
 const WIZARD_STEPS = {
@@ -245,6 +246,83 @@ async function getProject(id) {
       reject(tx.error);
     };
   });
+}
+
+async function getProjectKeys() {
+  const db = await openProjectDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(PROJECT_STORE, "readonly");
+    const request = tx.objectStore(PROJECT_STORE).getAllKeys();
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+    tx.oncomplete = () => db.close();
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+
+async function packBackupValue(value, assets, seen = new WeakSet()) {
+  if (value instanceof Blob) {
+    const index = assets.length;
+    assets.push(value);
+    return { __neonBlob: index, name: value.name || `asset-${index}`, type: value.type || "application/octet-stream", lastModified: value.lastModified || Date.now() };
+  }
+  if (value === null || typeof value !== "object") return value;
+  if (seen.has(value)) return null;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    const packedItems = await Promise.all(value.map((item) => packBackupValue(item, assets, seen)));
+    seen.delete(value);
+    return packedItems;
+  }
+  const packed = {};
+  for (const [key, item] of Object.entries(value)) packed[key] = await packBackupValue(item, assets, seen);
+  seen.delete(value);
+  return packed;
+}
+
+async function unpackBackupValue(value, assetLoader) {
+  if (value?.__neonBlob !== undefined) {
+    const blob = await assetLoader(value.__neonBlob);
+    return new File([blob], value.name, { type: value.type, lastModified: value.lastModified });
+  }
+  if (value === null || typeof value !== "object") return value;
+  if (Array.isArray(value)) return Promise.all(value.map((item) => unpackBackupValue(item, assetLoader)));
+  const unpacked = {};
+  for (const [key, item] of Object.entries(value)) unpacked[key] = await unpackBackupValue(item, assetLoader);
+  return unpacked;
+}
+
+async function backupWorkspaceToDisk(project) {
+  const entries = {};
+  const kind = project.tab || "three";
+  const value = await getProject(`workspace:${project.id}:${kind}`);
+  if (value === undefined) throw new Error("No se encontro el contenido del proyecto");
+  entries[kind] = value;
+  const assets = [];
+  const payload = await packBackupValue(entries, assets);
+  const form = new FormData();
+  form.append("manifest", JSON.stringify({ project, payload }));
+  assets.forEach((asset, index) => form.append("assets", asset, asset.name || `asset-${index}`));
+  const response = await fetch(`${API}/api/projects/backup/${encodeURIComponent(project.id)}`, { method: "POST", body: form });
+  if (!response.ok) throw new Error((await response.json().catch(() => null))?.error || "No se pudo crear el respaldo local");
+  return response.json();
+}
+
+async function restoreWorkspaceFromDisk(projectId, version = "") {
+  const query = version ? `?version=${encodeURIComponent(version)}` : "";
+  const response = await fetch(`${API}/api/projects/backup/${encodeURIComponent(projectId)}${query}`);
+  if (!response.ok) return null;
+  const manifest = await response.json();
+  const assetLoader = async (index) => {
+    const fileName = manifest.assets?.[index];
+    if (!fileName) throw new Error("Falta un archivo del respaldo");
+    const assetResponse = await fetch(`${API}/api/projects/backup/${encodeURIComponent(projectId)}/${encodeURIComponent(manifest.version)}/assets/${encodeURIComponent(fileName)}`);
+    if (!assetResponse.ok) throw new Error("No se pudo restaurar un archivo del proyecto");
+    return assetResponse.blob();
+  };
+  const entries = await unpackBackupValue(manifest.payload || {}, assetLoader);
+  await Promise.all(Object.entries(entries).map(([kind, value]) => putProject(`workspace:${projectId}:${kind}`, value)));
+  return manifest.project;
 }
 
 async function deleteProject(id) {
@@ -4885,6 +4963,56 @@ export default function App() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    async function recoverProjectIndex() {
+      try {
+        await navigator.storage?.persist?.();
+        const [indexedProjects, keys, diskProjects] = await Promise.all([
+          getProject(WORKSPACE_PROJECTS_INDEX_ID),
+          getProjectKeys(),
+          fetch(`${API}/api/projects/backups`).then((response) => response.ok ? response.json() : { projects: [] }).then((result) => result.projects || []).catch(() => [])
+        ]);
+        if (cancelled) return;
+        const localProjects = (() => {
+          try { return JSON.parse(localStorage.getItem(WORKSPACE_PROJECTS_KEY) || "[]"); }
+          catch { return []; }
+        })();
+        const merged = new Map();
+        [...diskProjects, ...(Array.isArray(indexedProjects) ? indexedProjects : []), ...localProjects]
+          .forEach((project) => project?.id && merged.set(project.id, { ...(merged.get(project.id) || {}), ...project }));
+        const recoveredIds = new Map();
+        keys.forEach((key) => {
+          const match = String(key).match(/^workspace:([^:]+):(image|design|pdf|video|audio|three)$/);
+          if (!match) return;
+          if (!recoveredIds.has(match[1])) recoveredIds.set(match[1], new Set());
+          recoveredIds.get(match[1]).add(match[2]);
+        });
+        recoveredIds.forEach((kinds, id) => {
+          if (merged.has(id)) return;
+          const tab = ["three", "video", "audio", "image", "design", "pdf"].find((kind) => kinds.has(kind)) || "three";
+          merged.set(id, {
+            id,
+            name: `Proyecto recuperado ${String(id).slice(0, 8)}`,
+            tab,
+            savedAt: new Date().toISOString(),
+            thumbnail: "",
+            recovered: true
+          });
+        });
+        const recovered = [...merged.values()].sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+        setProjects(recovered);
+        localStorage.setItem(WORKSPACE_PROJECTS_KEY, JSON.stringify(recovered));
+        await putProject(WORKSPACE_PROJECTS_INDEX_ID, recovered);
+        if (recovered.some((project) => project.recovered)) setWorkspaceStatus("Se recuperaron proyectos que estaban ocultos");
+      } catch (error) {
+        console.warn("No se pudo comprobar la recuperacion de proyectos", error);
+      }
+    }
+    recoverProjectIndex();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     if (!user) return;
     if (!localStorage.getItem(`${WIZARD_SEEN_PREFIX}${tab}`)) {
       setWizardScreen(tab);
@@ -4924,6 +5052,7 @@ export default function App() {
     const sorted = [...next].sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
     setProjects(sorted);
     localStorage.setItem(WORKSPACE_PROJECTS_KEY, JSON.stringify(sorted));
+    putProject(WORKSPACE_PROJECTS_INDEX_ID, sorted).catch((error) => console.warn("No se pudo respaldar el indice de proyectos", error));
   }
 
   async function saveWorkspace(name, existingId = "") {
@@ -4948,11 +5077,29 @@ export default function App() {
     storeProjects([...projects.filter((item) => item.id !== projectId), project]);
     setCurrentProjectId(projectId);
     setSaveDialogOpen(false);
-    setWorkspaceStatus(existingId ? "Proyecto actualizado" : "Proyecto guardado");
+    setWorkspaceStatus(existingId ? "Proyecto actualizado; respaldando en segundo plano" : "Proyecto guardado; respaldando en segundo plano");
+    setTimeout(() => {
+      backupWorkspaceToDisk(project)
+        .then(() => setWorkspaceStatus("Respaldo en disco completado"))
+        .catch((error) => {
+          console.error(error);
+          setWorkspaceStatus("Proyecto guardado en Chrome; fallo el respaldo en disco");
+        });
+    }, 500);
   }
 
   async function loadWorkspace(project) {
     setWorkspaceStatus("Abriendo espacio de trabajo...");
+    const localState = await getProject(`workspace:${project.id}:${project.tab || "three"}`);
+    if (!localState && project.backupVersion) {
+      setWorkspaceStatus("Restaurando proyecto desde el disco...");
+      try {
+        await restoreWorkspaceFromDisk(project.id, project.backupVersion);
+      } catch (error) {
+        setWorkspaceStatus(`No se pudo restaurar: ${error.message}`);
+        return;
+      }
+    }
     const detail = { tasks: [], projectId: project.id };
     window.dispatchEvent(new CustomEvent("studio:workspace-load", { detail }));
     const results = await Promise.allSettled(detail.tasks);
@@ -4978,13 +5125,18 @@ export default function App() {
       const value = await getProject(`workspace:${project.id}:${kind}`);
       if (value) await putProject(`workspace:${id}:${kind}`, value);
     }));
-    storeProjects([...projects, { ...project, id, name: `${project.name} copia`, savedAt: new Date().toISOString() }]);
-    setWorkspaceStatus("Proyecto duplicado");
+    const duplicate = { ...project, id, name: `${project.name} copia`, savedAt: new Date().toISOString(), backupVersion: undefined };
+    storeProjects([...projects, duplicate]);
+    setWorkspaceStatus("Proyecto duplicado; respaldando en segundo plano");
+    setTimeout(() => backupWorkspaceToDisk(duplicate)
+      .then(() => setWorkspaceStatus("Proyecto duplicado y respaldado"))
+      .catch(() => setWorkspaceStatus("Proyecto duplicado; fallo el respaldo en disco")), 500);
   }
 
   async function deleteWorkspace(project) {
     if (!window.confirm(`Eliminar el proyecto "${project.name}"?`)) return;
     await Promise.all(["image", "design", "pdf", "video", "audio", "three"].map((kind) => deleteProject(`workspace:${project.id}:${kind}`)));
+    await fetch(`${API}/api/projects/backup/${encodeURIComponent(project.id)}`, { method: "DELETE" }).catch(() => null);
     storeProjects(projects.filter((item) => item.id !== project.id));
     if (currentProjectId === project.id) setCurrentProjectId("");
     setWorkspaceStatus("Proyecto eliminado");

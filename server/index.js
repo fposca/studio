@@ -13,17 +13,20 @@ const root = path.resolve(__dirname, "..");
 const workDir = process.env.STUDIO_WORK_DIR || path.join(root, "server", "work");
 const uploadDir = path.join(workDir, "uploads");
 const outputDir = path.join(workDir, "outputs");
+const backupDir = path.join(root, "server", "backups");
 const clientDir = path.join(root, "dist");
 let serverOrigin = "http://127.0.0.1:5174";
 
 fs.mkdirSync(uploadDir, { recursive: true });
 fs.mkdirSync(outputDir, { recursive: true });
+fs.mkdirSync(backupDir, { recursive: true });
 
 const app = express();
 const maxUploadMb = 100;
 const upload = multer({ dest: uploadDir, limits: { fileSize: maxUploadMb * 1024 * 1024 } });
 const renderUploadMb = 500;
 const renderUpload = multer({ dest: uploadDir, limits: { fileSize: renderUploadMb * 1024 * 1024 } });
+const backupUpload = multer({ dest: uploadDir, limits: { fileSize: 2 * 1024 * 1024 * 1024, fieldSize: 200 * 1024 * 1024, files: 500 } });
 
 app.use(cors());
 app.use(express.json({ limit: "5mb" }));
@@ -650,6 +653,85 @@ app.post("/api/video/export", upload.single("video"), async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+});
+
+function safeBackupPart(value) {
+  return String(value || "").replace(/[^a-zA-Z0-9._-]/g, "");
+}
+
+function latestBackupVersion(projectId) {
+  const projectDir = path.join(backupDir, projectId);
+  if (!fs.existsSync(projectDir)) return "";
+  return fs.readdirSync(projectDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort()
+    .at(-1) || "";
+}
+
+app.get("/api/projects/backups", (_req, res) => {
+  const projects = fs.readdirSync(backupDir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).flatMap((entry) => {
+    const version = latestBackupVersion(entry.name);
+    if (!version) return [];
+    try {
+      const manifest = JSON.parse(fs.readFileSync(path.join(backupDir, entry.name, version, "manifest.json"), "utf8"));
+      return [{ ...manifest.project, backupVersion: version }];
+    } catch {
+      return [];
+    }
+  });
+  res.json({ projects });
+});
+
+app.post("/api/projects/backup/:projectId", backupUpload.array("assets", 500), (req, res) => {
+  const projectId = safeBackupPart(req.params.projectId);
+  if (!projectId || !req.body.manifest) return res.status(400).json({ error: "Respaldo invalido." });
+  const version = new Date().toISOString().replace(/[:.]/g, "-");
+  const versionDir = path.join(backupDir, projectId, version);
+  const assetsDir = path.join(versionDir, "assets");
+  fs.mkdirSync(assetsDir, { recursive: true });
+  try {
+    const manifest = JSON.parse(req.body.manifest);
+    manifest.project.id = projectId;
+    manifest.backedUpAt = new Date().toISOString();
+    manifest.assets = (req.files || []).map((file, index) => {
+      const fileName = `${String(index).padStart(4, "0")}-${cleanName(file.originalname) || "asset"}`;
+      fs.renameSync(file.path, path.join(assetsDir, fileName));
+      return fileName;
+    });
+    fs.writeFileSync(path.join(versionDir, "manifest.json"), JSON.stringify(manifest), "utf8");
+    const projectDir = path.join(backupDir, projectId);
+    const versions = fs.readdirSync(projectDir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
+    versions.slice(0, Math.max(0, versions.length - 10)).forEach((oldVersion) => fs.rmSync(path.join(projectDir, oldVersion), { recursive: true, force: true }));
+    res.json({ ok: true, version, backedUpAt: manifest.backedUpAt });
+  } catch (error) {
+    (req.files || []).forEach((file) => fs.rmSync(file.path, { force: true }));
+    fs.rmSync(versionDir, { recursive: true, force: true });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/projects/backup/:projectId", (req, res) => {
+  const projectId = safeBackupPart(req.params.projectId);
+  const version = safeBackupPart(req.query.version) || latestBackupVersion(projectId);
+  const manifestPath = path.join(backupDir, projectId, version, "manifest.json");
+  if (!version || !fs.existsSync(manifestPath)) return res.status(404).json({ error: "No hay respaldo para este proyecto." });
+  res.json({ ...JSON.parse(fs.readFileSync(manifestPath, "utf8")), version });
+});
+
+app.delete("/api/projects/backup/:projectId", (req, res) => {
+  const projectId = safeBackupPart(req.params.projectId);
+  if (!projectId) return res.status(400).end();
+  fs.rmSync(path.join(backupDir, projectId), { recursive: true, force: true });
+  res.json({ ok: true });
+});
+
+app.get("/api/projects/backup/:projectId/:version/assets/:fileName", (req, res) => {
+  const parts = [req.params.projectId, req.params.version, req.params.fileName].map(safeBackupPart);
+  if (parts.some((part) => !part)) return res.status(400).end();
+  const filePath = path.join(backupDir, parts[0], parts[1], "assets", parts[2]);
+  if (!fs.existsSync(filePath)) return res.status(404).end();
+  res.sendFile(filePath);
 });
 
 app.post("/api/three/export-h264", renderUpload.single("video"), async (req, res) => {

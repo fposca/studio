@@ -22,6 +22,7 @@ import droidSansBoldFont from "../assets/fonts/droid_sans_bold.typeface.json";
 import droidSerifFont from "../assets/fonts/droid_serif_regular.typeface.json";
 import droidSerifBoldFont from "../assets/fonts/droid_serif_bold.typeface.json";
 import droidMonoFont from "../assets/fonts/droid_sans_mono_regular.typeface.json";
+import diskTextureUrl from "../assets/neonboy-animaciones/disk.png";
 import fieldPanorama from "../assets/environments/field-panorama.png";
 import cloudsPanorama from "../assets/environments/clouds-panorama.png";
 import factoryPanorama from "../assets/environments/factory-panorama.png";
@@ -74,6 +75,7 @@ import ThreeAnimationPanel from "./ThreeAnimationPanel.jsx";
 
 const THREE_PROJECT_ID = "three";
 const THREE_AUTOSAVE_ID = "autosave:three";
+const THREE_CLIPBOARD_ID = "clipboard:three";
 const CAMERA_TRACK_ID = "__camera__";
 const DEFAULT_BACKGROUND = "#17191d";
 const DEFAULT_FREEZE_SEGMENTS = [];
@@ -161,6 +163,12 @@ const POSE_BONES = [
   { id: "Head", name: "Cabeza" },
   { id: "Spine", name: "Torso" }
 ];
+const ATTACHMENT_POINTS = ["LeftHand", "RightHand", "Spine", "Hips"];
+
+function attachmentPointFromBoneName(boneName) {
+  const normalized = String(boneName || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+  return ATTACHMENT_POINTS.find((point) => normalized.endsWith(point.toLowerCase())) || "";
+}
 const NEONBOY_ANIMATION_URLS = import.meta.glob([
   "../assets/neonboy-animaciones/*.glb",
   "!../assets/neonboy-animaciones/bateria.glb",
@@ -199,6 +207,7 @@ const CHARACTER_ANIMATION_NAMES = {
   "neonrock6": { character: "Neonboy", animation: "Neon Rock 6", order: 19 },
   "neonHead": { character: "Neonboy", animation: "Neon Head", order: 20 },
   "baterista": { character: "Neonboy", animation: "Baterista", order: 21 },
+  "neon-stand-disk": { character: "Neonboy", animation: "Con disco", order: 22 },
   "profe": { character: "Profe", animation: "Tocando guitarra", order: 30 },
   "demon-rock": { character: "Demon", animation: "Tocando guitarra", order: 40 },
   "zombie-breath": { character: "Zombie", animation: "Respirando", order: 41 },
@@ -206,6 +215,43 @@ const CHARACTER_ANIMATION_NAMES = {
   "reptiliano-walk": { character: "Reptiliano", animation: "Caminando", order: 50, locomotion: true }
 };
 const isGuitaristModel = (id) => id?.startsWith("neon-guitar") || ["calm-guitar", "neon-rock", "neonrock6", "neonHead", "profe", "demon-rock", "zombieGuitarr"].includes(id);
+
+async function createDiskPlane() {
+  const texture = await new THREE.TextureLoader().loadAsync(diskTextureUrl);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const aspect = texture.image?.width && texture.image?.height ? texture.image.width / texture.image.height : 1;
+  const geometry = new THREE.PlaneGeometry(aspect, 1);
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, alphaTest: 0.02, side: THREE.DoubleSide, toneMapped: false });
+  return new THREE.Mesh(geometry, material);
+}
+
+async function loadStaticPreset(preset) {
+  if (preset.create) return { scene: await preset.create(), animations: [] };
+  const modelUrl = preset.url || await preset.loadUrl();
+  return loadBundledModel(modelUrl);
+}
+
+function ensureNeonMaskPulse(model) {
+  const preset = CHARACTER_MODELS.find((entry) => entry.id === model?.userData?.bundledModel);
+  if (!preset || !["Neonboy", "Neoncruzader"].includes(preset.character)) return;
+  model.userData.maskPulse = {
+    enabled: true,
+    color: "#ff176b",
+    intensity: 4.5,
+    speed: 3.2,
+    pattern: "flicker",
+    position: [0, 0.06, 0.13],
+    ...(model.userData.maskPulse || {})
+  };
+  if (model.getObjectByName("NeonMaskPulseLight")) return;
+  const head = model.getObjectByName("mixamorig:Head") || model.getObjectByName("headfront");
+  if (!head) return;
+  const light = new THREE.PointLight(model.userData.maskPulse.color, 0, 1.8, 2);
+  light.name = "NeonMaskPulseLight";
+  light.userData.editorHelper = true;
+  light.position.fromArray(model.userData.maskPulse.position);
+  head.add(light);
+}
 const CHARACTER_MODELS = [
   { id: "breathe-look", character: "Neoncruzader", animation: "Base", name: "Neoncruzader - Base", order: 0, url: neonboyModelUrl },
   ...Object.entries(NEONBOY_ANIMATION_URLS).filter(([path]) => !CHARACTER_ASSET_FILES.has(path.split("/").pop())).map(([path, loadUrl]) => {
@@ -220,6 +266,7 @@ const CHARACTER_MODELS = [
 ].sort((left, right) => left.order - right.order);
 const STATIC_MODELS = [
   { id: "neonboy-logo", name: "Logo Neonboy", url: neonboyLogoModelUrl },
+  { id: "disk", name: "Disco", create: createDiskPlane },
   { id: "guitar", name: "Guitarra", loadUrl: GUITAR_MODEL_LOADER },
   { id: "professor-guitar", name: "Guitarra Profe", loadUrl: PROFESSOR_GUITAR_MODEL_LOADER },
   { id: "demon-guitar", name: "Guitarra Demon", loadUrl: DEMON_GUITAR_MODEL_LOADER },
@@ -815,6 +862,16 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const [propertyTab, setPropertyTab] = useState("object");
   const [historyCounts, setHistoryCounts] = useState({ undo: 0, redo: 0 });
   const [hasClipboard, setHasClipboard] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getProject(THREE_CLIPBOARD_ID).then((saved) => {
+      if (cancelled || !saved) return;
+      clipboardRef.current = saved;
+      setHasClipboard(true);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   const [deformAmount, setDeformAmount] = useState(0.25);
   const [sculptBrush, setSculptBrush] = useState("inflate");
   const [sculptRadius, setSculptRadius] = useState(0.65);
@@ -1075,7 +1132,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const runtime = runtimeRef.current;
     const object = selectedRef.current;
     if (!runtime || !object || object.isLight) return;
-    const validPoints = new Set(["LeftHand", "RightHand", "Spine", "Hips"]);
+    const validPoints = new Set(ATTACHMENT_POINTS);
     const resolvedPoint = validPoints.has(targetPoint) ? targetPoint : attachmentHand;
     const objectWorldPosition = object.getWorldPosition(new Vector3());
     const candidates = runtime.content.children
@@ -1091,8 +1148,9 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       return;
     }
     pushHistory();
+    const wasAttached = Boolean(object.userData?.editableAttachment);
     target.hand.attach(object);
-    object.position.set(0, 0, 0);
+    if (!wasAttached) object.position.set(0, 0, 0);
     object.userData.editableAttachment = true;
     object.userData.attachmentBone = target.hand.name;
     object.userData.attachmentOwner = target.candidate.userData.editorId;
@@ -1284,7 +1342,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         speed: object.userData.spin?.speed ?? 30
       },
       modelAnimation: object.userData.modelAnimation ? { ...object.userData.modelAnimation } : null,
-      locomotion: object.userData.locomotion ? { ...object.userData.locomotion } : null
+      locomotion: object.userData.locomotion ? { ...object.userData.locomotion } : null,
+      maskPulse: object.userData.maskPulse ? { ...object.userData.maskPulse, position: [...object.userData.maskPulse.position] } : null
     });
   }
 
@@ -1343,6 +1402,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setExtrudeDepth(object.userData.depth ?? 0.35);
       setTextFont(object.userData.font || "helvetiker");
     }
+    const attachmentPoint = attachmentPointFromBoneName(object?.userData?.attachmentBone);
+    if (attachmentPoint) setAttachmentHand(attachmentPoint);
     syncSelection(object);
   }
 
@@ -1554,8 +1615,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         ? CHARACTER_MODELS.find((entry) => entry.id === descriptor.assetId)
         : STATIC_MODELS.find((entry) => entry.id === descriptor.assetId);
       if (!preset) continue;
-      const modelUrl = preset.url || await preset.loadUrl();
-      const gltf = await loadBundledModel(modelUrl);
+      const gltf = await loadStaticPreset(preset);
       const object = gltf.scene;
       object.name = descriptor.name;
       object.position.fromArray(descriptor.position);
@@ -1564,14 +1624,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       object.visible = descriptor.visible !== false;
       object.userData = { ...object.userData, ...descriptor.userData };
       object.animations = gltf.animations;
+      ensureNeonMaskPulse(object);
       runtime.content.add(object);
       registerModelAnimations(object, gltf.animations);
       for (const attachment of descriptor.attachments || []) {
         const attachmentPreset = STATIC_MODELS.find((entry) => entry.id === attachment.assetId);
         const bone = object.getObjectByName(attachment.userData?.attachmentBone);
         if (!attachmentPreset || !bone) continue;
-        const attachmentUrl = attachmentPreset.url || await attachmentPreset.loadUrl();
-        const attachmentGltf = await loadBundledModel(attachmentUrl);
+        const attachmentGltf = await loadStaticPreset(attachmentPreset);
         const attachedObject = attachmentGltf.scene;
         attachedObject.name = attachment.name;
         attachedObject.position.fromArray(attachment.position);
@@ -1936,6 +1996,25 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           object.position.fromArray(locomotion.origin);
           locomotion.travelled = 0;
         }
+      });
+      content.children.forEach((object) => {
+        ensureNeonMaskPulse(object);
+        const pulse = object.userData?.maskPulse;
+        const light = pulse ? object.getObjectByName("NeonMaskPulseLight") : null;
+        if (!light) return;
+        light.color.set(pulse.color || "#ff176b");
+        if (!pulse.enabled) {
+          light.intensity = 0;
+          return;
+        }
+        const phase = sceneTime / 1000 * (pulse.speed || 3.2);
+        const wave = Math.sin(phase * Math.PI * 2);
+        const amount = pulse.pattern === "smooth"
+          ? 0.3 + (wave + 1) * 0.35
+          : pulse.pattern === "heartbeat"
+            ? 0.22 + Math.max(0, Math.sin(phase * Math.PI * 2) ** 9) * 0.78
+            : (0.38 + Math.max(0, wave) * 0.62) * (Math.sin(phase * 17.31) > 0.9 ? 0.35 : 1);
+        light.intensity = (pulse.intensity || 4.5) * amount;
       });
       content.children.forEach((character) => {
         Object.entries(character.userData?.poseOffsets || {}).forEach(([boneName, values]) => {
@@ -2344,10 +2423,30 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const markerVisibility = [...runtime.lightMarkers.values()].map((marker) => [marker, marker.visible]);
     hiddenObjects.forEach(([object]) => { object.visible = false; });
     markerVisibility.forEach(([marker]) => { marker.visible = false; });
+    const sourceCanvas = runtime.renderer.domElement;
+    const width = 320;
+    const height = Math.max(1, Math.round(width * sourceCanvas.height / Math.max(1, sourceCanvas.width)));
+    const target = new THREE.WebGLRenderTarget(width, height, { depthBuffer: true });
+    const previousTarget = runtime.renderer.getRenderTarget();
     try {
+      runtime.renderer.setRenderTarget(target);
       runtime.renderer.render(runtime.scene, runtime.camera);
-      return runtime.renderer.domElement.toDataURL("image/jpeg", 0.75);
+      const pixels = new Uint8Array(width * height * 4);
+      runtime.renderer.readRenderTargetPixels(target, 0, 0, width, height, pixels);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      const image = context.createImageData(width, height);
+      for (let row = 0; row < height; row += 1) {
+        const sourceStart = (height - row - 1) * width * 4;
+        image.data.set(pixels.subarray(sourceStart, sourceStart + width * 4), row * width * 4);
+      }
+      context.putImageData(image, 0, 0);
+      return canvas.toDataURL("image/jpeg", 0.78);
     } finally {
+      runtime.renderer.setRenderTarget(previousTarget);
+      target.dispose();
       hiddenObjects.forEach(([object, visible]) => { object.visible = visible; });
       markerVisibility.forEach(([marker, visible]) => { marker.visible = visible; });
     }
@@ -2543,7 +2642,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
 
   useEffect(() => {
     const save = (event) => event.detail.tasks.push((async () => {
-      const state = serializeScene();
+      const state = serializeScene({ forAutosave: true });
       if (!state) return null;
       await putProject(`workspace:${event.detail.projectId}:${THREE_PROJECT_ID}`, state);
       return { kind: THREE_PROJECT_ID, thumbnail: captureWorkspaceThumbnail() };
@@ -2554,7 +2653,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setAutosaveStatus("Cargando proyecto...");
       const state = await getProject(`workspace:${event.detail.projectId}:${THREE_PROJECT_ID}`);
       if (state && loadVersion === workspaceLoadVersionRef.current) {
-        loadSceneState(state);
+        if (state.contentItems) await loadAutosaveState(state);
+        else loadSceneState(state);
         setAutosaveStatus("Autosave activo");
         setAutosaveRevision((revision) => revision + 1);
       }
@@ -3836,23 +3936,94 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     return clone;
   }
 
-  function copySelected() {
+  async function copySelected() {
     if (!selectedRef.current) return;
-    clipboardRef.current = cloneEditorObject(selectedRef.current);
+    const source = selectedRef.current;
+    const payload = canReferenceBundledObject(source)
+      ? { bundled: serializeBundledDescriptor(source) }
+      : { json: source.toJSON() };
+    clipboardRef.current = payload;
+    await putProject(THREE_CLIPBOARD_ID, payload);
     setHasClipboard(true);
+    setStatus(`${source.name} copiado. Podes pegarlo en otro proyecto`);
   }
 
-  function pasteClipboard() {
+  async function pasteClipboard() {
     const runtime = runtimeRef.current;
-    if (!runtime || !clipboardRef.current) return;
-    pushHistory();
-    const pasted = cloneEditorObject(clipboardRef.current);
-    pasted.name = `${clipboardRef.current.name} copia`;
-    pasted.position.x += 0.6;
-    pasted.position.z += 0.6;
-    runtime.content.add(pasted);
-    refreshObjects();
-    selectObject(pasted);
+    if (!runtime) return;
+    const payload = clipboardRef.current || await getProject(THREE_CLIPBOARD_ID);
+    if (!payload) return;
+    try {
+      setStatus("Pegando objeto 3D...");
+      let pasted;
+      let animations = [];
+      if (payload.bundled) {
+        const descriptor = payload.bundled;
+        const preset = descriptor.kind === "character"
+          ? CHARACTER_MODELS.find((entry) => entry.id === descriptor.assetId)
+          : STATIC_MODELS.find((entry) => entry.id === descriptor.assetId);
+        if (!preset) throw new Error("El recurso original ya no esta disponible");
+        const loaded = await loadStaticPreset(preset);
+        pasted = loaded.scene;
+        animations = loaded.animations || [];
+        pasted.position.fromArray(descriptor.position);
+        pasted.quaternion.fromArray(descriptor.quaternion);
+        pasted.scale.fromArray(descriptor.scale);
+        pasted.visible = descriptor.visible !== false;
+        pasted.userData = { ...pasted.userData, ...structuredClone(descriptor.userData), editorId: makeId() };
+        pasted.animations = animations;
+        ensureNeonMaskPulse(pasted);
+        for (const attachment of descriptor.attachments || []) {
+          const attachmentPreset = STATIC_MODELS.find((entry) => entry.id === attachment.assetId);
+          const bone = pasted.getObjectByName(attachment.userData?.attachmentBone);
+          if (!attachmentPreset || !bone) continue;
+          const loadedAttachment = await loadStaticPreset(attachmentPreset);
+          const object = loadedAttachment.scene;
+          object.name = attachment.name;
+          object.position.fromArray(attachment.position);
+          object.quaternion.fromArray(attachment.quaternion);
+          object.scale.fromArray(attachment.scale);
+          object.visible = attachment.visible !== false;
+          object.userData = {
+            ...object.userData,
+            ...structuredClone(attachment.userData),
+            editorId: makeId(),
+            attachmentOwner: pasted.userData.editorId
+          };
+          bone.add(object);
+        }
+      } else {
+        pasted = new THREE.ObjectLoader().parse(payload.json);
+        pasted.traverse((item) => {
+          if (item === pasted || item.userData?.editorId) item.userData = { ...item.userData, editorId: makeId() };
+        });
+      }
+      pushHistory();
+      pasted.name = `${pasted.name || "Objeto"} copia`;
+      pasted.position.x += 0.6;
+      pasted.position.z += 0.6;
+      if (pasted.userData?.modelAnimation) {
+        pasted.userData.modelAnimation = {
+          ...pasted.userData.modelAnimation,
+          playing: true
+        };
+      }
+      if (pasted.userData?.locomotion) {
+        pasted.userData.locomotion = {
+          ...pasted.userData.locomotion,
+          origin: pasted.position.toArray(),
+          travelled: 0
+        };
+      }
+      runtime.content.add(pasted);
+      if (animations.length) registerModelAnimations(pasted, animations);
+      refreshObjects();
+      selectObject(pasted);
+      setStatus(`${pasted.name} pegado desde el portapapeles`);
+    } catch (error) {
+      console.error(error);
+      setStatus("No se pudo pegar el objeto copiado");
+    }
   }
 
   function selectedObjects() {
@@ -4113,6 +4284,23 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     entry.active.paused = !playing;
     object.userData.modelAnimation.playing = playing;
     syncSelection(object);
+  }
+
+  function updateMaskPulse(patch) {
+    const object = selectedRef.current;
+    if (!object?.userData.maskPulse) return;
+    object.userData.maskPulse = { ...object.userData.maskPulse, ...patch };
+    const light = object.getObjectByName("NeonMaskPulseLight");
+    if (light && patch.position) light.position.fromArray(patch.position);
+    syncSelection(object);
+  }
+
+  function updateMaskPulsePosition(index, value) {
+    const object = selectedRef.current;
+    if (!object?.userData.maskPulse) return;
+    const position = [...object.userData.maskPulse.position];
+    position[index] = Number(value);
+    updateMaskPulse({ position });
   }
 
   function setModelAnimationSpeed(speed) {
@@ -4668,6 +4856,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       const model = gltf.scene;
       model.name = modelPreset.name;
       model.userData = { ...model.userData, editorId: makeId(), editorType: "model", bundledModel: modelPreset.id };
+      ensureNeonMaskPulse(model);
       if (modelPreset.locomotion) {
         model.userData.locomotion = { enabled: true, speed: 1.2, direction: 0, distance: 12, loop: false, faceDirection: true, travelled: 0 };
       }
@@ -4762,6 +4951,32 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           stick.scale.multiplyScalar((characterHeight * 0.28) / stickLength);
         });
       }
+      if (modelPreset.id === "neon-stand-disk") {
+        setStatus("Colocando el disco en la mano...");
+        const hand = findCharacterHand(model, "LeftHand") || findCharacterHand(model, "RightHand");
+        if (hand) {
+          const disk = await createDiskPlane();
+          const characterHeight = new Box3().setFromObject(model).getSize(new Vector3()).y;
+          disk.name = "Disco de Neonboy";
+          disk.userData = {
+            ...disk.userData,
+            editorId: makeId(),
+            editorType: "model",
+            bundledStaticModel: "disk",
+            editableAttachment: true,
+            attachmentBone: hand.name,
+            attachmentOwner: model.userData.editorId
+          };
+          hand.add(disk);
+          disk.position.set(0, 0, 0);
+          disk.rotation.set(0, 0, 0);
+          disk.updateWorldMatrix(true, true);
+          const diskSize = new Box3().setFromObject(disk).getSize(new Vector3());
+          const diskLength = Math.max(diskSize.x, diskSize.y, 0.001);
+          disk.scale.multiplyScalar((characterHeight * 0.2) / diskLength);
+          selectedObject = disk;
+        }
+      }
       refreshObjects();
       selectObject(selectedObject);
       setMode("translate");
@@ -4769,6 +4984,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         ? "Guitarrista agregado. Acomoda la guitarra: seguira la mano durante la animacion"
         : modelPreset.id === "baterista"
           ? "Baterista agregado con un palillo editable en cada mano"
+          : modelPreset.id === "neon-stand-disk"
+            ? "Neonboy agregado con el disco vinculado a la mano"
           : `${modelPreset.name} agregado con su animacion`);
     } catch (error) {
       console.error(error);
@@ -4790,8 +5007,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setModelLoading(modelPreset.name);
     try {
       setStatus(`Cargando ${modelPreset.name}...`);
-      const modelUrl = modelPreset.url || await modelPreset.loadUrl();
-      const gltf = await loadBundledModel(modelUrl);
+      const gltf = await loadStaticPreset(modelPreset);
       pushHistory();
       const model = gltf.scene;
       model.name = modelPreset.name;
@@ -5153,8 +5369,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                     setAttachmentHand(point);
                     if (selectedRef.current?.userData?.editableAttachment) attachSelectedToHand(point);
                   }} value={attachmentHand}>
-                    <option value="LeftHand">Izquierda</option>
-                    <option value="RightHand">Derecha</option>
+                    <option value="LeftHand">Mano izquierda</option>
+                    <option value="RightHand">Mano derecha</option>
                     <option value="Spine">Centro / ombligo</option>
                     <option value="Hips">Cadera</option>
                   </select></label>
@@ -5233,6 +5449,24 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                       <label><span>Clip</span><select onChange={(event) => selectModelAnimation(event.target.value)} value={selection.modelAnimation.clip}>{selection.modelAnimation.clips.map((clip) => <option key={clip} value={clip}>{clip}</option>)}</select></label>
                       <button className="three-sculpt-toggle" onClick={toggleModelAnimation} type="button">{selection.modelAnimation.playing ? <Pause size={16} /> : <Play size={16} />} {selection.modelAnimation.playing ? "Pausar" : "Reproducir"}</button>
                       <label><span>Velocidad</span><input max="2.5" min="0" onChange={(event) => setModelAnimationSpeed(event.target.value)} step="0.05" type="range" value={selection.modelAnimation.speed} /></label>
+                    </fieldset>
+                  )}
+                  {selection.maskPulse && (
+                    <fieldset className="three-tab-model">
+                      <legend>Luz de mascara</legend>
+                      <label className="three-check"><input checked={selection.maskPulse.enabled} onChange={(event) => { pushHistory(); updateMaskPulse({ enabled: event.target.checked }); }} type="checkbox" /><Lightbulb size={16} /> Titileo activo</label>
+                      <label className="three-color-field"><span>Color</span><input disabled={!selection.maskPulse.enabled} onChange={(event) => updateMaskPulse({ color: event.target.value })} onFocus={pushHistory} type="color" value={selection.maskPulse.color} /></label>
+                      <label><span>Forma</span><select disabled={!selection.maskPulse.enabled} onChange={(event) => { pushHistory(); updateMaskPulse({ pattern: event.target.value }); }} value={selection.maskPulse.pattern}>
+                        <option value="flicker">Titileo electronico</option>
+                        <option value="smooth">Pulso suave</option>
+                        <option value="heartbeat">Doble golpe</option>
+                      </select></label>
+                      <label><span>Intensidad</span><input disabled={!selection.maskPulse.enabled} max="20" min="0" onChange={(event) => updateMaskPulse({ intensity: Number(event.target.value) })} onPointerDown={pushHistory} step="0.1" type="range" value={selection.maskPulse.intensity} /></label>
+                      <label><span>Velocidad</span><input disabled={!selection.maskPulse.enabled} max="10" min="0.1" onChange={(event) => updateMaskPulse({ speed: Number(event.target.value) })} onPointerDown={pushHistory} step="0.1" type="range" value={selection.maskPulse.speed} /></label>
+                      <span>Posicion en la cabeza</span>
+                      <div className="three-vector-inputs">
+                        {["X", "Y", "Z"].map((axis, index) => <label key={axis}><span>{axis}</span><input disabled={!selection.maskPulse.enabled} onChange={(event) => updateMaskPulsePosition(index, event.target.value)} onFocus={pushHistory} step="0.01" type="number" value={selection.maskPulse.position[index]} /></label>)}
+                      </div>
                     </fieldset>
                   )}
                   {selection.locomotion && (
