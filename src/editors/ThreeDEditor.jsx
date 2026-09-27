@@ -10,6 +10,7 @@ import { SVGLoader } from "three/examples/jsm/loaders/SVGLoader.js";
 import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { clone as cloneSkeleton } from "three/examples/jsm/utils/SkeletonUtils.js";
 import helvetikerFont from "../assets/fonts/helvetiker_regular.typeface.json";
 import helvetikerBoldFont from "../assets/fonts/helvetiker_bold.typeface.json";
 import optimerFont from "../assets/fonts/optimer_regular.typeface.json";
@@ -65,8 +66,8 @@ import neonboyLogoModelUrl from "../assets/logo.glb?url";
 import {
   ArrowDownToLine, Box, Camera, Circle, CircleDot, ClipboardPaste, CloudFog, CloudLightning, CloudRain, Combine, Cone, Copy, Cylinder, Download, Eye,
   EyeOff, Film, Flashlight, FlipHorizontal2, Focus, Grid3X3, ImageDown, Lightbulb, LocateFixed,
-  Flame, Group, Hammer, Link2, Lock, MousePointer2, Move3D, Music, Palette, Pause, Pill, Play, Redo2, Rotate3D, RotateCcw, Scale3D, Sparkles, Square,
-  Sun, Trash2, Type, Undo2, Ungroup, Unlink2, Unlock, Upload, ZoomIn, ZoomOut
+  Flame, Gauge, Group, Hammer, Link2, Lock, MousePointer2, Move3D, Music, Palette, Pause, Pill, Play, Redo2, Rotate3D, RotateCcw, Scale3D, Sparkles, Square,
+  Search, Sun, Trash2, Type, Undo2, Ungroup, Unlink2, Unlock, Upload, ZoomIn, ZoomOut
 } from "lucide-react";
 import { getProject, putProject } from "../storage/projectDb.js";
 import ThreeAnimationPanel from "./ThreeAnimationPanel.jsx";
@@ -76,6 +77,38 @@ const THREE_AUTOSAVE_ID = "autosave:three";
 const CAMERA_TRACK_ID = "__camera__";
 const DEFAULT_BACKGROUND = "#17191d";
 const DEFAULT_FREEZE_SEGMENTS = [];
+const BUNDLED_GLTF_CACHE = new Map();
+const SHARED_GEOMETRY_ROOTS = new WeakSet();
+const SHARED_GEOMETRIES = new WeakSet();
+const SHARED_TEXTURES = new WeakSet();
+
+function materialTextures(material) {
+  if (!material) return [];
+  return Object.values(material).filter((value) => value?.isTexture);
+}
+
+async function loadBundledModel(modelUrl) {
+  if (!BUNDLED_GLTF_CACHE.has(modelUrl)) {
+    const request = new GLTFLoader().loadAsync(modelUrl).catch((error) => {
+      BUNDLED_GLTF_CACHE.delete(modelUrl);
+      throw error;
+    });
+    BUNDLED_GLTF_CACHE.set(modelUrl, request);
+  }
+  const gltf = await BUNDLED_GLTF_CACHE.get(modelUrl);
+  gltf.scene.traverse((item) => {
+    if (item.geometry) SHARED_GEOMETRIES.add(item.geometry);
+    const materials = Array.isArray(item.material) ? item.material : [item.material];
+    materials.forEach((material) => materialTextures(material).forEach((texture) => SHARED_TEXTURES.add(texture)));
+  });
+  const scene = cloneSkeleton(gltf.scene);
+  scene.traverse((item) => {
+    if (Array.isArray(item.material)) item.material = item.material.map((material) => material.clone());
+    else if (item.material) item.material = item.material.clone();
+  });
+  SHARED_GEOMETRY_ROOTS.add(scene);
+  return { scene, animations: gltf.animations };
+}
 
 function freezeMotionFactorAt(time, segments) {
   return segments.reduce((factor, segment) => {
@@ -115,7 +148,8 @@ const CAMERA_SHOTS = [
   { id: "hero", name: "Heroe", crop: 0.18, fill: 0.9, fov: 30, angle: -28, elevation: -11 },
   { id: "low-angle", name: "Contrapicado", crop: 0.12, fill: 0.84, fov: 34, angle: 18, elevation: -22 },
   { id: "high-angle", name: "Picado", crop: 0.3, fill: 0.86, fov: 38, angle: -18, elevation: 30 },
-  { id: "dutch", name: "Plano holandes", crop: 0.38, fill: 0.84, fov: 35, angle: 30, elevation: 3, roll: -12 }
+  { id: "dutch", name: "Plano holandes", crop: 0.38, fill: 0.84, fov: 35, angle: 30, elevation: 3, roll: -12 },
+  { id: "drone", name: "Drone aereo", crop: 0.02, fill: 0.68, fov: 48, angle: -28, elevation: 62 }
 ];
 const POSE_BONES = [
   { id: "LeftShoulder", name: "Hombro izquierdo" },
@@ -127,13 +161,26 @@ const POSE_BONES = [
   { id: "Head", name: "Cabeza" },
   { id: "Spine", name: "Torso" }
 ];
-const NEONBOY_ANIMATION_URLS = import.meta.glob("../assets/neonboy-animaciones/*.glb", { import: "default", query: "?url" });
+const NEONBOY_ANIMATION_URLS = import.meta.glob([
+  "../assets/neonboy-animaciones/*.glb",
+  "!../assets/neonboy-animaciones/bateria.glb",
+  "!../assets/neonboy-animaciones/zombie-rock.glb"
+], { import: "default", query: "?url" });
 const GUITAR_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/guitar.glb"];
 const PROFESSOR_GUITAR_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/guitarra-profe.glb"];
+const DEMON_GUITAR_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/demon-guitar.glb"];
+const ZOMBIE_GUITAR_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/zombie-guitar.glb"];
 const DRUMSTICKS_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/palos.glb"];
-const DRUMKIT_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/bateria.glb"];
-const CHARACTER_ASSET_FILES = new Set(["guitar.glb", "guitarra-profe.glb", "palos.glb", "bateria.glb"]);
-const STATIC_MODEL_URLS = import.meta.glob("../assets/3destatic/*.glb", { import: "default", query: "?url" });
+const DRUMKIT_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/bateria.optimized.glb"];
+const CHARACTER_ASSET_FILES = new Set(["guitar.glb", "guitarra-profe.glb", "demon-guitar.glb", "zombie-guitar.glb", "palos.glb", "bateria.glb", "bateria.optimized.glb"]);
+const STATIC_MODEL_URLS = import.meta.glob([
+  "../assets/3destatic/*.glb",
+  "!../assets/3destatic/Meshy_AI_Midnight_Jester_Chair_Sit_Idle_M.glb",
+  "!../assets/3destatic/Meshy_AI_Crimson_Cross_Citadel_0923010852_texture.glb"
+], { import: "default", query: "?url" });
+const OPTIMIZED_STATIC_MODEL_IDS = new Set(Object.keys(STATIC_MODEL_URLS)
+  .filter((path) => path.endsWith(".optimized.glb"))
+  .map((path) => path.split("/").pop().replace(/\.optimized\.glb$/i, "")));
 const ENVIRONMENT_THUMBNAIL_URLS = import.meta.glob("../assets/environments/thumbnails/*.jpg", { eager: true, import: "default", query: "?url" });
 const ENVIRONMENT_THUMBNAILS = Object.fromEntries(Object.entries(ENVIRONMENT_THUMBNAIL_URLS).map(([path, url]) => [path.split("/").pop().replace(/\.jpg$/i, ""), url]));
 const CHARACTER_ANIMATION_NAMES = {
@@ -152,9 +199,13 @@ const CHARACTER_ANIMATION_NAMES = {
   "neonrock6": { character: "Neonboy", animation: "Neon Rock 6", order: 19 },
   "neonHead": { character: "Neonboy", animation: "Neon Head", order: 20 },
   "baterista": { character: "Neonboy", animation: "Baterista", order: 21 },
-  "profe": { character: "Profe", animation: "Tocando guitarra", order: 30 }
+  "profe": { character: "Profe", animation: "Tocando guitarra", order: 30 },
+  "demon-rock": { character: "Demon", animation: "Tocando guitarra", order: 40 },
+  "zombie-breath": { character: "Zombie", animation: "Respirando", order: 41 },
+  "zombieGuitarr": { character: "Zombie", animation: "Tocando guitarra", order: 42 },
+  "reptiliano-walk": { character: "Reptiliano", animation: "Caminando", order: 50, locomotion: true }
 };
-const isGuitaristModel = (id) => id?.startsWith("neon-guitar") || ["calm-guitar", "neon-rock", "neonrock6", "neonHead", "profe"].includes(id);
+const isGuitaristModel = (id) => id?.startsWith("neon-guitar") || ["calm-guitar", "neon-rock", "neonrock6", "neonHead", "profe", "demon-rock", "zombieGuitarr"].includes(id);
 const CHARACTER_MODELS = [
   { id: "breathe-look", character: "Neoncruzader", animation: "Base", name: "Neoncruzader - Base", order: 0, url: neonboyModelUrl },
   ...Object.entries(NEONBOY_ANIMATION_URLS).filter(([path]) => !CHARACTER_ASSET_FILES.has(path.split("/").pop())).map(([path, loadUrl]) => {
@@ -171,10 +222,15 @@ const STATIC_MODELS = [
   { id: "neonboy-logo", name: "Logo Neonboy", url: neonboyLogoModelUrl },
   { id: "guitar", name: "Guitarra", loadUrl: GUITAR_MODEL_LOADER },
   { id: "professor-guitar", name: "Guitarra Profe", loadUrl: PROFESSOR_GUITAR_MODEL_LOADER },
+  { id: "demon-guitar", name: "Guitarra Demon", loadUrl: DEMON_GUITAR_MODEL_LOADER },
+  { id: "zombie-guitar", name: "Guitarra Zombie", loadUrl: ZOMBIE_GUITAR_MODEL_LOADER },
   { id: "drumstick", name: "Palillo de bateria", loadUrl: DRUMSTICKS_MODEL_LOADER },
   { id: "drumkit", name: "Bateria", loadUrl: DRUMKIT_MODEL_LOADER },
-  ...Object.entries(STATIC_MODEL_URLS).map(([path, loadUrl]) => {
+  ...Object.entries(STATIC_MODEL_URLS).filter(([path]) => {
     const filename = path.split("/").pop().replace(/\.glb$/i, "");
+    return filename.endsWith(".optimized") || !OPTIMIZED_STATIC_MODEL_IDS.has(filename);
+  }).map(([path, loadUrl]) => {
+    const filename = path.split("/").pop().replace(/\.optimized\.glb$/i, "").replace(/\.glb$/i, "");
     const cleanName = filename
       .replace(/^Meshy_AI_/i, "")
       .replace(/_texture$/i, "")
@@ -491,7 +547,7 @@ function createSceneEffectSystem() {
   return { group, systems, fireLights, lightningLight, lightningBolt, nextLightning: 0, lightningUntil: 0 };
 }
 
-function animateSceneEffects(scene, effectSystem, settings, delta, time) {
+function animateSceneEffects(scene, effectSystem, settings, delta, time, quality = 1) {
   if (!effectSystem) return;
   const fogIntensity = settings.fog.intensity;
   if (settings.fog.enabled) {
@@ -508,11 +564,13 @@ function animateSceneEffects(scene, effectSystem, settings, delta, time) {
     if (type === "fog") points.material.color.set(settings.fog.color);
     if (type === "rain") points.material.color.set(config.color || DEFAULT_SCENE_EFFECTS.rain.color);
     if (type === "particles") points.material.color.set(config.color || DEFAULT_SCENE_EFFECTS.particles.color);
-    if (type === "rain") points.geometry.setDrawRange(0, Math.round(points.geometry.attributes.position.count * Math.min(1, 0.28 + config.intensity * 0.5)));
+    const intensityFactor = type === "rain" ? Math.min(1, 0.28 + config.intensity * 0.5) : 1;
+    const visibleCount = Math.max(1, Math.round(points.geometry.attributes.position.count * intensityFactor * quality));
+    points.geometry.setDrawRange(0, visibleCount);
     points.material.opacity = type === "fog" ? 0.06 + config.intensity * 0.2 : 0.35 + config.intensity * 0.6;
     const positions = points.geometry.attributes.position;
     const colors = points.geometry.attributes.color;
-    for (let index = 0; index < positions.count; index += 1) {
+    for (let index = 0; index < visibleCount; index += 1) {
       let x = positions.getX(index);
       let y = positions.getY(index);
       let z = positions.getZ(index);
@@ -629,14 +687,40 @@ function downloadBlob(blob, name) {
 }
 
 function disposeObject(root) {
+  const disposedTextures = new Set();
   root.traverse((item) => {
-    item.geometry?.dispose?.();
-    if (Array.isArray(item.material)) item.material.forEach((material) => material.dispose?.());
-    else item.material?.dispose?.();
+    if (item.geometry && !SHARED_GEOMETRIES.has(item.geometry)) item.geometry.dispose?.();
+    const materials = Array.isArray(item.material) ? item.material : [item.material];
+    materials.filter(Boolean).forEach((material) => {
+      materialTextures(material).forEach((texture) => {
+        if (SHARED_TEXTURES.has(texture) || disposedTextures.has(texture)) return;
+        disposedTextures.add(texture);
+        texture.dispose?.();
+      });
+      material.dispose?.();
+    });
   });
 }
 
+function cloneContentForHistory(content) {
+  const snapshot = new THREE.Group();
+  snapshot.name = content.name;
+  content.children.forEach((child) => {
+    const clone = cloneSkeleton(child);
+    const sharesGeometry = SHARED_GEOMETRY_ROOTS.has(child);
+    clone.traverse((item) => {
+      if (item.geometry && !sharesGeometry) item.geometry = item.geometry.clone();
+      if (Array.isArray(item.material)) item.material = item.material.map((material) => material.clone());
+      else if (item.material) item.material = item.material.clone();
+    });
+    if (sharesGeometry) SHARED_GEOMETRY_ROOTS.add(clone);
+    snapshot.add(clone);
+  });
+  return snapshot;
+}
+
 function iconForType(type) {
+  if (type === "group") return Group;
   if (type === "sphere") return Circle;
   if (type === "cylinder") return Cylinder;
   if (type === "cone") return Cone;
@@ -687,6 +771,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const autosaveInFlightRef = useRef(false);
   const autosaveQueuedRef = useRef(false);
   const performanceSampleRef = useRef({ startedAt: 0, frames: 0, reduced: false });
+  const performanceModeRef = useRef("auto");
+  const modelLoadInFlightRef = useRef(false);
   const soundtrackAudioRef = useRef(null);
   const soundtrackBufferRef = useRef(null);
   const soundtrackRef = useRef(null);
@@ -741,6 +827,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const [activeCameraShot, setActiveCameraShot] = useState("");
   const [cameraShotSelection, setCameraShotSelection] = useState("general");
   const [libraryTab, setLibraryTab] = useState("objects");
+  const [sceneSearch, setSceneSearch] = useState("");
   const [environmentIsolated, setEnvironmentIsolated] = useState(false);
   const [attachmentHand, setAttachmentHand] = useState("LeftHand");
   const [attachmentPrecision, setAttachmentPrecision] = useState(false);
@@ -748,11 +835,28 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const [autosaveStatus, setAutosaveStatus] = useState("Preparando autosave");
   const [autosaveRevision, setAutosaveRevision] = useState(0);
   const [performanceReduced, setPerformanceReduced] = useState(false);
+  const [performanceMode, setPerformanceMode] = useState(() => localStorage.getItem("neon:three-quality") || "auto");
+  const [performanceStats, setPerformanceStats] = useState({ fps: 0, triangles: 0, geometries: 0, textures: 0 });
+  const [modelLoading, setModelLoading] = useState("");
   const [soundtrack, setSoundtrack] = useState(null);
   const [poseBone, setPoseBone] = useState("LeftArm");
   const [poseVersion, setPoseVersion] = useState(0);
 
   useEffect(() => { activeRef.current = active; }, [active]);
+  useEffect(() => {
+    performanceModeRef.current = performanceMode;
+    localStorage.setItem("neon:three-quality", performanceMode);
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    const reduced = performanceMode === "performance";
+    if (performanceMode !== "auto") {
+      performanceSampleRef.current.reduced = reduced;
+      runtime.renderer.setPixelRatio(reduced ? 1 : Math.min(window.devicePixelRatio, 2));
+      runtime.renderer.shadowMap.enabled = !reduced;
+      runtime.renderer.shadowMap.needsUpdate = true;
+      setPerformanceReduced(reduced);
+    }
+  }, [performanceMode]);
 
   useEffect(() => () => {
     if (cameraZoomHoldRef.current) cancelAnimationFrame(cameraZoomHoldRef.current);
@@ -818,14 +922,20 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     return true;
   }
 
-  function objectSummary(object) {
+  function objectSummary(object, { depth = 0, parentGroupId = "" } = {}) {
     const material = object.material && !Array.isArray(object.material) ? object.material : null;
+    const category = object.userData?.editorType === "group" || parentGroupId
+      ? "groups"
+      : object.isLight ? "lights" : object.userData?.bundledModel ? "characters" : "objects";
     return {
       id: object.userData.editorId,
       name: object.name,
       type: object.userData.editorType || "model",
       visible: object.visible,
       locked: Boolean(object.userData.locked),
+      category,
+      depth,
+      parentGroupId,
       color: material?.color ? `#${material.color.getHexString()}` : "#8b5cf6"
     };
   }
@@ -1097,11 +1207,21 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const runtime = runtimeRef.current;
     if (!runtime) return;
     syncLightMarkers();
-    const editable = [...runtime.content.children];
+    const editable = [];
+    const listed = new Set();
+    const addEditable = (object, depth = 0, parentGroupId = "") => {
+      if (!object.userData?.editorId || listed.has(object)) return;
+      editable.push(objectSummary(object, { depth, parentGroupId }));
+      listed.add(object);
+      if (object.userData?.editorType === "group") {
+        object.children.forEach((child) => addEditable(child, depth + 1, object.userData.editorId));
+      }
+    };
+    runtime.content.children.forEach((object) => addEditable(object));
     runtime.content.traverse((object) => {
-      if (object.userData?.editableAttachment && !editable.includes(object)) editable.push(object);
+      if (object.userData?.editableAttachment) addEditable(object);
     });
-    setObjects(editable.map(objectSummary));
+    setObjects(editable);
   }
 
   function syncLightMarkers() {
@@ -1163,7 +1283,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         axis: object.userData.spin?.axis || "y",
         speed: object.userData.spin?.speed ?? 30
       },
-      modelAnimation: object.userData.modelAnimation ? { ...object.userData.modelAnimation } : null
+      modelAnimation: object.userData.modelAnimation ? { ...object.userData.modelAnimation } : null,
+      locomotion: object.userData.locomotion ? { ...object.userData.locomotion } : null
     });
   }
 
@@ -1183,7 +1304,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     mixer.timeScale = speed;
     object.animations = clips;
     object.userData.modelAnimation = { clip: activeName, clips: [...actions.keys()], playing, speed };
-    runtime.mixers.set(object.userData.editorId, { mixer, actions, active });
+    runtime.mixers.set(object.userData.editorId, { mixer, actions, active, object, performanceVisible: true });
   }
 
   function selectObject(object, additive = false) {
@@ -1225,7 +1346,41 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     syncSelection(object);
   }
 
-  function serializeScene() {
+  function serializeBundledDescriptor(object) {
+    const attachments = [];
+    object.traverse((item) => {
+      if (!item.userData?.editableAttachment || item === object) return;
+      attachments.push({
+        assetId: item.userData.bundledStaticModel,
+        name: item.name,
+        position: item.position.toArray(),
+        quaternion: item.quaternion.toArray(),
+        scale: item.scale.toArray(),
+        visible: item.visible,
+        userData: structuredClone(item.userData)
+      });
+    });
+    return {
+      kind: object.userData.bundledModel ? "character" : "static",
+      assetId: object.userData.bundledModel || object.userData.bundledStaticModel,
+      name: object.name,
+      position: object.position.toArray(),
+      quaternion: object.quaternion.toArray(),
+      scale: object.scale.toArray(),
+      visible: object.visible,
+      userData: structuredClone(object.userData),
+      attachments
+    };
+  }
+
+  function canReferenceBundledObject(object) {
+    if (!object.userData?.bundledModel && !object.userData?.bundledStaticModel) return false;
+    let hasEditedGeometry = false;
+    object.traverse((item) => { hasEditedGeometry ||= Boolean(item.userData?.sculpted); });
+    return !hasEditedGeometry;
+  }
+
+  function serializeScene({ forHistory = false, forAutosave = false } = {}) {
     const runtime = runtimeRef.current;
     if (!runtime) return null;
     const geometryOverrides = {};
@@ -1242,7 +1397,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       };
     });
     return {
-      schemaVersion: 2,
+      schemaVersion: forAutosave ? 3 : 2,
       background,
       environmentBackground,
       skyMotionEnabled,
@@ -1260,7 +1415,13 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       keyLightColor: `#${runtime.keyLight.color.getHexString()}`,
       ambientColor: `#${runtime.ambient.color.getHexString()}`,
       ambientGroundColor: `#${runtime.ambient.groundColor.getHexString()}`,
-      content: runtime.content.toJSON(),
+      content: forHistory || forAutosave ? null : runtime.content.toJSON(),
+      historyContent: forHistory ? cloneContentForHistory(runtime.content) : null,
+      contentItems: forAutosave ? runtime.content.children.map((child) => (
+        canReferenceBundledObject(child)
+          ? { bundled: serializeBundledDescriptor(child) }
+          : { json: child.toJSON() }
+      )) : null,
       geometryOverrides,
       camera: {
         position: runtime.camera.position.toArray(),
@@ -1281,7 +1442,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
 
   function pushHistory() {
     if (historyRef.current.restoring) return;
-    const snapshot = serializeScene();
+    const snapshot = serializeScene({ forHistory: true });
     if (!snapshot) return;
     historyRef.current.undo.push(snapshot);
     let vertices = 0;
@@ -1302,7 +1463,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.content.remove(child);
       disposeObject(child);
     });
-    const loaded = new THREE.ObjectLoader().parse(state.content);
+    const loaded = state.historyContent || new THREE.ObjectLoader().parse(state.content);
     loaded.traverse((item) => {
       const override = state.geometryOverrides?.[item.userData?.sculptId];
       const positions = item.geometry?.attributes?.position;
@@ -1376,10 +1537,60 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     selectObject(restoredSelection || null);
   }
 
+  async function loadAutosaveState(state) {
+    const runtime = runtimeRef.current;
+    if (!runtime || !state?.contentItems) return;
+    const emptyContent = new THREE.Group().toJSON();
+    loadSceneState({ ...state, content: emptyContent, contentItems: null });
+    for (const item of state.contentItems) {
+      if (item.json) {
+        const restored = new THREE.ObjectLoader().parse(item.json);
+        runtime.content.add(restored);
+        registerModelAnimations(restored);
+        continue;
+      }
+      const descriptor = item.bundled;
+      const preset = descriptor.kind === "character"
+        ? CHARACTER_MODELS.find((entry) => entry.id === descriptor.assetId)
+        : STATIC_MODELS.find((entry) => entry.id === descriptor.assetId);
+      if (!preset) continue;
+      const modelUrl = preset.url || await preset.loadUrl();
+      const gltf = await loadBundledModel(modelUrl);
+      const object = gltf.scene;
+      object.name = descriptor.name;
+      object.position.fromArray(descriptor.position);
+      object.quaternion.fromArray(descriptor.quaternion);
+      object.scale.fromArray(descriptor.scale);
+      object.visible = descriptor.visible !== false;
+      object.userData = { ...object.userData, ...descriptor.userData };
+      object.animations = gltf.animations;
+      runtime.content.add(object);
+      registerModelAnimations(object, gltf.animations);
+      for (const attachment of descriptor.attachments || []) {
+        const attachmentPreset = STATIC_MODELS.find((entry) => entry.id === attachment.assetId);
+        const bone = object.getObjectByName(attachment.userData?.attachmentBone);
+        if (!attachmentPreset || !bone) continue;
+        const attachmentUrl = attachmentPreset.url || await attachmentPreset.loadUrl();
+        const attachmentGltf = await loadBundledModel(attachmentUrl);
+        const attachedObject = attachmentGltf.scene;
+        attachedObject.name = attachment.name;
+        attachedObject.position.fromArray(attachment.position);
+        attachedObject.quaternion.fromArray(attachment.quaternion);
+        attachedObject.scale.fromArray(attachment.scale);
+        attachedObject.visible = attachment.visible !== false;
+        attachedObject.userData = { ...attachedObject.userData, ...attachment.userData };
+        bone.add(attachedObject);
+      }
+    }
+    refreshObjects();
+    const restoredSelection = findEditorObject(state.editor?.selectedId);
+    selectObject(restoredSelection || null);
+  }
+
   function undo() {
     const previous = historyRef.current.undo.pop();
     if (!previous) return;
-    historyRef.current.redo.push(serializeScene());
+    historyRef.current.redo.push(serializeScene({ forHistory: true }));
     historyRef.current.restoring = true;
     loadSceneState(previous);
     historyRef.current.restoring = false;
@@ -1389,7 +1600,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   function redo() {
     const next = historyRef.current.redo.pop();
     if (!next) return;
-    historyRef.current.undo.push(serializeScene());
+    historyRef.current.undo.push(serializeScene({ forHistory: true }));
     historyRef.current.restoring = true;
     loadSceneState(next);
     historyRef.current.restoring = false;
@@ -1406,7 +1617,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     camera.position.set(7, 5, 8);
     let renderer;
     try {
-      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: "high-performance", preserveDrawingBuffer: false, stencil: false });
       setWebglError("");
     } catch (error) {
       console.error(error);
@@ -1419,6 +1630,22 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.15;
+    let contextLost = false;
+    const handleContextLost = (event) => {
+      event.preventDefault();
+      contextLost = true;
+      setWebglError("La GPU interrumpio el motor 3D. Esperando recuperacion automatica...");
+      setStatus("Contexto grafico perdido");
+    };
+    const handleContextRestored = () => {
+      contextLost = false;
+      renderer.resetState();
+      renderer.shadowMap.needsUpdate = true;
+      setWebglError("");
+      setStatus("Motor 3D recuperado");
+    };
+    renderer.domElement.addEventListener("webglcontextlost", handleContextLost, false);
+    renderer.domElement.addEventListener("webglcontextrestored", handleContextRestored, false);
     host.appendChild(renderer.domElement);
 
     const environmentGenerator = new THREE.PMREMGenerator(renderer);
@@ -1621,9 +1848,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     observer.observe(host);
     resize();
 
-    const runtime = { scene, camera, renderer, content, ambient, floor, grid, keyLight, orbit, transform, transformHelper, brushCursor, sceneEffectSystem, lightHelper: null, lightMarkers: new Map(), mixers: new Map(), poseApplications: new Map(), backgroundTexture: null, baseEnvironment: environmentTexture };
+    const runtime = { scene, camera, renderer, content, ambient, floor, grid, keyLight, orbit, transform, transformHelper, brushCursor, sceneEffectSystem, lightHelper: null, lightMarkers: new Map(), mixers: new Map(), poseApplications: new Map(), poseBoneCache: new WeakMap(), poseRotationCache: new WeakMap(), backgroundTexture: null, baseEnvironment: environmentTexture };
     runtimeRef.current = runtime;
     let frame = 0;
+    let renderCount = 0;
     let previousRenderTime = 0;
     const cameraPositionBeforeShake = new Vector3();
     const cameraQuaternionBeforeShake = new THREE.Quaternion();
@@ -1636,13 +1864,17 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const linkedLightOffset = new Vector3();
     const beatLightColorA = new Color();
     const beatLightColorB = new Color();
+    const performanceObjectPosition = new Vector3();
+    const locomotionDirection = new Vector3();
+    const poseInverseRotation = new THREE.Quaternion();
     const render = (time = 0) => {
       frame = requestAnimationFrame(render);
-      if (!activeRef.current) {
+      if (!activeRef.current || contextLost) {
         previousRenderTime = time;
         return;
       }
       orbit.update();
+      renderCount += 1;
       const delta = previousRenderTime ? Math.min((time - previousRenderTime) / 1000, 0.05) : 0;
       previousRenderTime = time;
       const performanceSample = performanceSampleRef.current;
@@ -1651,10 +1883,19 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       if (time - performanceSample.startedAt >= 1500) {
         const fps = performanceSample.frames * 1000 / (time - performanceSample.startedAt);
         const triangles = renderer.info.render.triangles;
-        const shouldReduce = performanceSample.reduced ? fps < 52 || triangles > 750_000 : fps < 34 || triangles > 1_200_000;
+        setPerformanceStats({
+          fps: Math.round(fps),
+          triangles,
+          geometries: renderer.info.memory.geometries,
+          textures: renderer.info.memory.textures
+        });
+        const mode = performanceModeRef.current;
+        const shouldReduce = mode === "performance" || (mode === "auto" && (performanceSample.reduced ? fps < 52 || triangles > 750_000 : fps < 34 || triangles > 1_200_000));
         if (shouldReduce !== performanceSample.reduced) {
           performanceSample.reduced = shouldReduce;
           renderer.setPixelRatio(shouldReduce ? 1 : Math.min(window.devicePixelRatio, 2));
+          renderer.shadowMap.enabled = !shouldReduce;
+          renderer.shadowMap.needsUpdate = true;
           setPerformanceReduced(shouldReduce);
         }
         performanceSample.startedAt = time;
@@ -1665,16 +1906,62 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       const sceneDelta = scenePlaybackRef.current.paused ? 0 : delta * sceneMotionFactor;
       scenePlaybackRef.current.elapsed += sceneDelta * 1000;
       const sceneTime = scenePlaybackRef.current.elapsed;
-      runtime.poseApplications.forEach(({ bone, rotation }) => bone.quaternion.multiply(rotation.clone().invert()));
+      runtime.poseApplications.forEach(({ bone, rotation }) => bone.quaternion.multiply(poseInverseRotation.copy(rotation).invert()));
       runtime.poseApplications.clear();
       const slow = slowMotionRef.current;
       const slowActive = slow.enabled && animationTimeRef.current >= slow.start && animationTimeRef.current <= slow.end;
-      runtimeRef.current?.mixers?.forEach(({ mixer }) => mixer.update(sceneDelta * (slowActive ? slow.speed : 1)));
+      const reducedPreview = performanceSampleRef.current.reduced;
+      runtimeRef.current?.mixers?.forEach((entry) => {
+        if (reducedPreview && renderCount % 12 === 0) {
+          entry.object.getWorldPosition(performanceObjectPosition);
+          const distance = performanceObjectPosition.distanceTo(camera.position);
+          performanceObjectPosition.project(camera);
+          entry.performanceVisible = entry.object === selectedRef.current || (distance < 45
+            && performanceObjectPosition.z > -1.2 && performanceObjectPosition.z < 1.2
+            && Math.abs(performanceObjectPosition.x) < 1.35 && Math.abs(performanceObjectPosition.y) < 1.35);
+        }
+        if (!reducedPreview || entry.performanceVisible) entry.mixer.update(sceneDelta * (slowActive ? slow.speed : 1));
+      });
+      content.children.forEach((object) => {
+        const locomotion = object.userData?.locomotion;
+        if (!locomotion?.enabled || !object.userData?.modelAnimation?.playing || sceneDelta <= 0) return;
+        locomotion.origin ||= object.position.toArray();
+        locomotion.travelled = (locomotion.travelled || 0) + Math.max(0, locomotion.speed || 0) * sceneDelta;
+        locomotion.baseRotationY ??= object.rotation.y - THREE.MathUtils.degToRad(locomotion.direction ?? 0);
+        const angle = locomotion.baseRotationY + THREE.MathUtils.degToRad(locomotion.direction ?? 0);
+        if (locomotion.faceDirection !== false) object.rotation.y = angle;
+        locomotionDirection.set(Math.sin(angle), 0, Math.cos(angle));
+        object.position.addScaledVector(locomotionDirection, Math.max(0, locomotion.speed || 0) * sceneDelta);
+        if (locomotion.loop && locomotion.distance > 0 && locomotion.travelled >= locomotion.distance) {
+          object.position.fromArray(locomotion.origin);
+          locomotion.travelled = 0;
+        }
+      });
       content.children.forEach((character) => {
         Object.entries(character.userData?.poseOffsets || {}).forEach(([boneName, values]) => {
-          const bone = character.getObjectByName(boneName) || findRigBone(character, boneName);
+          let boneCache = runtime.poseBoneCache.get(character);
+          if (!boneCache) {
+            boneCache = new Map();
+            runtime.poseBoneCache.set(character, boneCache);
+          }
+          let bone = boneCache.get(boneName);
+          if (!bone) {
+            bone = character.getObjectByName(boneName) || findRigBone(character, boneName);
+            if (bone) boneCache.set(boneName, bone);
+          }
           if (!bone) return;
-          const rotation = new THREE.Quaternion().setFromEuler(new THREE.Euler(...values, "XYZ"));
+          let rotationCache = runtime.poseRotationCache.get(character);
+          if (!rotationCache) {
+            rotationCache = new Map();
+            runtime.poseRotationCache.set(character, rotationCache);
+          }
+          const rotationKey = values.join(",");
+          let cachedRotation = rotationCache.get(boneName);
+          if (!cachedRotation || cachedRotation.key !== rotationKey) {
+            cachedRotation = { key: rotationKey, rotation: new THREE.Quaternion().setFromEuler(new THREE.Euler(...values, "XYZ")) };
+            rotationCache.set(boneName, cachedRotation);
+          }
+          const rotation = cachedRotation.rotation;
           bone.quaternion.multiply(rotation);
           runtime.poseApplications.set(bone.uuid, { bone, rotation });
         });
@@ -1687,8 +1974,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         const values = poseGizmo.character.userData?.poseOffsets?.[poseGizmo.bone.name] || [0, 0, 0];
         poseGizmo.baseOffset.setFromEuler(new THREE.Euler(...values, "XYZ"));
       }
-      animateSceneEffects(scene, sceneEffectSystem, sceneEffectsRef.current, sceneDelta, sceneTime);
-      content.traverse((object) => {
+      animateSceneEffects(scene, sceneEffectSystem, sceneEffectsRef.current, sceneDelta, sceneTime, performanceSampleRef.current.reduced ? 0.35 : 1);
+      content.children.forEach((object) => {
         const spin = object.userData?.spin;
         if (!spin?.enabled || !object.rotation) return;
         if (animationTracksRef.current[object.userData?.editorId]?.length) return;
@@ -1851,6 +2138,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       if (floor.material.bumpMap !== floor.material.map) floor.material.bumpMap?.dispose?.();
       floor.material.dispose();
       environmentTexture.dispose();
+      renderer.domElement.removeEventListener("webglcontextlost", handleContextLost);
+      renderer.domElement.removeEventListener("webglcontextrestored", handleContextRestored);
       renderer.dispose();
       renderer.forceContextLoss();
       renderer.domElement.remove();
@@ -1957,7 +2246,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     if (material?.color && floorSurface === "plastic") material.color.set(floorColor);
   }, [floorColor, floorSurface]);
 
-  function applyAnimationAt(time) {
+  function applyAnimationAt(time, syncUi = true) {
     const runtime = runtimeRef.current;
     if (!runtime) return;
     const objectTime = Math.max(0, freezeAdjustedTime(time, freezeMotionRef.current));
@@ -1975,6 +2264,15 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
               ? alpha * alpha * (3 - 2 * alpha)
               : alpha;
         const target = new Vector3().fromArray(before.target).lerp(new Vector3().fromArray(after.target), cameraAlpha);
+        let followDelta = null;
+        const followFrame = after.followSubjectId ? after : before;
+        if (followFrame.followSubjectId && followFrame.followOrigin) {
+          const followSubject = findEditorObject(followFrame.followSubjectId);
+          if (followSubject) {
+            followDelta = followSubject.getWorldPosition(new Vector3()).sub(new Vector3().fromArray(followFrame.followOrigin));
+            target.add(followDelta);
+          }
+        }
         runtime.orbit.target.copy(target);
         if (before.orbit && after.orbit) {
           const radius = THREE.MathUtils.lerp(before.orbit.radius, after.orbit.radius, cameraAlpha);
@@ -1991,6 +2289,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           cameraOrbitRef.current.lastTheta = new THREE.Spherical().setFromVector3(runtime.camera.position.clone().sub(target)).theta;
         } else {
           runtime.camera.position.fromArray(before.position).lerp(new Vector3().fromArray(after.position), cameraAlpha);
+          if (followDelta) runtime.camera.position.add(followDelta);
         }
         runtime.camera.lookAt(runtime.orbit.target);
         runtime.orbit.update();
@@ -2017,15 +2316,41 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       }
       object.scale.fromArray(before.scale).lerp(new Vector3().fromArray(after.scale), alpha);
     });
-    syncSelection();
+    if (syncUi) syncSelection();
   }
 
   function seekAnimation(time) {
     const next = THREE.MathUtils.clamp(time, 0, animationDuration);
+    if (next <= 0.001) {
+      runtimeRef.current?.content.children.forEach((object) => {
+        const locomotion = object.userData?.locomotion;
+        if (!locomotion?.origin) return;
+        object.position.fromArray(locomotion.origin);
+        locomotion.travelled = 0;
+      });
+    }
     animationTimeRef.current = next;
     setAnimationTime(next);
     applyAnimationAt(next);
     if (soundtrackAudioRef.current) soundtrackAudioRef.current.currentTime = Math.min(next, soundtrackAudioRef.current.duration || next);
+  }
+
+  function captureWorkspaceThumbnail() {
+    const runtime = runtimeRef.current;
+    if (!runtime) return "";
+    const hiddenObjects = [runtime.grid, runtime.transformHelper, runtime.brushCursor, runtime.lightHelper]
+      .filter(Boolean)
+      .map((object) => [object, object.visible]);
+    const markerVisibility = [...runtime.lightMarkers.values()].map((marker) => [marker, marker.visible]);
+    hiddenObjects.forEach(([object]) => { object.visible = false; });
+    markerVisibility.forEach(([marker]) => { marker.visible = false; });
+    try {
+      runtime.renderer.render(runtime.scene, runtime.camera);
+      return runtime.renderer.domElement.toDataURL("image/jpeg", 0.75);
+    } finally {
+      hiddenObjects.forEach(([object, visible]) => { object.visible = visible; });
+      markerVisibility.forEach(([marker, visible]) => { marker.visible = visible; });
+    }
   }
 
   function setGlobalPlayback(playing) {
@@ -2121,13 +2446,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       .reduce((times, beat) => (!times.length || beat.time - times.at(-1) >= 0.55 ? [...times, beat.time] : times), [])
       .slice(0, 30);
     const times = [...new Set([0, ...beatTimes, duration].map((time) => round(time)))];
+    const followOrigin = subject.getWorldPosition(new Vector3()).toArray();
     const frames = times.map((time, index) => {
       const source = shots[index % shots.length];
       const variation = index % 2 ? -1 : 1;
       const shot = { ...source, angle: (source.angle || 0) + variation * ((index * 17) % 24) };
       const pose = calculateCameraShotPose(shot, subject);
       const spherical = new THREE.Spherical().setFromVector3(pose.position.clone().sub(pose.target));
-      return { id: makeId(), time, position: pose.position.toArray(), target: pose.target.toArray(), orbit: { radius: spherical.radius, phi: spherical.phi, theta: spherical.theta }, continuousOrbit: false, up: pose.up.toArray(), fov: pose.fov, transition };
+      return { id: makeId(), time, position: pose.position.toArray(), target: pose.target.toArray(), orbit: { radius: spherical.radius, phi: spherical.phi, theta: spherical.theta }, continuousOrbit: false, up: pose.up.toArray(), fov: pose.fov, transition, followSubjectId: subject.userData.editorId, followOrigin };
     });
     setAnimationPlaying(false);
     setAnimationDuration(duration);
@@ -2220,7 +2546,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       const state = serializeScene();
       if (!state) return null;
       await putProject(`workspace:${event.detail.projectId}:${THREE_PROJECT_ID}`, state);
-      return { kind: THREE_PROJECT_ID, thumbnail: runtimeRef.current.renderer.domElement.toDataURL("image/jpeg", 0.75) };
+      return { kind: THREE_PROJECT_ID, thumbnail: captureWorkspaceThumbnail() };
     })());
     const load = (event) => event.detail.tasks.push((async () => {
       const loadVersion = ++workspaceLoadVersionRef.current;
@@ -2249,9 +2575,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       try {
         const saved = await getProject(THREE_AUTOSAVE_ID);
         if (cancelled || loadVersion !== workspaceLoadVersionRef.current || autosaveReadyRef.current) return;
-        if (saved?.content) {
+        if (saved?.content || saved?.contentItems) {
           historyRef.current.restoring = true;
-          loadSceneState(saved);
+          if (saved.contentItems) await loadAutosaveState(saved);
+          else loadSceneState(saved);
           historyRef.current.restoring = false;
           historyRef.current.undo = [];
           historyRef.current.redo = [];
@@ -2279,7 +2606,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         return;
       }
       autosaveInFlightRef.current = true;
-      const state = serializeScene();
+      const state = serializeScene({ forAutosave: true });
       if (!state) {
         autosaveInFlightRef.current = false;
         return;
@@ -2463,6 +2790,15 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setStatus("Rig de iluminacion quitado");
   }
 
+  function clearPerformanceCaches() {
+    historyRef.current.undo = [];
+    historyRef.current.redo = [];
+    setHistoryCounts({ undo: 0, redo: 0 });
+    BUNDLED_GLTF_CACHE.clear();
+    runtimeRef.current?.renderer.renderLists.dispose();
+    setStatus("Cache e historial liberados");
+  }
+
   function updateLight(key, value) {
     const light = selectedRef.current;
     if (!light?.isLight) return;
@@ -2554,21 +2890,109 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setStatus(`Iluminacion ${preset === "product" ? "Producto" : preset === "night" ? "Nocturna" : "Estudio"} aplicada`);
   }
 
+  function applyEnvironmentPreset(preset) {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    const environments = {
+      solid: { floor: "plastic", ambient: 0.7, exposure: 1.15, key: 1.8, light: "#ffffff", ground: "#384152", effects: {} },
+      field: {
+        floor: "grass", ambient: 1, exposure: 1, key: 2.6, light: "#fff5dd", ground: "#66805a",
+        effects: { particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.08, color: "#f7efd2" } }
+      },
+      clouds: {
+        floor: "grass", ambient: 0.96, exposure: 1.03, key: 2.05, light: "#e8f2ff", ground: "#7e929c",
+        effects: {
+          fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.1, color: "#c4d3dc" },
+          particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.12, color: "#ffffff" }
+        }
+      },
+      factory: {
+        floor: "concrete", ambient: 0.62, exposure: 1.08, key: 2.15, light: "#dbe8f0", ground: "#343b40",
+        effects: {
+          fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.09, color: "#707b82" },
+          particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.2, color: "#a9a49a" }
+        }
+      }
+    };
+    const environment = environments[preset.id];
+    if (!environment) return;
+    pushHistory();
+    setEnvironmentBackground(preset.id);
+    setFloorSurface(environment.floor);
+    setFloorVisible(true);
+    setSceneEffects({ ...structuredClone(DEFAULT_SCENE_EFFECTS), ...environment.effects });
+    setAmbientIntensity(environment.ambient);
+    setExposure(environment.exposure);
+    runtime.keyLight.intensity = environment.key;
+    runtime.keyLight.color.set(environment.light);
+    runtime.ambient.color.set(environment.light);
+    runtime.ambient.groundColor.set(environment.ground);
+    setStatus(`Entorno ${preset.name} aplicado con piso y atmosfera`);
+  }
+
   function applySkyPreset(preset) {
     const runtime = runtimeRef.current;
     if (!runtime) return;
-    pushHistory();
     const matchingScene = THEMED_SCENES.find((scenePreset) => scenePreset.sky === preset.id);
+    if (matchingScene) {
+      applyThemedScene(matchingScene);
+      return;
+    }
+    pushHistory();
+    const skyScenes = {
+      "sky-clouds": {
+        floor: "grass",
+        effects: {
+          fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.08, color: "#c9d9e5" },
+          particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.12, color: "#ffffff" }
+        }
+      },
+      "sky-space": {
+        floor: "fantasy",
+        effects: {
+          fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.12, color: "#15132f" },
+          particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.82, color: "#c3b7ff" }
+        }
+      },
+      "sky-sun": {
+        floor: "grass",
+        effects: { particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.18, color: "#fff0b5" } }
+      },
+      "sky-night": {
+        floor: "concrete",
+        effects: {
+          fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.3, color: "#26344a" },
+          particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.34, color: "#aac8ff" }
+        }
+      },
+      "sky-day": {
+        floor: "grass",
+        effects: { particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.08, color: "#ffffff" } }
+      },
+      "sky-sunset": {
+        floor: "dirt",
+        effects: {
+          fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.16, color: "#9c6254" },
+          particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.3, color: "#ffc37c" }
+        }
+      }
+    };
+    const skyScene = skyScenes[preset.id];
     setEnvironmentBackground(preset.id);
-    setFloorSurface(matchingScene?.floor || "shadow");
+    setFloorSurface(skyScene?.floor || "shadow");
     setFloorVisible(true);
+    setSkyMotionEnabled(true);
+    setSceneEffects({
+      ...structuredClone(DEFAULT_SCENE_EFFECTS),
+      ...(skyScene?.effects || {})
+    });
     setAmbientIntensity(preset.ambient);
     setExposure(preset.exposure);
     runtime.keyLight.intensity = preset.key;
     runtime.keyLight.color.set(preset.light);
     runtime.ambient.color.set(preset.light);
     runtime.ambient.groundColor.set(preset.ground);
-    setStatus(`Cielo ${preset.name} aplicado`);
+    setStatus(`Ambiente ${preset.name} aplicado con piso y efectos`);
   }
 
   function applyThemedScene(scenePreset) {
@@ -2785,6 +3209,36 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           { ...byId.american, angle: 0, elevation: 3 }
         ]
       },
+      "dialogue-push": {
+        name: "Dialogo - Acercamiento", duration: 10, forceTransition: "smooth", shots: [
+          { ...byId.medium, angle: 0, elevation: 3, crop: 0.42, fill: 0.78, fov: 39, time: 0 },
+          { ...byId.close, angle: 0, elevation: 4, crop: 0.7, fill: 0.9, fov: 29, time: 10 }
+        ]
+      },
+      "dialogue-push-left": {
+        name: "Dialogo - Acercamiento izquierdo", duration: 11, forceTransition: "smooth", shots: [
+          { ...byId.medium, angle: 34, elevation: 3, crop: 0.4, fill: 0.78, fov: 40, time: 0 },
+          { ...byId.close, angle: 28, elevation: 4, crop: 0.72, fill: 0.9, fov: 29, time: 11 }
+        ]
+      },
+      "dialogue-push-right": {
+        name: "Dialogo - Acercamiento derecho", duration: 11, forceTransition: "smooth", shots: [
+          { ...byId.medium, angle: -34, elevation: 3, crop: 0.4, fill: 0.78, fov: 40, time: 0 },
+          { ...byId.close, angle: -28, elevation: 4, crop: 0.72, fill: 0.9, fov: 29, time: 11 }
+        ]
+      },
+      "dialogue-profile-push": {
+        name: "Dialogo - Perfil lento", duration: 12, forceTransition: "smooth", shots: [
+          { ...byId.profile, angle: 82, elevation: 2, crop: 0.32, fill: 0.76, fov: 40, time: 0 },
+          { ...byId.close, angle: 76, elevation: 4, crop: 0.73, fill: 0.9, fov: 28, time: 12 }
+        ]
+      },
+      "dialogue-pull": {
+        name: "Dialogo - Alejamiento", duration: 10, forceTransition: "smooth", shots: [
+          { ...byId.close, angle: 0, elevation: 4, crop: 0.72, fill: 0.9, fov: 29, time: 0 },
+          { ...byId.american, angle: 0, elevation: 2, crop: 0.2, fill: 0.78, fov: 39, time: 10 }
+        ]
+      },
       action: {
         name: "Accion", duration: 10, shots: [
           { ...byId.general, angle: 25, elevation: 10, fov: 48 },
@@ -2850,6 +3304,26 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           fov: 36
         }))
       },
+      drone: {
+        name: "Drone aereo", duration: 14, forceTransition: "smooth", shots: [
+          { ...byId.drone, angle: -72, elevation: 54, fill: 0.62, fov: 50, time: 0, railOffset: -0.8 },
+          { ...byId.drone, angle: -48, elevation: 60, fill: 0.66, fov: 48, time: 3.5, railOffset: -0.35 },
+          { ...byId.drone, angle: -12, elevation: 68, fill: 0.7, fov: 46, time: 7, railOffset: 0 },
+          { ...byId.drone, angle: 34, elevation: 62, fill: 0.66, fov: 48, time: 10.5, railOffset: 0.35 },
+          { ...byId.drone, angle: 72, elevation: 54, fill: 0.62, fov: 50, time: 14, railOffset: 0.8 }
+        ]
+      },
+      "freeze-360": {
+        name: "360 congelado", duration: 12, forceTransition: "linear", continuousOrbit: true,
+        shots: [0, 60, 120, 180, 240, 300, 360].map((angle, index) => ({
+          ...byId.american,
+          angle,
+          elevation: 5,
+          fill: 0.82,
+          fov: 36,
+          time: index * 2
+        }))
+      },
       rock: {
         name: "Rock", duration: 14, shots: [
           { ...byId.general, angle: 0, elevation: 6, fov: 46 },
@@ -2901,6 +3375,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const duration = direction.duration;
     const subjectSize = new Box3().setFromObject(subject).getSize(new Vector3());
     const railUnit = Math.max(subjectSize.x, subjectSize.y * 0.45, 1);
+    const followOrigin = subject.getWorldPosition(new Vector3()).toArray();
     const frames = sequence.map((shot, index) => {
       const pose = calculateCameraShotPose(shot, subject);
       if (shot.railOffset) {
@@ -2915,12 +3390,22 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         position: pose.position.toArray(),
         target: pose.target.toArray(),
         orbit: { radius: spherical.radius, phi: spherical.phi, theta: spherical.theta },
-        continuousOrbit: false,
+        continuousOrbit: Boolean(direction.continuousOrbit),
         up: pose.up.toArray(),
         fov: pose.fov,
-        transition
+        transition: direction.forceTransition || transition,
+        followSubjectId: subject.userData.editorId,
+        followOrigin
       };
     });
+    if (direction.continuousOrbit) {
+      for (let index = 1; index < frames.length; index += 1) {
+        const previousTheta = frames[index - 1].orbit.theta;
+        const rawTheta = frames[index].orbit.theta;
+        const shortestDelta = Math.atan2(Math.sin(rawTheta - previousTheta), Math.cos(rawTheta - previousTheta));
+        frames[index].orbit.theta = previousTheta + shortestDelta;
+      }
+    }
     const first = frames[0];
     runtime.camera.position.fromArray(first.position);
     runtime.orbit.target.fromArray(first.target);
@@ -2934,6 +3419,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     animationTimeRef.current = 0;
     setAnimationTime(0);
     setAnimationTracks((current) => ({ ...current, [CAMERA_TRACK_ID]: frames }));
+    const retainedFreezes = freezeMotionRef.current.filter((segment) => !segment.autoDirector);
+    const nextFreezes = preset === "freeze-360"
+      ? [...retainedFreezes, { id: makeId(), start: 0, end: duration, resume: "quick", resumeDuration: 0.1, autoDirector: true }]
+      : retainedFreezes;
+    freezeMotionRef.current = nextFreezes;
+    setFreezeMotion(nextFreezes);
     if (preset === "matrix") {
       const matrixSlowMotion = { enabled: true, start: 3.2, end: 9.8, speed: 0.25 };
       slowMotionRef.current = matrixSlowMotion;
@@ -3122,6 +3613,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const [width, height] = renderResolution.split("x").map(Number);
     const previousSize = runtime.renderer.getSize(new THREE.Vector2());
     const previousPixelRatio = runtime.renderer.getPixelRatio();
+    const previousShadowState = runtime.renderer.shadowMap.enabled;
+    const previousReducedState = performanceSampleRef.current.reduced;
     const previousAspect = runtime.camera.aspect;
     const previousBackground = runtime.scene.background;
     const floorWasVisible = runtime.floor.visible;
@@ -3132,6 +3625,9 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const lightHelperWasVisible = runtime.lightHelper?.visible;
     const markerVisibility = [...runtime.lightMarkers.values()].map((marker) => [marker, marker.visible]);
     runtime.renderer.setPixelRatio(1);
+    runtime.renderer.shadowMap.enabled = true;
+    runtime.renderer.shadowMap.needsUpdate = true;
+    performanceSampleRef.current.reduced = false;
     runtime.renderer.setSize(width, height, false);
     runtime.camera.aspect = width / height;
     runtime.camera.updateProjectionMatrix();
@@ -3149,6 +3645,9 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     }
     return () => {
       runtime.renderer.setPixelRatio(previousPixelRatio);
+      runtime.renderer.shadowMap.enabled = previousShadowState;
+      runtime.renderer.shadowMap.needsUpdate = true;
+      performanceSampleRef.current.reduced = previousReducedState;
       runtime.renderer.setSize(previousSize.x, previousSize.y, false);
       runtime.camera.aspect = previousAspect;
       runtime.camera.updateProjectionMatrix();
@@ -3203,7 +3702,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
 
     try {
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      const stream = runtime.renderer.domElement.captureStream(animationFps);
+      // Request every frame explicitly so a slow render cannot skip camera positions.
+      let stream = runtime.renderer.domElement.captureStream(0);
+      let videoTrack = stream.getVideoTracks()[0];
+      if (typeof videoTrack?.requestFrame !== "function") {
+        stream.getTracks().forEach((track) => track.stop());
+        stream = runtime.renderer.domElement.captureStream(animationFps);
+        videoTrack = stream.getVideoTracks()[0];
+      }
       let exportAudioContext = null;
       let exportAudioSource = null;
       if (soundtrackBufferRef.current) {
@@ -3224,9 +3730,34 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         recorder.addEventListener("error", reject, { once: true });
       });
       recorder.start(250);
-      setGlobalPlayback(true);
-      await new Promise((resolve) => setTimeout(resolve, animationDuration * 1000));
-      setGlobalPlayback(false);
+      exportAudioSource?.start(0);
+      scenePlaybackRef.current.paused = false;
+      animationPlayingRef.current = true;
+
+      if (typeof videoTrack?.requestFrame === "function") {
+        const frameDuration = 1000 / animationFps;
+        const totalFrames = Math.max(1, Math.ceil(animationDuration * animationFps));
+        const startedAt = performance.now();
+        for (let frameIndex = 0; frameIndex <= totalFrames; frameIndex += 1) {
+          const frameTime = Math.min(frameIndex / animationFps, animationDuration);
+          animationTimeRef.current = frameTime;
+          applyAnimationAt(frameTime, false);
+          runtime.renderer.render(runtime.scene, runtime.camera);
+          videoTrack.requestFrame();
+
+          const delay = startedAt + (frameIndex + 1) * frameDuration - performance.now();
+          if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+          else await new Promise((resolve) => requestAnimationFrame(resolve));
+        }
+      } else {
+        // Older browsers do not expose requestFrame; retain the realtime fallback.
+        setGlobalPlayback(true);
+        await new Promise((resolve) => setTimeout(resolve, animationDuration * 1000));
+        setGlobalPlayback(false);
+      }
+
+      scenePlaybackRef.current.paused = true;
+      animationPlayingRef.current = false;
       recorder.stop();
       await stopped;
       exportAudioSource?.stop();
@@ -3245,6 +3776,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       console.error(error);
       setStatus("No se pudo exportar la animacion");
     } finally {
+      setGlobalPlayback(false);
       restoreOutput();
       setAnimationExporting(false);
       seekAnimation(0);
@@ -3296,6 +3828,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const clone = source.clone(true);
     clone.userData = { ...source.userData, editorId: makeId() };
     clone.traverse((item) => {
+      if (item !== clone && item.userData?.editorId) item.userData = { ...item.userData, editorId: makeId() };
       if (item.geometry) item.geometry = item.geometry.clone();
       if (Array.isArray(item.material)) item.material = item.material.map((material) => material.clone());
       else if (item.material) item.material = item.material.clone();
@@ -3325,7 +3858,19 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   function selectedObjects() {
     const runtime = runtimeRef.current;
     if (!runtime) return [];
-    return runtime.content.children.filter((object) => selectedIdsRef.current.has(object.userData.editorId));
+    const chosen = [];
+    runtime.content.traverse((object) => {
+      if (selectedIdsRef.current.has(object.userData?.editorId)) chosen.push(object);
+    });
+    const chosenSet = new Set(chosen);
+    return chosen.filter((object) => {
+      let parent = object.parent;
+      while (parent && parent !== runtime.content) {
+        if (chosenSet.has(parent)) return false;
+        parent = parent.parent;
+      }
+      return true;
+    });
   }
 
   function groupSelected() {
@@ -3592,6 +4137,40 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     syncSelection(object);
   }
 
+  function updateLocomotion(patch) {
+    const object = selectedRef.current;
+    if (!object?.userData.locomotion || object.userData?.locked) return;
+    const locomotion = object.userData.locomotion;
+    Object.assign(locomotion, patch);
+    if (patch.enabled === true && !locomotion.origin) {
+      locomotion.origin = object.position.toArray();
+      locomotion.travelled = 0;
+    }
+    syncSelection(object);
+  }
+
+  function setLocomotionOrigin() {
+    const object = selectedRef.current;
+    if (!object?.userData.locomotion || object.userData?.locked) return;
+    pushHistory();
+    object.userData.locomotion.origin = object.position.toArray();
+    object.userData.locomotion.baseRotationY = object.rotation.y - THREE.MathUtils.degToRad(object.userData.locomotion.direction ?? 0);
+    object.userData.locomotion.travelled = 0;
+    syncSelection(object);
+    setStatus("Inicio del recorrido actualizado");
+  }
+
+  function resetLocomotion() {
+    const object = selectedRef.current;
+    const locomotion = object?.userData?.locomotion;
+    if (!object || !locomotion?.origin || object.userData?.locked) return;
+    pushHistory();
+    object.position.fromArray(locomotion.origin);
+    locomotion.travelled = 0;
+    syncSelection(object);
+    setStatus("Personaje devuelto al inicio del recorrido");
+  }
+
   function nudgeSelected(dx, dy, dz) {
     const object = selectedRef.current;
     if (!object) return;
@@ -3632,6 +4211,20 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     }
     refreshObjects();
     setStatus(object.userData.locked ? `${object.name} bloqueado` : `${object.name} desbloqueado`);
+  }
+
+  function toggleSceneCategoryVisibility(category) {
+    const entries = objects.filter((item) => item.category === category);
+    if (!entries.length) return;
+    pushHistory();
+    const visible = !entries.every((item) => item.visible);
+    entries.forEach((item) => {
+      const object = findEditorObject(item.id);
+      if (object) object.visible = visible;
+    });
+    if (!visible && entries.some((item) => item.id === selectedId)) selectObject(null);
+    refreshObjects();
+    setStatus(`${visible ? "Mostrando" : "Ocultando"} ${entries.length} elementos`);
   }
 
   function centerSelected() {
@@ -4005,8 +4598,15 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   async function importModel(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (modelLoadInFlightRef.current) {
+      setStatus(`Espera a que termine de cargar ${modelLoading || "el modelo actual"}`);
+      event.target.value = "";
+      return;
+    }
     const runtime = runtimeRef.current;
     if (!runtime) return;
+    modelLoadInFlightRef.current = true;
+    setModelLoading(file.name);
     const isHeavyModel = file.size > 80 * 1024 * 1024;
     let url = "";
     try {
@@ -4044,6 +4644,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       console.error(error);
       setStatus(isHeavyModel ? "No hay memoria suficiente para importar este GLB" : "No se pudo importar el modelo");
     } finally {
+      modelLoadInFlightRef.current = false;
+      setModelLoading("");
       if (url) URL.revokeObjectURL(url);
       event.target.value = "";
     }
@@ -4052,14 +4654,23 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   async function addNeonboy(modelPreset = CHARACTER_MODELS[0]) {
     const runtime = runtimeRef.current;
     if (!runtime) return;
+    if (modelLoadInFlightRef.current) {
+      setStatus(`Espera a que termine de cargar ${modelLoading || "el modelo actual"}`);
+      return;
+    }
+    modelLoadInFlightRef.current = true;
+    setModelLoading(modelPreset.name);
     try {
       setStatus(`Cargando ${modelPreset.name}...`);
       const modelUrl = modelPreset.url || await modelPreset.loadUrl();
-      const gltf = await new GLTFLoader().loadAsync(modelUrl);
+      const gltf = await loadBundledModel(modelUrl);
       pushHistory();
       const model = gltf.scene;
       model.name = modelPreset.name;
       model.userData = { ...model.userData, editorId: makeId(), editorType: "model", bundledModel: modelPreset.id };
+      if (modelPreset.locomotion) {
+        model.userData.locomotion = { enabled: true, speed: 1.2, direction: 0, distance: 12, loop: false, faceDirection: true, travelled: 0 };
+      }
       model.animations = gltf.animations;
       model.traverse((item) => {
         if (item.isMesh) { item.castShadow = true; item.receiveShadow = true; }
@@ -4073,21 +4684,28 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       placeObjectInFreeSpot(model, runtime.content);
       registerModelAnimations(model, gltf.animations);
       let selectedObject = model;
-      const guitarModelLoader = modelPreset.id === "profe" ? PROFESSOR_GUITAR_MODEL_LOADER : GUITAR_MODEL_LOADER;
+      const guitarConfig = modelPreset.id === "profe"
+        ? { loader: PROFESSOR_GUITAR_MODEL_LOADER, staticId: "professor-guitar", name: "Guitarra del Profe" }
+        : modelPreset.id === "demon-rock"
+          ? { loader: DEMON_GUITAR_MODEL_LOADER, staticId: "demon-guitar", name: "Guitarra de Demon" }
+          : modelPreset.id === "zombieGuitarr"
+            ? { loader: ZOMBIE_GUITAR_MODEL_LOADER, staticId: "zombie-guitar", name: "Guitarra de Zombie" }
+            : { loader: GUITAR_MODEL_LOADER, staticId: "guitar", name: "Guitarra del guitarrista" };
+      const guitarModelLoader = guitarConfig.loader;
       if (isGuitaristModel(modelPreset.id) && guitarModelLoader) {
         setStatus("Colocando la guitarra en la mano...");
         const guitarUrl = await guitarModelLoader();
-        const guitarGltf = await new GLTFLoader().loadAsync(guitarUrl);
+        const guitarGltf = await loadBundledModel(guitarUrl);
         const guitar = guitarGltf.scene;
         const hand = findCharacterHand(model, "LeftHand") || findCharacterHand(model, "RightHand");
         if (hand) {
           const characterHeight = new Box3().setFromObject(model).getSize(new Vector3()).y;
-          guitar.name = "Guitarra del guitarrista";
+          guitar.name = guitarConfig.name;
           guitar.userData = {
             ...guitar.userData,
             editorId: makeId(),
             editorType: "model",
-            bundledStaticModel: modelPreset.id === "profe" ? "professor-guitar" : "guitar",
+            bundledStaticModel: guitarConfig.staticId,
             editableAttachment: true,
             attachmentBone: hand.name,
             attachmentOwner: model.userData.editorId
@@ -4108,7 +4726,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       if (modelPreset.id === "baterista" && DRUMSTICKS_MODEL_LOADER) {
         setStatus("Colocando un palillo en cada mano...");
         const sticksUrl = await DRUMSTICKS_MODEL_LOADER();
-        const sticksGltf = await new GLTFLoader().loadAsync(sticksUrl);
+        const sticksGltf = await loadBundledModel(sticksUrl);
         const characterHeight = new Box3().setFromObject(model).getSize(new Vector3()).y;
         [
           { point: "LeftHand", name: "Palillo izquierdo" },
@@ -4116,7 +4734,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         ].forEach(({ point, name }) => {
           const hand = findCharacterHand(model, point);
           if (!hand) return;
-          const stick = sticksGltf.scene.clone(true);
+          const stick = cloneSkeleton(sticksGltf.scene);
+          stick.traverse((item) => {
+            if (Array.isArray(item.material)) item.material = item.material.map((material) => material.clone());
+            else if (item.material) item.material = item.material.clone();
+          });
+          SHARED_GEOMETRY_ROOTS.add(stick);
           stick.name = name;
           stick.userData = {
             ...stick.userData,
@@ -4150,16 +4773,25 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     } catch (error) {
       console.error(error);
       setStatus(`No se pudo cargar ${modelPreset.character}`);
+    } finally {
+      modelLoadInFlightRef.current = false;
+      setModelLoading("");
     }
   }
 
   async function addStaticModel(modelPreset) {
     const runtime = runtimeRef.current;
     if (!runtime) return;
+    if (modelLoadInFlightRef.current) {
+      setStatus(`Espera a que termine de cargar ${modelLoading || "el modelo actual"}`);
+      return;
+    }
+    modelLoadInFlightRef.current = true;
+    setModelLoading(modelPreset.name);
     try {
       setStatus(`Cargando ${modelPreset.name}...`);
       const modelUrl = modelPreset.url || await modelPreset.loadUrl();
-      const gltf = await new GLTFLoader().loadAsync(modelUrl);
+      const gltf = await loadBundledModel(modelUrl);
       pushHistory();
       const model = gltf.scene;
       model.name = modelPreset.name;
@@ -4182,6 +4814,9 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     } catch (error) {
       console.error(error);
       setStatus(`No se pudo cargar ${modelPreset.name}`);
+    } finally {
+      modelLoadInFlightRef.current = false;
+      setModelLoading("");
     }
   }
 
@@ -4313,9 +4948,20 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     );
   }
 
+  const normalizedSceneSearch = sceneSearch.trim().toLocaleLowerCase("es");
+  const sceneGroups = [
+    { id: "groups", name: "Grupos", icon: Group },
+    { id: "characters", name: "Personajes", icon: Sparkles },
+    { id: "objects", name: "Objetos", icon: Box },
+    { id: "lights", name: "Luces", icon: Lightbulb }
+  ].map((group) => ({
+    ...group,
+    items: objects.filter((item) => item.category === group.id && (!normalizedSceneSearch || item.name.toLocaleLowerCase("es").includes(normalizedSceneSearch)))
+  })).filter((group) => group.items.length);
+
   return (
     <section className="three-editor">
-      {webglError && <div className="three-webgl-error"><strong>El motor 3D no esta disponible</strong><span>{webglError}</span></div>}
+      {webglError && <div className="three-webgl-error"><strong>El motor 3D no esta disponible</strong><span>{webglError}</span><button onClick={() => window.location.reload()} type="button">Recuperar escena</button></div>}
       <div className="three-toolbar" aria-label="Herramientas 3D">
         <div className="three-tool-group">
           <button data-tooltip="Seleccionar" onClick={() => setMode("translate")} type="button"><MousePointer2 size={18} /></button>
@@ -4350,6 +4996,16 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           </button>
         </div>
         <div className="three-toolbar-spacer" />
+        <div className="three-performance-control" title={`${performanceStats.triangles.toLocaleString()} triangulos · ${performanceStats.geometries} geometrias · ${performanceStats.textures} texturas`}>
+          <Gauge size={15} />
+          <strong>{performanceStats.fps || "--"} FPS</strong>
+          <select aria-label="Calidad de previsualizacion" onChange={(event) => setPerformanceMode(event.target.value)} value={performanceMode}>
+            <option value="auto">Auto</option>
+            <option value="performance">Rendimiento</option>
+            <option value="quality">Calidad</option>
+          </select>
+          <button data-tooltip="Liberar cache e historial" onClick={clearPerformanceCaches} type="button"><Trash2 size={15} /></button>
+        </div>
         {performanceReduced && <span className="three-performance-status">Vista optimizada</span>}
         <span className="three-autosave-status">{autosaveStatus}</span>
         <button className="three-action" onClick={onRequestProjectSave} type="button"><Download size={17} /> Guardar</button>
@@ -4360,6 +5016,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       <div className="three-workspace">
         <aside className="three-library" data-wizard="three-objects">
           <div className="three-panel-heading"><span>CREAR</span><strong>Biblioteca</strong></div>
+          {modelLoading && <div className="three-library-loading"><RotateCcw className="spin" size={14} /><span>Cargando {modelLoading}</span></div>}
           <nav aria-label="Biblioteca 3D" className="three-library-tabs">
             <button className={libraryTab === "objects" ? "active" : ""} onClick={() => setLibraryTab("objects")} type="button"><Box size={15} /> Objetos 3D</button>
             <button className={libraryTab === "characters" ? "active" : ""} onClick={() => setLibraryTab("characters")} type="button"><Sparkles size={15} /> Personajes</button>
@@ -4373,11 +5030,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
               <button onClick={() => addPrimitive("plane")} type="button"><Square size={22} /><span>Plano</span></button>
               <button onClick={() => addPrimitive("torus")} type="button"><CircleDot size={22} /><span>Toroide</span></button>
               <button onClick={() => addPrimitive("capsule")} type="button"><Pill size={22} /><span>Capsula</span></button>
-              {STATIC_MODELS.map((model) => <button key={model.id} onClick={() => addStaticModel(model)} type="button"><Box size={22} /><span>{model.name}</span></button>)}
+              {STATIC_MODELS.map((model) => <button disabled={Boolean(modelLoading)} key={model.id} onClick={() => addStaticModel(model)} type="button"><Box size={22} /><span>{model.name}</span></button>)}
               <button onClick={() => addLight("point")} type="button"><Lightbulb size={22} /><span>Luz puntual</span></button>
               <button onClick={() => addLight("directional")} type="button"><Sun size={22} /><span>Luz solar</span></button>
               <button onClick={() => addLight("spot")} type="button"><Flashlight size={22} /><span>Foco</span></button>
-              <label className="three-import"><Upload size={22} /><span>Importar modelo</span><input accept=".glb,.gltf,model/gltf-binary,model/gltf+json" onChange={importModel} type="file" /></label>
+              <label className={`three-import ${modelLoading ? "disabled" : ""}`}><Upload size={22} /><span>Importar modelo</span><input accept=".glb,.gltf,model/gltf-binary,model/gltf+json" disabled={Boolean(modelLoading)} onChange={importModel} type="file" /></label>
               <label className="three-import"><Palette size={22} /><span>Importar SVG</span><input accept=".svg,image/svg+xml" onChange={importSvg} type="file" /></label>
             </div>
             <div className="three-create-text">
@@ -4387,23 +5044,45 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
               <button disabled={!textDraft.trim()} onClick={selectedRef.current?.userData.editorType === "text" ? () => updateSelectedText() : addText} type="button"><Type size={16} /> {selectedRef.current?.userData.editorType === "text" ? "Aplicar cambios" : "Agregar texto"}</button>
             </div>
           </> : <div className="three-character-library">
-            {["Neonboy", "Neoncruzader", "Profe"].map((character) => <section key={character}>
+            {["Neonboy", "Neoncruzader", "Demon", "Zombie", "Reptiliano", "Profe"].map((character) => <section key={character}>
               <div className="three-library-section-title"><strong>{character}</strong><span>{CHARACTER_MODELS.filter((model) => model.character === character).length}</span></div>
               <div className="three-add-grid">
-                {CHARACTER_MODELS.filter((model) => model.character === character).map((model) => <button key={model.id} onClick={() => addNeonboy(model)} type="button"><Sparkles size={22} /><span>{model.animation}</span></button>)}
+                {CHARACTER_MODELS.filter((model) => model.character === character).map((model) => <button disabled={Boolean(modelLoading)} key={model.id} onClick={() => addNeonboy(model)} type="button"><Sparkles size={22} /><span>{model.animation}</span></button>)}
               </div>
             </section>)}
           </div>}
           <div className="three-panel-heading three-scene-heading"><span>ESCENA</span><strong>Objetos</strong></div>
+          <label className="three-outliner-search">
+            <Search size={15} />
+            <input aria-label="Buscar en la escena" onChange={(event) => setSceneSearch(event.target.value)} placeholder="Buscar objeto" type="search" value={sceneSearch} />
+            <span>{objects.length}</span>
+          </label>
+          {selection && <div className="three-outliner-actions">
+            <span title={selection.name}>{selection.name}</span>
+            <button data-tooltip="Enfocar" onClick={focusSelected} type="button"><Focus size={15} /></button>
+            <button data-tooltip="Duplicar" onClick={duplicateSelected} type="button"><Copy size={15} /></button>
+            <button data-tooltip={selection.locked ? "Desbloquea para eliminar" : "Eliminar"} disabled={selection.locked} onClick={removeSelected} type="button"><Trash2 size={15} /></button>
+          </div>}
           <div className="three-outliner">
-            {objects.map((item) => {
-              const ItemIcon = iconForType(item.type);
-              return <div className={`three-outliner-row ${selectedIds.includes(item.id) ? "active" : ""}`} key={item.id}>
-                <button className="three-outliner-select" onClick={(event) => selectObject(findEditorObject(item.id), event.shiftKey)} type="button"><ItemIcon size={16} /><span>{item.name}</span></button>
-                <button className="three-outliner-lock" data-tooltip={item.locked ? "Desbloquear" : "Bloquear"} onClick={() => toggleObjectLock(item.id)} type="button">{item.locked ? <Lock size={14} /> : <Unlock size={14} />}</button>
-                <button className="three-outliner-visibility" data-tooltip={item.visible ? "Ocultar" : "Mostrar"} onClick={() => toggleObjectVisibility(item.id)} type="button">{item.visible ? <Eye size={15} /> : <EyeOff size={15} />}</button>
-              </div>;
+            {sceneGroups.map((group) => {
+              const GroupIcon = group.icon;
+              const allVisible = objects.filter((item) => item.category === group.id).every((item) => item.visible);
+              return <section className="three-outliner-group" key={group.id}>
+                <div className="three-outliner-group-heading">
+                  <GroupIcon size={14} /><strong>{group.name}</strong><span>{group.items.length}</span>
+                  <button data-tooltip={allVisible ? `Ocultar ${group.name.toLowerCase()}` : `Mostrar ${group.name.toLowerCase()}`} onClick={() => toggleSceneCategoryVisibility(group.id)} type="button">{allVisible ? <Eye size={14} /> : <EyeOff size={14} />}</button>
+                </div>
+                {group.items.map((item) => {
+                  const ItemIcon = iconForType(item.type);
+                  return <div className={`three-outliner-row ${selectedIds.includes(item.id) ? "active" : ""} ${item.visible ? "" : "hidden"}`} key={item.id}>
+                    <button className="three-outliner-select" onClick={(event) => selectObject(findEditorObject(item.id), event.shiftKey)} style={{ paddingLeft: `${8 + item.depth * 14}px` }} type="button"><ItemIcon size={16} /><span>{item.name}</span></button>
+                    <button className="three-outliner-lock" data-tooltip={item.locked ? "Desbloquear" : "Bloquear"} onClick={() => toggleObjectLock(item.id)} type="button">{item.locked ? <Lock size={14} /> : <Unlock size={14} />}</button>
+                    <button className="three-outliner-visibility" data-tooltip={item.visible ? "Ocultar" : "Mostrar"} onClick={() => toggleObjectVisibility(item.id)} type="button">{item.visible ? <Eye size={15} /> : <EyeOff size={15} />}</button>
+                  </div>;
+                })}
+              </section>;
             })}
+            {!sceneGroups.length && <div className="three-outliner-empty">No hay coincidencias</div>}
           </div>
         </aside>
 
@@ -4556,6 +5235,23 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                       <label><span>Velocidad</span><input max="2.5" min="0" onChange={(event) => setModelAnimationSpeed(event.target.value)} step="0.05" type="range" value={selection.modelAnimation.speed} /></label>
                     </fieldset>
                   )}
+                  {selection.locomotion && (
+                    <fieldset className="three-tab-model">
+                      <legend>Desplazamiento al caminar</legend>
+                      <label className="three-check"><input checked={selection.locomotion.enabled} disabled={selection.locked} onChange={(event) => { pushHistory(); updateLocomotion({ enabled: event.target.checked }); }} type="checkbox" /><Move3D size={16} /> Avanzar por la superficie</label>
+                      <label><span>Velocidad</span><input disabled={selection.locked || !selection.locomotion.enabled} max="6" min="0" onChange={(event) => updateLocomotion({ speed: Number(event.target.value) })} onPointerDown={pushHistory} step="0.1" type="range" value={selection.locomotion.speed} /></label>
+                      <label><span>Metros/seg</span><input disabled={selection.locked || !selection.locomotion.enabled} max="20" min="0" onChange={(event) => updateLocomotion({ speed: Number(event.target.value) })} onFocus={pushHistory} step="0.1" type="number" value={selection.locomotion.speed} /></label>
+                      <label><span>Direccion</span><input disabled={selection.locked || !selection.locomotion.enabled} max="180" min="-180" onChange={(event) => updateLocomotion({ direction: Number(event.target.value) })} onPointerDown={pushHistory} step="1" type="range" value={selection.locomotion.direction} /></label>
+                      <label><span>Angulo</span><input disabled={selection.locked || !selection.locomotion.enabled} max="180" min="-180" onChange={(event) => updateLocomotion({ direction: Number(event.target.value) })} onFocus={pushHistory} step="1" type="number" value={selection.locomotion.direction} /></label>
+                      <label className="three-check"><input checked={selection.locomotion.faceDirection !== false} disabled={selection.locked || !selection.locomotion.enabled} onChange={(event) => { pushHistory(); updateLocomotion({ faceDirection: event.target.checked }); }} type="checkbox" /><Rotate3D size={16} /> Orientar hacia el recorrido</label>
+                      <label><span>Recorrido</span><input disabled={selection.locked || !selection.locomotion.enabled || !selection.locomotion.loop} max="100" min="1" onChange={(event) => updateLocomotion({ distance: Number(event.target.value) })} onFocus={pushHistory} step="1" type="number" value={selection.locomotion.distance} /></label>
+                      <label className="three-check"><input checked={selection.locomotion.loop} disabled={selection.locked || !selection.locomotion.enabled} onChange={(event) => { pushHistory(); updateLocomotion({ loop: event.target.checked }); }} type="checkbox" /><RotateCcw size={16} /> Repetir recorrido</label>
+                      <div className="three-model-actions">
+                        <button disabled={selection.locked} onClick={setLocomotionOrigin} type="button"><LocateFixed size={15} /> Marcar inicio</button>
+                        <button disabled={selection.locked || !selection.locomotion.origin} onClick={resetLocomotion} type="button"><RotateCcw size={15} /> Volver al inicio</button>
+                      </div>
+                    </fieldset>
+                  )}
                   {POSE_BONES.some((entry) => findRigBone(selectedRef.current, entry.id)) && (
                     <fieldset className="three-tab-model" key={`pose:${poseVersion}`}>
                       <legend>Pose del personaje</legend>
@@ -4641,7 +5337,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           <fieldset className="three-tab-scene">
             <legend>Entorno</legend>
             <div className="three-background-presets">
-              {ENVIRONMENT_BACKGROUNDS.map((preset) => <button className={environmentBackground === preset.id ? "active" : ""} key={preset.id} onClick={() => { pushHistory(); setEnvironmentBackground(preset.id); if (preset.id !== "solid") { setFloorVisible(true); setFloorSurface("shadow"); } }} style={preset.image ? { backgroundImage: `url(${environmentThumbnail(preset)})` } : { background: background }} type="button"><span>{preset.name}</span></button>)}
+              {ENVIRONMENT_BACKGROUNDS.map((preset) => <button className={environmentBackground === preset.id ? "active" : ""} key={preset.id} onClick={() => applyEnvironmentPreset(preset)} style={preset.image ? { backgroundImage: `url(${environmentThumbnail(preset)})` } : { background: background }} type="button"><span>{preset.name}</span></button>)}
             </div>
             <div className="three-sublegend">Escenarios animados</div>
             <div className="three-scene-presets">

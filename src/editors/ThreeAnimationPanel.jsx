@@ -97,12 +97,19 @@ export default function ThreeAnimationPanel({
           <select aria-label="Estilo de direccion automatica" onChange={(event) => setDirectorPreset(event.target.value)} value={directorPreset}>
             <option value="hollywood">Hollywood</option>
             <option value="dialogue">Dialogo</option>
+            <option value="dialogue-push">Dialogo - Zoom lento</option>
+            <option value="dialogue-push-left">Dialogo - Zoom 3/4 izq.</option>
+            <option value="dialogue-push-right">Dialogo - Zoom 3/4 der.</option>
+            <option value="dialogue-profile-push">Dialogo - Zoom perfil</option>
+            <option value="dialogue-pull">Dialogo - Alejamiento</option>
             <option value="action">Accion</option>
             <option value="suspense">Suspenso</option>
             <option value="orbit">Orbita</option>
             <option value="matrix">Matrix / Bullet time</option>
             <option value="rail-lateral">Riel lateral</option>
             <option value="rail-arc">Riel en arco</option>
+            <option value="drone">Drone aereo</option>
+            <option value="freeze-360">360 congelado</option>
             <option value="rock">Rock</option>
             <option value="hard-rock">Hard Rock</option>
             <option value="metal">Metal</option>

@@ -62,7 +62,7 @@ function videoEffectFilter(effect, pixelSize = 12, effectAmount = 100, range = n
   return "";
 }
 
-function timedZoomFilter(effects, width, height) {
+function timedZoomFilter(effects, width, height, fps = 30) {
   const zoomEffects = (effects || []).filter((effect) => effect.type === "zoom-in" || effect.type === "zoom-out");
   if (!zoomEffects.length) return "";
   const terms = zoomEffects.map((effect) => {
@@ -71,7 +71,7 @@ function timedZoomFilter(effects, width, height) {
     const delta = Math.max(0, Math.min(2, Number(effect.amount || 0) / 100));
     return `${effect.type === "zoom-in" ? "+" : "-"}${delta}*(${progress})`;
   }).join("");
-  return `,zoompan=z='max(1\\,1${terms})':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${width}x${height}:fps=30`;
+  return `,zoompan=z='max(1\\,1${terms})':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${width}x${height}:fps=${fps}`;
 }
 
 function animatedMaskFilter(clip, duration) {
@@ -106,6 +106,31 @@ function escapeDrawText(value) {
     .replace(/:/g, "\\:")
     .replace(/%/g, "\\%")
     .replace(/\r?\n/g, "\\n");
+}
+
+function escapeFilterPath(value) {
+  return String(value).replace(/\\/g, "/").replace(/:/g, "\\:").replace(/'/g, "\\'");
+}
+
+function wrapSubtitleText(value, maxCharacters) {
+  const limit = Math.max(8, Math.floor(maxCharacters));
+  return String(value || "").split(/\r?\n/).flatMap((paragraph) => {
+    const words = paragraph.trim().split(/\s+/).filter(Boolean);
+    if (!words.length) return [""];
+    const lines = [];
+    let line = "";
+    words.forEach((word) => {
+      const candidate = line ? `${line} ${word}` : word;
+      if (line && candidate.length > limit) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = candidate;
+      }
+    });
+    if (line) lines.push(line);
+    return lines;
+  }).join("\n");
 }
 
 function videoFontFile(item) {
@@ -148,13 +173,25 @@ function videoFontFile(item) {
   return fontPath.replace(/\\/g, "/").replace(":", "\\:");
 }
 
-function runFfmpeg(args) {
+function runFfmpeg(args, onProgress = null, totalDuration = 0) {
   return new Promise((resolve, reject) => {
-    const child = spawn(ffmpegPath, ["-y", ...args], { windowsHide: true });
+    const progressArgs = onProgress ? ["-progress", "pipe:2", "-nostats"] : [];
+    const child = spawn(ffmpegPath, ["-y", ...progressArgs, ...args], { windowsHide: true });
     let log = "";
+    let progressBuffer = "";
 
     child.stderr.on("data", (chunk) => {
-      log += chunk.toString();
+      const output = chunk.toString();
+      log += output;
+      if (!onProgress || !totalDuration) return;
+      progressBuffer += output;
+      const lines = progressBuffer.split(/\r?\n/);
+      progressBuffer = lines.pop() || "";
+      lines.forEach((line) => {
+        const match = line.match(/^out_time_(?:us|ms)=(\d+)$/);
+        if (match) onProgress(Math.min(99, Number(match[1]) / 1_000_000 / totalDuration * 100));
+        if (line === "progress=end") onProgress(100);
+      });
     });
 
     child.on("error", reject);
@@ -353,15 +390,17 @@ app.post(
     const audio = req.files?.audio?.[0] || null;
     const listPath = path.join(uploadDir, `${Date.now()}-timeline.txt`);
     const tempVideo = path.join(outputDir, `${Date.now()}-timeline-video.mp4`);
+    const subtitleTextPaths = [];
 
     try {
       if (!videos.length) return res.status(400).json({ error: "Subi al menos un video." });
 
       const codec = req.body.codec === "h265" ? "libx265" : "libx264";
       const extension = req.body.format === "mov" ? "mov" : "mp4";
-      const allowedResolutions = new Set(["1920:1080", "1280:720", "854:480", "1080:1080", "1080:1920"]);
+      const allowedResolutions = new Set(["1920:1080", "1280:720", "854:480", "1080:1080", "1080:1350", "1080:1920"]);
       const resolution = allowedResolutions.has(req.body.resolution) ? req.body.resolution : "1280:720";
       const [outW, outH] = resolution.split(":").map(Number);
+      const outputFps = Number(req.body.fps) === 60 ? 60 : 30;
       const muteOriginal = req.body.muteOriginal === "true";
       const clips = JSON.parse(req.body.clips || "[]").map((clip, index) => ({
         index,
@@ -403,7 +442,9 @@ app.post(
         shadowColor: /^#[0-9a-f]{6}$/i.test(item.shadowColor) ? item.shadowColor.slice(1) : "000000",
         shadowBlur: Math.max(0, Math.min(40, Number(item.shadowBlur || 0))),
         shadowX: Math.max(-100, Math.min(100, Number(item.shadowX || 0))),
-        shadowY: Math.max(-100, Math.min(100, Number(item.shadowY || 0)))
+        shadowY: Math.max(-100, Math.min(100, Number(item.shadowY || 0))),
+        boxWidth: Math.max(15, Math.min(96, Number(item.boxWidth || 80))),
+        preWrapped: item.preWrapped === true
       }));
       const timelineClips = clips.length === videos.length ? clips : videos.map((_file, index) => ({ index, start: index * 5, in: 0, out: 5, track: 0, muted: false, effect: "none" }));
       const totalDuration = Math.max(0.1, ...timelineClips.map((clip) => clip.start + Math.max(0.1, clip.out - clip.in)), ...textOverlays.map((item) => item.start + item.duration));
@@ -418,7 +459,7 @@ app.post(
           const clipH = Math.max(2, Math.round(outH * (clip.scale || 1) / 2) * 2);
           const filters = [];
           let currentLabel = `clipbase${clip.index}`;
-          filters.push(`[${clip.index}:v]trim=start=${clip.in}:duration=${duration},setpts=PTS-STARTPTS,scale=${clipW}:${clipH}:force_original_aspect_ratio=decrease${timedZoomFilter(clip.effects, clipW, clipH)}${videoEffectFilter(clip.effect, clip.pixelSize, clip.effectAmount)}[${currentLabel}]`);
+          filters.push(`[${clip.index}:v]trim=start=${clip.in}:duration=${duration},setpts=PTS-STARTPTS,fps=fps=${outputFps}:start_time=0,scale=${clipW}:${clipH}:force_original_aspect_ratio=decrease${timedZoomFilter(clip.effects, clipW, clipH, outputFps)}${videoEffectFilter(clip.effect, clip.pixelSize, clip.effectAmount)}[${currentLabel}]`);
           (clip.effects || []).filter((effect) => effect.type !== "zoom-in" && effect.type !== "zoom-out").forEach((effect, effectIndex) => {
             const sourceLabel = `fxsource${clip.index}_${effectIndex}`;
             const processLabel = `fxprocess${clip.index}_${effectIndex}`;
@@ -453,7 +494,12 @@ app.post(
         const outLabel = `textv${index}`;
         const fontSize = Math.max(10, Math.round(item.fontSize * outH / 1080));
         const fontFile = videoFontFile(item);
-        const escapedText = escapeDrawText(item.text);
+        const textWidth = outW * item.boxWidth / 100;
+        const maxCharacters = textWidth / Math.max(5, fontSize * 0.55);
+        const subtitleTextPath = path.join(uploadDir, `${Date.now()}-${index}-subtitle.txt`);
+        fs.writeFileSync(subtitleTextPath, item.preWrapped ? item.text : wrapSubtitleText(item.text, maxCharacters), "utf8");
+        subtitleTextPaths.push(subtitleTextPath);
+        const textSource = `textfile='${escapeFilterPath(subtitleTextPath)}':reload=0:expansion=none`;
         const enable = `between(t,${item.start},${item.start + item.duration})`;
         if (item.shadow) {
           const shadowLayer = `shadowlayer${index}`;
@@ -461,11 +507,11 @@ app.post(
           const blur = Math.max(0.1, item.shadowBlur * outH / 1080);
           const shadowX = item.shadowX * outW / 1920;
           const shadowY = item.shadowY * outH / 1080;
-          videoFilters.push(`color=c=black@0.0:s=${outW}x${outH}:d=${totalDuration},format=rgba,drawtext=fontfile='${fontFile}':text='${escapedText}':fontcolor=0x${item.shadowColor}:fontsize=${fontSize}:x=w*${item.x}/100-text_w/2+${shadowX}:y=h*${item.y}/100-text_h/2+${shadowY}:enable='${enable}',boxblur=luma_radius=${blur}:luma_power=1:chroma_radius=${blur}:chroma_power=1:alpha_radius=${blur}:alpha_power=1[${shadowLayer}]`);
+          videoFilters.push(`color=c=black@0.0:s=${outW}x${outH}:d=${totalDuration},format=rgba,drawtext=fontfile='${fontFile}':${textSource}:fontcolor=0x${item.shadowColor}:fontsize=${fontSize}:x=w*${item.x}/100-text_w/2+${shadowX}:y=h*${item.y}/100-text_h/2+${shadowY}:enable='${enable}',boxblur=luma_radius=${blur}:luma_power=1:chroma_radius=${blur}:chroma_power=1:alpha_radius=${blur}:alpha_power=1[${shadowLayer}]`);
           videoFilters.push(`[${previousVideo}][${shadowLayer}]overlay=shortest=1[${shadowComposite}]`);
           previousVideo = shadowComposite;
         }
-        videoFilters.push(`[${previousVideo}]drawtext=fontfile='${fontFile}':text='${escapedText}':fontcolor=0x${item.color}:fontsize=${fontSize}:x=w*${item.x}/100-text_w/2:y=h*${item.y}/100-text_h/2:enable='${enable}'[${outLabel}]`);
+        videoFilters.push(`[${previousVideo}]drawtext=fontfile='${fontFile}':${textSource}:fontcolor=0x${item.color}:fontsize=${fontSize}:x=w*${item.x}/100-text_w/2:y=h*${item.y}/100-text_h/2:enable='${enable}'[${outLabel}]`);
         previousVideo = outLabel;
       });
       videoFilters.push(`[${previousVideo}]null[vout]`);
@@ -496,9 +542,16 @@ app.post(
           "medium",
           "-crf",
           String(req.body.crf || 24),
+          "-r",
+          String(outputFps),
           tempVideo
         );
-        await runFfmpeg(videoArgs);
+        res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+        res.setHeader("Cache-Control", "no-cache");
+        res.flushHeaders();
+        const reportProgress = (progress) => res.write(`${JSON.stringify({ type: "progress", progress: Math.round(progress) })}\n`);
+        await runFfmpeg(videoArgs, reportProgress, totalDuration);
+        reportProgress(99);
         await runFfmpeg([
           "-i",
           tempVideo,
@@ -530,21 +583,33 @@ app.post(
           "medium",
           "-crf",
           String(req.body.crf || 24),
+          "-r",
+          String(outputFps),
           muteOriginal ? "-an" : "-c:a",
           muteOriginal ? undefined : "aac",
           "-movflags",
           "+faststart",
           outPath
         );
-        await runFfmpeg(videoArgs.filter(Boolean));
+        res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+        res.setHeader("Cache-Control", "no-cache");
+        res.flushHeaders();
+        await runFfmpeg(videoArgs.filter(Boolean), (progress) => res.write(`${JSON.stringify({ type: "progress", progress: Math.round(progress) })}\n`), totalDuration);
       }
 
-      res.json({ url: outputUrl(fileName), fileName });
+      res.write(`${JSON.stringify({ type: "complete", url: outputUrl(fileName), fileName })}\n`);
+      res.end();
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      if (res.headersSent) {
+        res.write(`${JSON.stringify({ type: "error", error: error.message })}\n`);
+        res.end();
+      } else {
+        res.status(500).json({ error: error.message });
+      }
     } finally {
       for (const file of videos) fs.rm(file.path, { force: true }, () => {});
       if (audio) fs.rm(audio.path, { force: true }, () => {});
+      for (const subtitleTextPath of subtitleTextPaths) fs.rm(subtitleTextPath, { force: true }, () => {});
       fs.rm(listPath, { force: true }, () => {});
       fs.rm(tempVideo, { force: true }, () => {});
     }

@@ -4938,8 +4938,13 @@ export default function App() {
       return;
     }
     const previews = results.filter((result) => result.status === "fulfilled").map((result) => result.value).filter(Boolean);
-    const thumbnail = previews.find((result) => result.kind === tab)?.thumbnail || previews.find((result) => result.thumbnail)?.thumbnail || "";
-    const project = { id: projectId, name, tab, savedAt: new Date().toISOString(), thumbnail };
+    const previousProject = projects.find((item) => item.id === projectId);
+    const projectTab = tab === "home" ? previousProject?.tab || "three" : tab;
+    const thumbnail = previews.find((result) => result.kind === projectTab)?.thumbnail
+      || previews.find((result) => result.thumbnail)?.thumbnail
+      || previousProject?.thumbnail
+      || "";
+    const project = { id: projectId, name, tab: projectTab, savedAt: new Date().toISOString(), thumbnail };
     storeProjects([...projects.filter((item) => item.id !== projectId), project]);
     setCurrentProjectId(projectId);
     setSaveDialogOpen(false);
