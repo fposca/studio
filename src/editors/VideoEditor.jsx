@@ -127,6 +127,7 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
   const previewTransformRef = useRef(null);
   const textDragRef = useRef(null);
   const timelineTextDragRef = useRef(null);
+  const pendingAudioRetimingRef = useRef(null);
   const undoHistoryRef = useRef([]);
   const redoHistoryRef = useRef([]);
   const lastHistoryStateRef = useRef(null);
@@ -228,6 +229,11 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
     setAudioPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [audioFile]);
+
+  useEffect(() => {
+    if (!audioPreviewUrl || !externalAudioRef.current) return;
+    externalAudioRef.current.load();
+  }, [audioPreviewUrl]);
 
   function fitSelectedClip(mode) {
     if (!selectedClip) return;
@@ -349,6 +355,7 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
       text: "Nuevo subtitulo",
       textEs: "Nuevo subtitulo",
       textEn: "",
+      textTrack: 0,
       start: Math.round(timelineTime * 10) / 10,
       duration: 3,
       x: 50,
@@ -370,24 +377,18 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
     setSelectedTextId(item.id);
   }
 
-  function distributeScriptOverAudio() {
-    const duration = audioDuration || externalAudioRef.current?.duration || 0;
-    if (!subtitleScript.trim() || !Number.isFinite(duration) || duration <= 0) {
-      setError("Carga un audio y pega el texto antes de generar los subtitulos");
-      return;
-    }
+  function buildSubtitlesFromScript(duration) {
     const decoder = document.createElement("textarea");
     decoder.innerHTML = subtitleScript;
     const normalized = decoder.value.replace(/\\\s*(?:\r?\n|$)/g, "\n").replace(/\r/g, "").trim();
     let phrases = normalized.split(/\n+/).map((line) => line.trim()).filter(Boolean);
     if (phrases.length === 1) phrases = normalized.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((line) => line.trim()).filter(Boolean) || phrases;
-    if (!phrases.length) return;
-    if (textOverlays.some((item) => item.subtitle) && !window.confirm("Reemplazar los subtitulos actuales por los generados desde el texto?")) return;
+    if (!phrases.length) return [];
 
     const weights = phrases.map((phrase) => Math.max(2, phrase.split(/\s+/).filter(Boolean).length + (phrase.match(/[,;:]/g) || []).length * 0.8));
     const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
     let cursor = 0;
-    const generated = phrases.map((phrase, index) => {
+    return phrases.map((phrase, index) => {
       const end = index === phrases.length - 1 ? duration : cursor + duration * weights[index] / totalWeight;
       const item = {
         id: `subtitle-auto-${Date.now()}-${index}`,
@@ -403,10 +404,62 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
       cursor = end;
       return item;
     });
+  }
+
+  function distributeScriptOverAudio() {
+    const duration = audioDuration || externalAudioRef.current?.duration || 0;
+    if (!subtitleScript.trim() || !Number.isFinite(duration) || duration <= 0) {
+      setError("Carga un audio y pega el texto antes de generar los subtitulos");
+      return;
+    }
+    if (textOverlays.some((item) => item.subtitle) && !window.confirm("Reemplazar los subtitulos actuales por los generados desde el texto?")) return;
+    const generated = buildSubtitlesFromScript(duration);
+    if (!generated.length) return;
     setTextOverlays((current) => [...current.filter((item) => !item.subtitle), ...generated]);
     setSelectedTextId(generated[0]?.id || "");
     setError("");
     setProjectStatus(`${generated.length} subtitulos distribuidos en ${duration.toFixed(1)} segundos`);
+  }
+
+  function replaceExternalAudio(file) {
+    if (!file) {
+      pendingAudioRetimingRef.current = null;
+      setAudioFile(null);
+      return;
+    }
+    const subtitles = textOverlays.filter((item) => item.subtitle);
+    if (subtitles.length) {
+      const subtitleEnd = Math.max(...subtitles.map((item) => item.start + item.duration), 0);
+      pendingAudioRetimingRef.current = {
+        oldDuration: audioDuration || externalAudioRef.current?.duration || subtitleEnd,
+        count: subtitles.length
+      };
+    } else pendingAudioRetimingRef.current = null;
+    setAudioFile(file);
+    setProjectStatus(subtitles.length ? `Cargando ${file.name} y actualizando subtitulos...` : `Audio reemplazado por ${file.name}`);
+  }
+
+  function removeExternalAudio() {
+    pendingAudioRetimingRef.current = null;
+    externalAudioRef.current?.pause();
+    setAudioFile(null);
+    setAudioDuration(0);
+    setProjectStatus("Audio externo eliminado. Los subtitulos se conservaron.");
+  }
+
+  function retimeSubtitlesForAudio(newDuration) {
+    const pending = pendingAudioRetimingRef.current;
+    pendingAudioRetimingRef.current = null;
+    if (!pending || !Number.isFinite(newDuration) || newDuration <= 0) return;
+    const oldDuration = Number(pending.oldDuration);
+    if (!Number.isFinite(oldDuration) || oldDuration <= 0) return;
+    const scale = newDuration / oldDuration;
+    setTextOverlays((current) => current.map((item) => item.subtitle ? {
+      ...item,
+      start: Math.round(item.start * scale * 100) / 100,
+      duration: Math.round(Math.max(0.15, item.duration * scale) * 100) / 100
+    } : item));
+    setProjectStatus(`${pending.count} subtitulos ajustados al audio de ${newDuration.toFixed(1)} segundos`);
   }
 
   function applySubtitleStyleToAll() {
@@ -968,7 +1021,7 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
       previewRef.current.addEventListener("seeked", revealVideo, { once: true });
       previewRef.current.addEventListener("canplay", revealVideo, { once: true });
     }
-    previewRef.current.muted = muteOriginal || Boolean(audioFile) || activeClip.muted;
+    previewRef.current.muted = muteOriginal || activeClip.muted;
 
     const drift = Math.abs(previewRef.current.currentTime - boundedTime);
     if (changedClip || drift > 0.35 || previewRef.current.currentTime < activeClip.in || previewRef.current.currentTime > activeClip.out) {
@@ -1049,9 +1102,9 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
 
   useEffect(() => {
     if (previewRef.current) {
-      previewRef.current.muted = muteOriginal || Boolean(audioFile) || Boolean(selectedClip?.muted);
+      previewRef.current.muted = muteOriginal || Boolean(selectedClip?.muted);
     }
-  }, [muteOriginal, audioFile, selectedClip?.muted, selectedClip?.id]);
+  }, [muteOriginal, selectedClip?.muted, selectedClip?.id]);
 
   useEffect(() => {
     if (!timelinePlaying) return undefined;
@@ -1611,6 +1664,17 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
 
   async function exportTimeline() {
     if (!clips.length) return;
+    let overlaysForExport = textOverlays;
+    if (!textOverlays.some((item) => item.subtitle) && subtitleScript.trim()) {
+      const duration = audioDuration || externalAudioRef.current?.duration || 0;
+      const generated = duration > 0 ? buildSubtitlesFromScript(duration) : [];
+      if (generated.length) {
+        overlaysForExport = [...textOverlays.filter((item) => !item.subtitle), ...generated];
+        setTextOverlays(overlaysForExport);
+        setSelectedTextId(generated[0].id);
+        setProjectStatus(`${generated.length} subtitulos restaurados antes de exportar`);
+      }
+    }
     setBusy("Exportando timeline");
     setExportProgress(0);
     setError("");
@@ -1622,7 +1686,7 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
         "clips",
         JSON.stringify(clips.map(({ name, start, in: clipIn, out, track, muted, effect, effectAmount, effects, pixelSize, positionX, positionY, scale, maskType, maskInDuration, maskOutDuration }) => ({ name, start, in: clipIn, out, track, muted, effect, effectAmount, effects, pixelSize, positionX, positionY, scale, maskType, maskInDuration, maskOutDuration })))
       );
-      const composedTexts = textOverlays.flatMap((item) => {
+      const composedTexts = overlaysForExport.flatMap((item) => {
         const boxWidth = item.boxWidth ?? (item.subtitle ? 80 : 60);
         if (!item.subtitle || subtitleDisplay !== "bilingual") {
           const wrapped = wrapTextForExport(subtitleText(item, subtitleDisplay), item.fontSize || 54, boxWidth, previewResolution.w, previewResolution.h, item.fontFamily, item.fontWeight, item.italic);
@@ -1676,7 +1740,7 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
       });
       form.append("textOverlays", JSON.stringify(exportTexts));
       if (audioFile) form.append("audio", audioFile);
-      form.append("muteOriginal", String(muteOriginal || Boolean(audioFile)));
+      form.append("muteOriginal", String(muteOriginal));
       Object.entries(settings).forEach(([key, value]) => form.append(key, value));
       const response = await fetch(`${API}/api/video/timeline`, { method: "POST", body: form });
       if (!response.ok) {
@@ -1715,9 +1779,12 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
   return (
     <section className="video-board">
       <audio
+        key={audioPreviewUrl || "sin-audio"}
         onCanPlay={(event) => { if (timelinePlaying) event.currentTarget.play().catch(() => {}); }}
         onLoadedMetadata={(event) => {
-          setAudioDuration(Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0);
+          const nextDuration = Number.isFinite(event.currentTarget.duration) ? event.currentTarget.duration : 0;
+          setAudioDuration(nextDuration);
+          retimeSubtitlesForAudio(nextDuration);
           event.currentTarget.currentTime = Math.min(timelineTimeRef.current, event.currentTarget.duration || timelineTimeRef.current);
         }}
         preload="auto"
@@ -1809,7 +1876,7 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
                   onPause={() => setIsPlaying(false)}
                   onPlay={() => setIsPlaying(true)}
                   onTimeUpdate={handlePreviewTimeUpdate}
-                  muted={muteOriginal || Boolean(audioFile) || Boolean(selectedClip?.muted)}
+                  muted={muteOriginal || Boolean(selectedClip?.muted)}
                   ref={previewRef}
                   src={selectedClip.previewUrl}
                   style={{ ...combinedClipEffectStyle(selectedClip), ...previewMaskStyle(selectedClip) }}
@@ -2080,7 +2147,8 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
             )}
             <div className="timeline-track-actions">
               <button disabled={videoTrackCount >= 8} onClick={() => setVideoTrackCount((count) => Math.min(8, count + 1))} type="button"><Plus size={14} /> Video</button>
-              <button disabled={textTrackCount >= 4} onClick={() => setTextTrackCount((count) => Math.min(4, count + 1))} type="button"><Plus size={14} /> Subtitulos</button>
+              <button onClick={addSubtitle} type="button"><Captions size={14} /> Subtitulo</button>
+              <button disabled={textTrackCount >= 4} onClick={() => setTextTrackCount((count) => Math.min(4, count + 1))} type="button"><Plus size={14} /> Pista de texto</button>
             </div>
             {Array.from({ length: videoTrackCount }, (_, track) => (
               <div className="track video-track" key={track}>
@@ -2180,6 +2248,7 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
             <div className={audioFile ? "audio-pill active" : "audio-pill"}>
               <Music2 size={16} />
               {audioFile ? audioFile.name : "Sin audio externo"}
+              {audioFile && <button data-tooltip="Eliminar audio externo" onClick={removeExternalAudio} type="button"><Trash2 size={14} /></button>}
             </div>
           </div>
           {Array.from({ length: textTrackCount }, (_, track) => <div className="track text-track" key={`text-track-${track}`}>
@@ -2199,6 +2268,9 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
                   {item.subtitle ? <Captions size={13} /> : <Type size={13} />} {subtitleText(item, subtitleDisplay)}
                 </button>
               ))}
+              {!textOverlays.some((item) => (item.textTrack || 0) === track) && track === 0 && (
+                <button className="timeline-empty" onClick={(event) => { event.stopPropagation(); addSubtitle(); }} type="button"><Captions size={14} /> Agregar subtitulo</button>
+              )}
             </div>
           </div>)}
           <div className="track effect-track">
@@ -2281,8 +2353,15 @@ export default function VideoEditor({ active = false, openProjectSignal = 0, tem
         <label className="drop-zone compact">
           <FileAudio size={18} />
           Audio externo
-          <input accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" onChange={(event) => setAudioFile(event.target.files?.[0] || null)} type="file" />
+          <input accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg" onChange={(event) => {
+            replaceExternalAudio(event.target.files?.[0] || null);
+            event.target.value = "";
+          }} type="file" />
         </label>
+        {audioFile && <div className="button-row">
+          <p className="file-hint">Audio activo: {audioFile.name}</p>
+          <button data-tooltip="Eliminar audio externo" onClick={removeExternalAudio} type="button"><Trash2 size={15} /> Eliminar audio</button>
+        </div>}
         <label className="check-row">
           <input checked={muteOriginal} onChange={(event) => setMuteOriginal(event.target.checked)} type="checkbox" />
           <VolumeX size={16} />

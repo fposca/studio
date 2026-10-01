@@ -1514,6 +1514,11 @@ label {
   padding: 5px 6px;
 }
 
+.three-director-control select:first-child {
+  max-width: 165px;
+  width: 165px;
+}
+
 .three-recording-controls button {
   gap: 6px;
   min-width: max-content;
@@ -1834,23 +1839,40 @@ label {
 }
 
 .three-property-tabs {
+  background: #191d22;
   border-bottom: 1px solid #303740;
   display: grid;
-  gap: 5px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  padding: 7px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  padding: 0 4px;
+  position: sticky;
+  top: 0;
+  z-index: 4;
 }
 
 .three-property-tabs button {
-  font-size: 10px;
-  min-height: 34px;
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 8px;
+  gap: 3px;
+  justify-content: center;
+  min-height: 48px;
   min-width: 0;
-  padding: 7px 4px;
+  padding: 6px 1px 5px;
 }
 
 .three-property-tabs button.active {
-  background: #8f00e8;
-  border-color: #b54cff;
+  background: #2c2035;
+  border-bottom-color: #c85cff;
+  color: #f2d9ff;
+}
+
+.three-property-tabs button:hover {
+  background: #242a30;
   color: #fff;
 }
 
@@ -2490,6 +2512,23 @@ label {
   border-color: #c65cff;
   box-shadow: inset 0 0 0 1px #8f00e8;
   color: #fff;
+}
+
+.three-grass-controls,
+.three-lava-controls {
+  border-bottom: 1px solid #303842;
+  border-top: 1px solid #303842;
+  display: grid;
+  gap: 8px;
+  padding: 4px 0 9px;
+}
+
+.three-sky-realism {
+  border-bottom: 1px solid #303842;
+  border-top: 1px solid #303842;
+  display: grid;
+  gap: 8px;
+  padding: 4px 0 9px;
 }
 
 .three-environment-presets button {

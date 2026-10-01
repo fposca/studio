@@ -205,6 +205,15 @@ function runFfmpeg(args, onProgress = null, totalDuration = 0) {
   });
 }
 
+async function hasAudioStream(filePath) {
+  try {
+    await runFfmpeg(["-i", filePath, "-map", "0:a:0", "-t", "0.01", "-f", "null", "-"]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true, ffmpeg: Boolean(ffmpegPath) });
 });
@@ -520,8 +529,9 @@ app.post(
       videoFilters.push(`[${previousVideo}]null[vout]`);
 
       const audioFilters = [];
-      const audibleClips = timelineClips.filter((clip) => !clip.muted);
-      if (!audio && !muteOriginal) {
+      const inputHasAudio = await Promise.all(videos.map((file) => hasAudioStream(file.path)));
+      const audibleClips = timelineClips.filter((clip) => !clip.muted && inputHasAudio[clip.index]);
+      if (!muteOriginal) {
         audibleClips.forEach((clip) => {
           const duration = Math.max(0.1, clip.out - clip.in);
           const delay = Math.round(clip.start * 1000);
@@ -535,10 +545,10 @@ app.post(
       if (audio) {
         videoArgs.push(
           "-filter_complex",
-          videoFilters.join(";"),
+          [...videoFilters, ...audioFilters].join(";"),
           "-map",
           "[vout]",
-          "-an",
+          ...(!muteOriginal && audibleClips.length ? ["-map", "[aout]"] : []),
           "-c:v",
           codec,
           "-preset",
@@ -547,6 +557,9 @@ app.post(
           String(req.body.crf || 24),
           "-r",
           String(outputFps),
+          ...(!muteOriginal && audibleClips.length ? ["-c:a", "aac"] : ["-an"]),
+          "-t",
+          String(totalDuration),
           tempVideo
         );
         res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
@@ -555,20 +568,27 @@ app.post(
         const reportProgress = (progress) => res.write(`${JSON.stringify({ type: "progress", progress: Math.round(progress) })}\n`);
         await runFfmpeg(videoArgs, reportProgress, totalDuration);
         reportProgress(99);
+        const hasOriginalAudio = !muteOriginal && audibleClips.length > 0;
+        const finalAudioFilter = hasOriginalAudio
+          ? `[0:a:0][1:a:0]amix=inputs=2:duration=longest:dropout_transition=0,apad=pad_dur=${totalDuration},atrim=duration=${totalDuration}[finalaudio]`
+          : `[1:a:0]apad=pad_dur=${totalDuration},atrim=duration=${totalDuration}[finalaudio]`;
         await runFfmpeg([
           "-i",
           tempVideo,
           "-i",
           audio.path,
+          "-filter_complex",
+          finalAudioFilter,
           "-map",
           "0:v:0",
           "-map",
-          "1:a:0",
+          "[finalaudio]",
           "-c:v",
           "copy",
           "-c:a",
           "aac",
-          "-shortest",
+          "-t",
+          String(totalDuration),
           "-movflags",
           "+faststart",
           outPath
@@ -590,6 +610,8 @@ app.post(
           String(outputFps),
           muteOriginal ? "-an" : "-c:a",
           muteOriginal ? undefined : "aac",
+          "-t",
+          String(totalDuration),
           "-movflags",
           "+faststart",
           outPath

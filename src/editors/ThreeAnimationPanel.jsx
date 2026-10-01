@@ -95,6 +95,12 @@ export default function ThreeAnimationPanel({
         <button data-tooltip="Guardar rotacion y vista de la escena" onClick={onAddCameraKeyframe} type="button"><Camera size={16} /> Vista {cameraKeyframes.length}</button>
         <div className="three-director-control">
           <select aria-label="Estilo de direccion automatica" onChange={(event) => setDirectorPreset(event.target.value)} value={directorPreset}>
+            <optgroup label="YouTube / documental">
+              <option value="youtube-reveal">YouTube - Descenso al rostro</option>
+              <option value="youtube-documentary">YouTube - Documental</option>
+              <option value="youtube-interview">YouTube - Entrevista</option>
+            </optgroup>
+            <optgroup label="Cine y musica">
             <option value="hollywood">Hollywood</option>
             <option value="dialogue">Dialogo</option>
             <option value="dialogue-push">Dialogo - Zoom lento</option>
@@ -105,6 +111,8 @@ export default function ThreeAnimationPanel({
             <option value="action">Accion</option>
             <option value="suspense">Suspenso</option>
             <option value="orbit">Orbita</option>
+            <option value="tv-priest-orbit">Orbita TV + Cura</option>
+            <option value="tv-first-person">TV primera persona</option>
             <option value="matrix">Matrix / Bullet time</option>
             <option value="rail-lateral">Riel lateral</option>
             <option value="rail-arc">Riel en arco</option>
@@ -113,13 +121,14 @@ export default function ThreeAnimationPanel({
             <option value="rock">Rock</option>
             <option value="hard-rock">Hard Rock</option>
             <option value="metal">Metal</option>
+            </optgroup>
           </select>
           <select aria-label="Transicion entre tomas" onChange={(event) => setDirectorTransition(event.target.value)} value={directorTransition}>
             <option value="cinematic">Cinematica</option>
             <option value="smooth">Suave</option>
             <option value="cut">Cortes</option>
           </select>
-          <button disabled={!selectedName} data-tooltip="Crear secuencia cinematografica para la seleccion" onClick={() => onAutoDirect(directorPreset, directorTransition)} type="button"><Film size={16} /> Director</button>
+          <button disabled={!selectedName && !["tv-priest-orbit", "tv-first-person"].includes(directorPreset)} data-tooltip={directorPreset === "tv-priest-orbit" ? "Girar alrededor de la TV y el cura" : directorPreset === "tv-first-person" ? "Acercarse de frente a la pantalla de la TV" : "Crear secuencia cinematografica para la seleccion"} onClick={() => onAutoDirect(directorPreset, directorTransition)} type="button"><Film size={16} /> Director</button>
         </div>
         <button disabled={!selectedMarker} data-tooltip="Eliminar marcador seleccionado (Delete)" onClick={deleteSelectedMarker} type="button"><Trash2 size={16} /></button>
         <button disabled={!cameraKeyframes.length} data-tooltip="Borrar animacion de vista" onClick={onClearCamera} type="button"><CameraOff size={16} /></button>
@@ -159,7 +168,7 @@ export default function ThreeAnimationPanel({
             onClick={() => { setSelectedMarker({ id: clip.id, kind: "camera" }); onSeek(clip.time); }}
             onDragStart={(event) => { event.dataTransfer.setData("application/x-neon-camera-marker", clip.id); event.dataTransfer.effectAllowed = "move"; }}
             style={{ left: `${(clip.time / duration) * 100}%`, width: `${Math.max(((clip.end - clip.time) / duration) * 100, 1.5)}%` }}
-            title={`Toma ${index + 1}: ${clip.time.toFixed(2)} s - ${clip.end.toFixed(2)} s`}
+            title={`${clip.shotName || `Toma ${index + 1}`}: ${clip.time.toFixed(2)} s - ${clip.end.toFixed(2)} s`}
             type="button"
           ><Camera size={10} /><span>{index + 1}</span></button>)}
         </div>
@@ -171,13 +180,13 @@ export default function ThreeAnimationPanel({
             key={`${marker.kind}:${marker.id}`}
             onClick={() => { setSelectedMarker({ id: marker.id, kind: marker.kind }); onSeek(marker.time); }}
             style={{ left: marker.left }}
-            title={`${marker.kind === "camera" ? "Vista de escena" : "Objeto"} ${marker.time.toFixed(2)} s`}
+            title={`${marker.kind === "camera" ? marker.shotName || "Vista de escena" : "Objeto"} ${marker.time.toFixed(2)} s`}
             type="button"
           />)}
         </div>
         <input aria-label="Tiempo de animacion" max={duration} min="0" onChange={(event) => onSeek(Number(event.target.value))} step="0.01" type="range" value={currentTime} />
       </div>
-      <div className="three-animation-time"><strong>{currentTime.toFixed(2)} s</strong><label>Duracion<input max="60" min="1" onChange={(event) => onDurationChange(Number(event.target.value))} step="1" type="number" value={duration} /></label></div>
+      <div className="three-animation-time"><strong>{currentTime.toFixed(2)} s</strong><label>Duracion<input max="300" min="1" onChange={(event) => onDurationChange(Number(event.target.value))} step="1" type="number" value={duration} /></label></div>
       <div className="three-animation-audio">
         <label className="three-audio-upload"><Upload size={15} /><span>{soundtrack?.name || "Cargar musica"}</span><input accept="audio/*,.mp3,.wav,.m4a,.ogg" onChange={(event) => { onAudioImport(event.target.files?.[0]); event.target.value = ""; }} type="file" /></label>
         {soundtrack && <>
@@ -211,7 +220,7 @@ export default function ThreeAnimationPanel({
           </>}
         </div>
         {activeMarker && <div className="three-shot-editor">
-          <strong>{activeMarker.kind === "camera" ? "Toma seleccionada" : "Keyframe seleccionado"}</strong>
+          <strong>{activeMarker.kind === "camera" ? activeMarker.shotName || "Toma seleccionada" : "Keyframe seleccionado"}</strong>
           <label><span>Inicio</span><input max={duration} min="0" onChange={(event) => onUpdateMarker(activeMarker.kind, activeMarker.id, { time: event.target.value })} step="0.1" type="number" value={activeMarker.time} /></label>
           {activeMarker.kind === "camera" && <label><span>Transicion</span><select onChange={(event) => onUpdateMarker("camera", activeMarker.id, { transition: event.target.value })} value={activeMarker.transition || "linear"}>
             <option value="cinematic">Cinematica</option>
