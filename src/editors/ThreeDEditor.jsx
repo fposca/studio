@@ -2452,16 +2452,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   useEffect(() => {
     performanceModeRef.current = performanceMode;
     localStorage.setItem("neon:three-quality", performanceMode);
+    const reduced = performanceMode === "performance";
+    performanceSampleRef.current.reduced = reduced;
+    setPerformanceReduced(reduced);
     const runtime = runtimeRef.current;
     if (!runtime) return;
-    const reduced = performanceMode === "performance";
-    if (performanceMode !== "auto") {
-      performanceSampleRef.current.reduced = reduced;
-      runtime.renderer.setPixelRatio(reduced ? 1 : Math.min(window.devicePixelRatio, 2));
-      runtime.renderer.shadowMap.enabled = true;
-      runtime.renderer.shadowMap.needsUpdate = true;
-      setPerformanceReduced(reduced);
-    }
+    runtime.renderer.setPixelRatio(reduced ? 1 : Math.min(window.devicePixelRatio, 2));
+    runtime.renderer.shadowMap.enabled = true;
+    runtime.renderer.shadowMap.needsUpdate = true;
   }, [performanceMode]);
 
   useEffect(() => () => {
@@ -3360,7 +3358,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setWebglError("Chrome no pudo iniciar WebGL. Cierra todas las ventanas de Chrome y vuelve a abrir la aplicacion.");
       return undefined;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(performanceModeRef.current === "performance" ? 1 : Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -3804,7 +3802,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         const shouldReduce = mode === "performance" || (mode === "auto" && (performanceSample.reduced ? fps < 52 : fps < 34));
         if (shouldReduce !== performanceSample.reduced) {
           performanceSample.reduced = shouldReduce;
-          renderer.setPixelRatio(shouldReduce ? 1 : Math.min(window.devicePixelRatio, 2));
           renderer.shadowMap.enabled = true;
           renderer.shadowMap.needsUpdate = true;
           setPerformanceReduced(shouldReduce);
@@ -7636,6 +7633,9 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     } finally {
       modelLoadInFlightRef.current = false;
       setModelLoading("");
+      if (isHeavyModel && runtimeRef.current === runtime && !viewportRecordingRef.current) {
+        runtime.renderer.setPixelRatio(performanceModeRef.current === "performance" ? 1 : Math.min(window.devicePixelRatio, 2));
+      }
       if (url) URL.revokeObjectURL(url);
       event.target.value = "";
     }
