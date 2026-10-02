@@ -2,11 +2,14 @@ import * as THREE from "three";
 
 export function createPanoramaBackdrop({ name, horizontalRepeat = 1, horizontalOffset = 0,
   horizonCompression = 1, verticalOffset = 0, verticalScale = 1, horizonFade = 0,
-  horizonColor = "#000000", seamBlend = 0, intensity = 1, zenithCap = 0 }) {
+  horizonColor = "#000000", seamBlend = 0, intensity = 1, zenithCap = 0,
+  horizontalMirror = false }) {
   const material = new THREE.ShaderMaterial({
     uniforms: {
-      panorama: { value: null }, intensity: { value: intensity },
+      panorama: { value: null }, zenithTexture: { value: null }, zenithTextureEnabled: { value: 0 },
+      intensity: { value: intensity },
       horizontalRepeat: { value: horizontalRepeat }, horizontalOffset: { value: horizontalOffset },
+      horizontalMirror: { value: horizontalMirror ? 1 : 0 },
       horizonCompression: { value: horizonCompression },
       verticalOffset: { value: verticalOffset }, verticalScale: { value: verticalScale },
       horizonFade: { value: horizonFade }, horizonColor: { value: new THREE.Color(horizonColor) },
@@ -24,9 +27,12 @@ export function createPanoramaBackdrop({ name, horizontalRepeat = 1, horizontalO
     `,
     fragmentShader: `
       uniform sampler2D panorama;
+      uniform sampler2D zenithTexture;
+      uniform float zenithTextureEnabled;
       uniform float intensity;
       uniform float horizontalRepeat;
       uniform float horizontalOffset;
+      uniform float horizontalMirror;
       uniform float horizonCompression;
       uniform float verticalOffset;
       uniform float verticalScale;
@@ -39,9 +45,13 @@ export function createPanoramaBackdrop({ name, horizontalRepeat = 1, horizontalO
       void main() {
         float latitude = (vPanoramaUv.y - 0.5) * 2.0;
         float compressed = latitude * horizonCompression / (1.0 + (horizonCompression - 1.0) * abs(latitude));
-        vec2 uv = vec2(fract(vPanoramaUv.x * horizontalRepeat + horizontalOffset), clamp(0.5 + compressed * 0.5 * verticalScale + verticalOffset, 0.0, 1.0));
+        float horizontalUv = vPanoramaUv.x * horizontalRepeat + horizontalOffset;
+        float verticalUv = 0.5 + compressed * 0.5 * verticalScale + verticalOffset;
+        vec2 uv = vec2(horizontalMirror > 0.5
+          ? 1.0 - abs(mod(horizontalUv, 2.0) - 1.0)
+          : fract(horizontalUv), clamp(verticalUv, 0.0, 1.0));
         vec3 color = texture2D(panorama, uv).rgb * intensity;
-        if (seamBlend > 0.0) {
+        if (seamBlend > 0.0 && horizontalMirror < 0.5) {
           vec3 edgeColor = (texture2D(panorama, vec2(0.001, uv.y)).rgb
             + texture2D(panorama, vec2(0.999, uv.y)).rgb) * intensity * 0.5;
           float edgeWeight = smoothstep(0.0, seamBlend, uv.x)
@@ -51,10 +61,18 @@ export function createPanoramaBackdrop({ name, horizontalRepeat = 1, horizontalO
         if (horizonFade > 0.0) color = mix(horizonColor, color,
           smoothstep(0.5, 0.5 + horizonFade, vPanoramaUv.y));
         if (zenithCap > 0.0) {
-          vec2 capUv = vec2(0.45 + vPanoramaDirection.x * 0.17,
-            clamp(0.91 + vPanoramaDirection.z * 0.08, 0.82, 0.98));
-          vec3 capColor = texture2D(panorama, capUv).rgb * intensity;
-          color = mix(color, capColor, zenithCap * smoothstep(0.55, 0.72, vPanoramaUv.y));
+          vec3 capColor;
+          if (zenithTextureEnabled > 0.5) {
+            vec2 capUv = clamp(normalize(vPanoramaDirection).xz * 0.55 + 0.5, 0.0, 1.0);
+            capColor = texture2D(zenithTexture, capUv).rgb * intensity;
+          } else {
+            vec2 capUv = vec2(0.45 + vPanoramaDirection.x * 0.17,
+              clamp(0.91 + vPanoramaDirection.z * 0.08, 0.82, 0.98));
+            capColor = texture2D(panorama, capUv).rgb * intensity;
+          }
+          float capWeight = smoothstep(0.55, 0.72, vPanoramaUv.y);
+          if (zenithTextureEnabled > 0.5) capWeight = max(capWeight, smoothstep(0.88, 0.98, verticalUv));
+          color = mix(color, capColor, zenithCap * capWeight);
         }
         gl_FragColor = vec4(color, 1.0);
         #include <tonemapping_fragment>
@@ -79,6 +97,10 @@ export function createPanoramaBackdrop({ name, horizontalRepeat = 1, horizontalO
     material.uniforms.panorama.value = texture;
     material.uniforms.intensity.value = brightness;
     mesh.visible = Boolean(texture);
+  };
+  mesh.userData.setZenithTexture = (texture) => {
+    material.uniforms.zenithTexture.value = texture;
+    material.uniforms.zenithTextureEnabled.value = texture ? 1 : 0;
   };
   mesh.userData.dispose = () => { mesh.geometry.dispose(); material.dispose(); };
   return mesh;

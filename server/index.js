@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import multer from "multer";
 import potrace from "potrace";
+import { registerLocalRig3dRoutes } from "./localRig3d.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -39,6 +40,7 @@ const cleanName = (value) =>
     .replace(/^-+|-+$/g, "");
 
 const outputUrl = (fileName) => `${serverOrigin}/outputs/${fileName}`;
+registerLocalRig3dRoutes(app, { workDir, outputDir, outputUrl, upload });
 
 function videoEffectFilter(effect, pixelSize = 12, effectAmount = 100, range = null) {
   const strength = Math.max(0, Math.min(2, Number(effectAmount ?? 100) / 100));

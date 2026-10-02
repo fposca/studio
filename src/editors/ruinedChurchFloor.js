@@ -94,11 +94,11 @@ export function createRuinedChurchDebrisSystem() {
     texture.anisotropy = 8;
     textures.add(texture);
     const top = new THREE.MeshStandardMaterial({
-      color: tint, map: texture, bumpMap: texture, bumpScale: 0.035,
+      color: tint, map: texture, bumpMap: texture, bumpScale: 0.06,
       roughness: 1, metalness: 0, envMapIntensity: 0.65
     });
     const edge = new THREE.MeshStandardMaterial({
-      color: tint, map: texture, bumpMap: texture, bumpScale: 0.055,
+      color: tint, map: texture, bumpMap: texture, bumpScale: 0.075,
       roughness: 1, metalness: 0, envMapIntensity: 0.65
     });
     applyChurchEngravings(top);
@@ -318,7 +318,8 @@ export function createRuinedChurchBedMaterial(map, color) {
       vec2 edgeDistance = abs(vChurchFloor) - vec2(${RUINED_FLOOR_EXTENT[0]}, ${RUINED_FLOOR_EXTENT[1]});
       float soil = 1.0 - smoothstep(-0.18, 0.12, max(edgeDistance.x, edgeDistance.y));
       float grain = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
-      vec3 earth = vec3(0.06, 0.051, 0.04) * (0.55 + grain * 2.2);
+      vec3 earth = vec3(0.032, 0.031, 0.032) * (0.65 + grain * 1.6) *
+        (0.72 + churchNoise(vChurchFloor * 5.5) * 0.55);
       vec2 grid = vChurchFloor / vec2(${STEP_X}, ${STEP_Z});
       vec2 cell = floor(grid);
       // Filter each family of joints independently instead of erasing the whole pattern.

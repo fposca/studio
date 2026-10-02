@@ -44,12 +44,14 @@ import skyDay from "../assets/environments/sky-day.png";
 import skySun from "../assets/environments/sky-sun.png";
 import skySunset from "../assets/environments/sky-sunset.png";
 import skyNight from "../assets/environments/sky-night.png";
-import skySpace from "../assets/environments/sky-space.png";
+import skySpace from "../assets/environments/sky-space-nebula-v3.png";
+import spaceShipPreview from "../assets/environments/space-ship-preview.jpg";
 import skyInfernal from "../assets/environments/sky-infernal-sharp.png";
 import skyApocalypse from "../assets/environments/sky-apocalypse-sharp.png";
 import apocalypseSoilTexture from "../assets/environments/apocalypse-soil-texture.png";
 import skyCemetery from "../assets/environments/sky-cemetery-v2.png";
 import infernalFloorTexture from "../assets/environments/infernal-floor-texture.png";
+import volcanicBlackEarthTexture from "../assets/environments/volcanic-black-earth-v1.png";
 import cemeteryFloorTexture from "../assets/environments/cemetery-soil-v3.png";
 import skyMedievalApocalypse from "../assets/environments/sky-medieval-apocalypse.png";
 import medievalApocalypseFloorTexture from "../assets/environments/medieval-apocalypse-floor-texture.png";
@@ -57,13 +59,13 @@ import skyGothicChurch from "../assets/environments/sky-gothic-church.png";
 import gothicChurchFloorTexture from "../assets/environments/gothic-church-floor-v2.png";
 import skyNightSwamp from "../assets/environments/sky-night-swamp-v2.png";
 import nightSwampFloorTexture from "../assets/environments/night-swamp-mud-v2.png";
-import skyRuinedGothicChurch from "../assets/environments/sky-ruined-gothic-church-v4.png";
+import skyRuinedGothicChurch from "../assets/environments/sky-ruined-gothic-church-sharp.png";
 import ruinedGothicChurchFloorTexture from "../assets/environments/ruined-gothic-church-floor-texture-v2.png";
 import skyCastleInterior from "../assets/environments/sky-castle-interior-v2.png";
 import castleStoneTexture from "../assets/environments/castle-interior-stone-v1.png";
-import skyCastleCourtyard from "../assets/environments/sky-castle-courtyard.png";
 import skyMedievalVillage from "../assets/environments/sky-medieval-village.png";
-import skyMoonlitPeaks from "../assets/environments/sky-moonlit-peaks-v3.png";
+import skyMoonlitPeaks from "../assets/environments/sky-moonlit-peaks-v4.png";
+import moonlitZenithTextureUrl from "../assets/environments/moonlit-zenith-v1.png";
 import moonlitPeaksGroundTexture from "../assets/environments/moonlit-peaks-ground-v1.png";
 import skySpiderwebRuins from "../assets/environments/sky-spiderweb-ruins.png";
 import neonboyModelUrl from "../assets/Meshy_AI_Midnight_Jester_Axe_Breathe_and_Look_.glb?url";
@@ -99,6 +101,12 @@ import { HD_WALK_GAIT_UNITS_PER_SECOND, speedForAnimationChange, syncedGaitRate 
 import { DEFAULT_MASK_NEON, normalizeMaskNeon, updateMaskNeon } from "./maskNeon.js";
 import { createApocalypseLighting, DEFAULT_APOCALYPSE_LIGHTING } from "./apocalypseLighting.js";
 import { createApocalypseFires, DEFAULT_APOCALYPSE_FIRES, MAX_APOCALYPSE_FIRES, normalizeApocalypseFires } from "./apocalypseFires.js";
+import { createSpaceScene, createNebulaFloorGeometry, createNebulaFloorMaterial, DEFAULT_SPACE_SETTINGS, normalizeSpaceSettings } from "./spaceScene.js";
+import { createSpaceShipSet } from "./spaceShipSet.js";
+import {
+  CINEMATIC_SHOTS, CINEMATIC_ANGLES, CINEMATIC_PRESETS, DEFAULT_CINEMATIC_CAMERA,
+  frameCinematicSubjects
+} from "./cinematicCamera.js";
 
 const THREE_PROJECT_ID = "three";
 const THREE_AUTOSAVE_ID = "autosave:three";
@@ -120,7 +128,7 @@ const DEFAULT_LAVA_SETTINGS = {
   gasDensity: 0.8
 };
 const DEFAULT_REALISTIC_SKY = { styleVersion: 2, enabled: true, cloudCover: 0.62, cloudAmount: 0.78, cloudSpeed: 0.16, sunElevation: 18, sunAzimuth: -165, sunIntensity: 3.6 };
-const REALISTIC_SKY_BACKGROUNDS = new Set(["field", "clouds", "sky-clouds", "sky-sun", "sky-day", "sky-sunset", "sky-castle-courtyard", "sky-medieval-village"]);
+const REALISTIC_SKY_BACKGROUNDS = new Set(["field", "clouds", "sky-clouds", "sky-sun", "sky-day", "sky-sunset", "sky-medieval-village"]);
 const BUNDLED_GLTF_CACHE = new Map();
 const SHARED_GEOMETRY_ROOTS = new WeakSet();
 const SHARED_GEOMETRIES = new WeakSet();
@@ -226,6 +234,10 @@ const CAMERA_SHOTS = [
   { id: "american", name: "Americano", crop: 0.22, fill: 0.88, fov: 38 },
   { id: "medium", name: "Medio", crop: 0.48, fill: 0.9, fov: 35 },
   { id: "close", name: "Primer plano", crop: 0.7, fill: 0.88, fov: 32 },
+  { id: "american-front", name: "Americano frontal", crop: 0.22, fill: 0.76, fov: 41, angle: 0, elevation: 2 },
+  { id: "medium-close", name: "Medio corto", crop: 0.6, fill: 0.78, fov: 40, angle: 0, elevation: 2 },
+  { id: "close-neutral", name: "Primer plano clasico", crop: 0.73, fill: 0.72, fov: 43, angle: 0, elevation: 2, focus: "face" },
+  { id: "detail-face", name: "Detalle rostro", crop: 0.85, fill: 0.68, fov: 45, angle: 0, elevation: 1, focus: "face" },
   { id: "three-quarter-left", name: "3/4 izquierda", crop: 0.42, fill: 0.88, fov: 36, angle: 38, elevation: 4 },
   { id: "three-quarter-right", name: "3/4 derecha", crop: 0.42, fill: 0.88, fov: 36, angle: -38, elevation: 4 },
   { id: "profile", name: "Perfil", crop: 0.28, fill: 0.86, fov: 38, angle: 86, elevation: 2 },
@@ -326,6 +338,7 @@ const CHARACTER_ANIMATION_NAMES = {
   "cura-2": { character: "Cura", animation: "Sentado 2", order: 46 },
   "zombie-breath": { character: "Zombie", animation: "Respirando", order: 42 },
   "zombieGuitarr": { character: "Zombie", animation: "Tocando guitarra", order: 43 },
+  "angel": { character: "Angel", animation: "Base", order: 55 },
   "reptiliano-walk": { character: "Reptiliano", animation: "Caminando", order: 50, locomotion: true }
 };
 const isGuitaristModel = (id) => id?.startsWith("neon-guitar") || ["Neonboy-playGuitarHD", "calm-guitar", "neon-rock", "neonrock6", "neonHead", "profe", "demon-rock", "zombieGuitarr"].includes(id);
@@ -427,6 +440,60 @@ function ensureDemonEyePulse(model) {
     group.add(light);
   });
   head.add(group);
+}
+
+function ensureAngelHalo(model) {
+  if (model?.userData?.bundledModel !== "angel") return;
+  const head = model.getObjectByName("mixamorigHead") || model.getObjectByName("mixamorig:Head");
+  if (!head || head.getObjectByName("AngelHalo")) return;
+
+  const halo = new THREE.Group();
+  halo.name = "AngelHalo";
+  halo.userData.editorHelper = true;
+  halo.position.set(0, 0.23, 0);
+  halo.rotation.x = 1.1;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 160;
+  const context = canvas.getContext("2d");
+  const glow = context.createRadialGradient(80, 80, 34, 80, 80, 78);
+  glow.addColorStop(0, "rgba(255, 241, 190, 0)");
+  glow.addColorStop(0.22, "rgba(255, 234, 174, 0.08)");
+  glow.addColorStop(0.43, "rgba(255, 225, 145, 0.48)");
+  glow.addColorStop(0.65, "rgba(255, 213, 115, 0.18)");
+  glow.addColorStop(1, "rgba(255, 205, 110, 0)");
+  context.fillStyle = glow;
+  context.fillRect(0, 0, 160, 160);
+  const glowTexture = new THREE.CanvasTexture(canvas);
+  const aura = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.68, 0.68),
+    new THREE.MeshBasicMaterial({
+      map: glowTexture,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      toneMapped: false
+    })
+  );
+  aura.name = "AngelHaloGlow";
+  aura.userData.editorHelper = true;
+  halo.add(aura);
+
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(0.19, 0.012, 8, 64),
+    new THREE.MeshBasicMaterial({ color: 0xfff0c0, toneMapped: false, side: THREE.DoubleSide })
+  );
+  ring.name = "AngelHaloRing";
+  ring.userData.editorHelper = true;
+  halo.add(ring);
+
+  const light = new THREE.PointLight(0xffe3a0, 2.2, 2.6, 2);
+  light.name = "AngelHaloLight";
+  light.userData.editorHelper = true;
+  head.add(halo);
+  head.add(light);
+  light.position.set(0, 0.2, 0.04);
 }
 
 function ensureRetroTvScreen(model) {
@@ -532,6 +599,7 @@ const DEFAULT_SCENE_EFFECTS = {
   cemeteryLighting: DEFAULT_CEMETERY_LIGHTING,
   castleLighting: DEFAULT_CASTLE_LIGHTING,
   gothicLighting: DEFAULT_GOTHIC_LIGHTING,
+  space: DEFAULT_SPACE_SETTINGS,
   apocalypseLighting: DEFAULT_APOCALYPSE_LIGHTING,
   apocalypseFires: DEFAULT_APOCALYPSE_FIRES
 };
@@ -543,7 +611,7 @@ const ENVIRONMENT_BACKGROUNDS = [
 ];
 const SKY_BACKGROUNDS = [
   { id: "sky-clouds", name: "Nubes", image: cloudsPanorama, ambient: 1.05, exposure: 1.02, key: 2.1, light: "#e8f2ff", ground: "#8ba0ba", environment: 0.8 },
-  { id: "sky-space", name: "Espacio", image: skySpace, ambient: 0.18, exposure: 1.3, key: 0.45, light: "#9ba8ff", ground: "#090414", environment: 0.95 },
+  { id: "sky-space", name: "Espacio", image: skySpace, ambient: 0.5, exposure: 1.14, key: 1.2, light: "#b7d9e2", ground: "#14212b", environment: 0.72, backgroundIntensity: 1.06 },
   { id: "sky-sun", name: "Sol", image: skySun, ambient: 0.85, exposure: 1.08, key: 4.2, light: "#fff1c4", ground: "#7e91a4", environment: 0.85 },
   { id: "sky-night", name: "Noche", image: skyNight, ambient: 0.16, exposure: 1.2, key: 0.32, light: "#9cbcff", ground: "#050914", environment: 0.7 },
   { id: "sky-day", name: "Dia", image: skyDay, ambient: 1, exposure: 1, key: 2.6, light: "#fff8e8", ground: "#7892a6", environment: 0.82 },
@@ -556,13 +624,14 @@ const SKY_BACKGROUNDS = [
   { id: "sky-night-swamp", name: "Pantano", image: skyNightSwamp, ambient: 0.55, exposure: 1.38, key: 1.2, light: "#a6c4cd", ground: "#273329", environment: 0.6 },
   { id: "sky-ruined-gothic-church", name: "Iglesia en ruinas", image: skyRuinedGothicChurch, ambient: 0.38, exposure: 1.06, key: 1.2, light: "#9bbcff", ground: "#100d18", environment: 0.72, backgroundIntensity: 0.68, backgroundRotationX: 0 },
   { id: "sky-castle-interior", name: "Interior castillo", image: skyCastleInterior, ambient: 0.56, exposure: 1.08, key: 1.75, light: "#c6d8e8", ground: "#312921", environment: 0.56, backgroundIntensity: 0.88 },
-  { id: "sky-castle-courtyard", name: "Patio del castillo", image: skyCastleCourtyard, ambient: 0.82, exposure: 1.02, key: 2.35, light: "#fff0cf", ground: "#667068", environment: 0.8 },
+  { id: "sky-space-ship", name: "Space Ship", image: skySpace, ambient: 0.48, exposure: 1.1, key: 1.45, light: "#e1e3d4", ground: "#252924", environment: 0.52, backgroundIntensity: 0.045 },
   { id: "sky-medieval-village", name: "Aldea medieval", image: skyMedievalVillage, ambient: 0.66, exposure: 1.08, key: 1.85, light: "#ffd8a3", ground: "#4a4640", environment: 0.82 },
   { id: "sky-moonlit-peaks", name: "Cumbres luna llena", image: skyMoonlitPeaks, ambient: 0.48, exposure: 1.12, key: 1.85, light: "#a9c8e0", ground: "#17232a", environment: 0.64 },
   { id: "sky-spiderweb-ruins", name: "Ruinas de telaranas", image: skySpiderwebRuins, ambient: 0.2, exposure: 1.24, key: 1.15, light: "#bed5f2", ground: "#0c1115", environment: 0.88 }
 ];
 
 function environmentThumbnail(preset) {
+  if (preset.id === "sky-space-ship") return spaceShipPreview;
   if (preset.id === "sky-gothic-church") return skyGothicChurch;
   if (preset.id === "sky-ruined-gothic-church") return skyRuinedGothicChurch;
   if (preset.id === "sky-castle-interior") return skyCastleInterior;
@@ -578,7 +647,7 @@ const THEMED_SCENES = [
   { id: "night-swamp", name: "Pantano", sky: "sky-night-swamp", floor: "night-swamp", image: skyNightSwamp },
   { id: "ruined-gothic-church", name: "Iglesia en ruinas", sky: "sky-ruined-gothic-church", floor: "ruined-gothic-church", image: skyRuinedGothicChurch },
   { id: "castle-interior", name: "Interior castillo", sky: "sky-castle-interior", floor: "castle-stone", image: skyCastleInterior },
-  { id: "castle-courtyard", name: "Patio del castillo", sky: "sky-castle-courtyard", floor: "ruined-gothic-church", image: skyCastleCourtyard },
+  { id: "space-ship", name: "Space Ship", sky: "sky-space-ship", floor: "ship-deck", image: skySpace },
   { id: "medieval-village", name: "Aldea medieval", sky: "sky-medieval-village", floor: "medieval-apocalypse", image: skyMedievalVillage },
   { id: "moonlit-peaks", name: "Cumbres luna llena", sky: "sky-moonlit-peaks", floor: "moonlit-peaks", image: skyMoonlitPeaks },
   { id: "spiderweb-ruins", name: "Ruinas de telaranas", sky: "sky-spiderweb-ruins", floor: "night-swamp", image: skySpiderwebRuins }
@@ -587,12 +656,14 @@ const FLOOR_SURFACES = [
   { id: "shadow", name: "Solo sombra", color: "#20242a" },
   { id: "grass", name: "Pasto", color: "#4f7f32" },
   { id: "metal", name: "Metal", color: "#87929a" },
+  { id: "ship-deck", name: "Cubierta nave", color: "#52636a" },
   { id: "dirt", name: "Tierra", color: "#79543a" },
   { id: "plastic", name: "Plastico", color: "#59636f" },
   { id: "concrete", name: "Cemento", color: "#777a78" },
   { id: "tiles", name: "Ceramicos", color: "#d8dde0" },
   { id: "glass", name: "Vidrio", color: "#bdefff" },
   { id: "fantasy", name: "Fantasia", color: "#b54cff" },
+  { id: "space-nebula", name: "Nebulosa", color: "#d9e0e2" },
   { id: "gas", name: "Gases", color: "#5442d6" },
   { id: "water", name: "Agua", color: "#34c4e8" },
   { id: "infernal", name: "Lava", color: "#ff3b0a" },
@@ -609,12 +680,16 @@ function defaultFloorColor(surface) {
   return FLOOR_SURFACES.find((preset) => preset.id === surface)?.color || "#59636f";
 }
 function ruinedChurchFloorTint(color) {
-  return new Color(color).lerp(new Color("#d7dce2"), 0.62);
+  return new Color(color).lerp(new Color("#92969c"), 0.65);
+}
+function infernalFloorTint(color) {
+  return new Color(color).lerp(new Color("#d7cfc6"), 0.86);
 }
 const REALISTIC_FLOOR_TEXTURES = {
   grass: grassTexture,
   dirt: dirtTexture,
   metal: brushedMetalTexture,
+  "ship-deck": brushedMetalTexture,
   concrete: concreteTexture,
   tiles: ceramicTilesTexture,
   plastic: plasticTexture,
@@ -668,7 +743,7 @@ function createFloorTexture(surface) {
     const texture = new THREE.TextureLoader().load(surface === "ruined-gothic-church" ? concreteTexture : REALISTIC_FLOOR_TEXTURES[surface]);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    const repeats = { grass: 14, dirt: 12, metal: 8, concrete: 10, tiles: 8, plastic: 12, fantasy: 7, gas: 5, water: 10, infernal: 7, apocalypse: 42, cemetery: 36, "medieval-apocalypse": 26, "gothic-church": 52, "castle-stone": 48, "night-swamp": 38, "moonlit-peaks": 54, "ruined-gothic-church": 16 };
+    const repeats = { grass: 14, dirt: 12, metal: 8, "ship-deck": 22, concrete: 10, tiles: 8, plastic: 12, fantasy: 7, gas: 5, water: 10, infernal: 16, apocalypse: 42, cemetery: 36, "medieval-apocalypse": 26, "gothic-church": 52, "castle-stone": 48, "night-swamp": 38, "moonlit-peaks": 54, "ruined-gothic-church": 16 };
     texture.repeat.set(repeats[surface], repeats[surface]);
     if (surface === "ruined-gothic-church") texture.repeat.set(392, 392);
     texture.anisotropy = ["ruined-gothic-church", "apocalypse", "cemetery", "castle-stone", "gothic-church", "night-swamp", "medieval-apocalypse", "moonlit-peaks"].includes(surface) ? 16 : 8;
@@ -707,10 +782,12 @@ function createFloorTexture(surface) {
 
 function createFloorMaterial(surface, color) {
   if (surface === "shadow") return new THREE.ShadowMaterial({ color: 0x000000, opacity: 0.32, transparent: true });
+  if (surface === "space-nebula") return createNebulaFloorMaterial(color);
   const map = createFloorTexture(surface);
   const settings = {
     grass: { color, roughness: 1, metalness: 0 },
     metal: { color, roughness: 0.28, metalness: 0.9 },
+    "ship-deck": { color, roughness: 0.42, metalness: 0.7 },
     dirt: { color, roughness: 1, metalness: 0 },
     concrete: { color, roughness: 0.88, metalness: 0 },
     tiles: { color, roughness: 0.24, metalness: 0.05 },
@@ -732,8 +809,9 @@ function createFloorMaterial(surface, color) {
   });
   if (surface === "infernal") {
     const material = new THREE.MeshStandardMaterial({
-      color, map, bumpMap: map, bumpScale: 0.075, displacementMap: map, displacementScale: 0.3, displacementBias: -0.075,
-      emissiveMap: map, emissive: 0x8f1300, emissiveIntensity: 0.64, roughness: 0.74, metalness: 0.06
+      color: infernalFloorTint(color), map, bumpMap: map, bumpScale: 0.13,
+      displacementMap: map, displacementScale: 0.2, displacementBias: -0.075,
+      roughness: 0.94, metalness: 0
     });
     material.userData.lavaTime = 0;
     material.userData.lavaContacts = Array.from({ length: 6 }, () => new THREE.Vector2(10000, 10000));
@@ -797,6 +875,7 @@ function createFloorMaterial(surface, color) {
         varying float vLavaBoil;
         varying float vLavaContact;
         float lavaCrustMask = 0.0;
+        float lavaFissureHeat = 0.0;
         float lavaCrustHash(vec2 point) {
           return fract(sin(dot(point, vec2(41.73, 289.11))) * 45758.5453);
         }
@@ -817,17 +896,22 @@ function createFloorMaterial(surface, color) {
           float crustLarge = lavaCrustNoise(crustUv) * 0.68 + lavaCrustNoise(crustUv * 2.17 + 13.7) * 0.32;
           float crustBreak = abs(lavaCrustNoise(crustUv * 3.6 - uLavaTime * 0.012) - 0.5) * 2.0;
           lavaCrustMask = smoothstep(0.54, 0.7, crustLarge) * smoothstep(0.12, 0.36, crustBreak);
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.026, 0.006, 0.003), lavaCrustMask * 0.88);
+          vec3 lavaTexel = texture2D(map, vMapUv).rgb;
+          lavaFissureHeat = smoothstep(0.14, 0.66, lavaTexel.r - lavaTexel.g * 0.62);
+          float slowPulse = 0.77 + 0.23 * lavaCrustNoise(vMapUv * 51.0 - vec2(uLavaTime * 0.09, uLavaTime * 0.04));
+          lavaFissureHeat *= slowPulse * (1.0 - lavaCrustMask * 0.8);
+          diffuseColor.rgb = mix(diffuseColor.rgb * 0.58, vec3(0.17, 0.016, 0.003), lavaFissureHeat * 0.42);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.025, 0.018, 0.015), lavaCrustMask * 0.76);
         #endif
       `).replace("#include <emissivemap_fragment>", `
         #include <emissivemap_fragment>
-        totalEmissiveRadiance *= 1.0 - lavaCrustMask * 0.9;
-        totalEmissiveRadiance += vec3(0.78, 0.035, 0.004) * vLavaBoil * 0.92;
-        totalEmissiveRadiance += vec3(0.82, 0.065, 0.006) * vLavaContact * 0.68;
+        totalEmissiveRadiance += vec3(1.0, 0.115, 0.012) * lavaFissureHeat * 0.78;
+        totalEmissiveRadiance += vec3(0.73, 0.065, 0.006) * vLavaBoil * 0.42;
+        totalEmissiveRadiance += vec3(0.82, 0.08, 0.008) * vLavaContact * 0.52;
       `);
       material.userData.lavaShader = shader;
     };
-    material.customProgramCacheKey = () => "infernal-floor-boil-v3";
+    material.customProgramCacheKey = () => "infernal-floor-fissures-v4";
     return material;
   }
   if (surface === "apocalypse") return new THREE.MeshLambertMaterial({ color, map, bumpMap: map, bumpScale: 0.105 });
@@ -1293,43 +1377,70 @@ function createLavaJetSystem(count = 24) {
   const group = new THREE.Group();
   group.name = "Chorros de lava";
   group.visible = false;
-  const lavaTexture = createFloorTexture("infernal");
-  lavaTexture.repeat.set(1.2, 2.6);
-  const material = new THREE.MeshPhysicalMaterial({
-    color: 0xff5426,
-    map: lavaTexture,
-    emissiveMap: lavaTexture,
-    emissive: 0x9e1000,
-    emissiveIntensity: 1.08,
-    roughness: 0.38,
+  const material = new THREE.MeshStandardMaterial({
+    color: 0x7d210d,
+    emissive: 0xff3809,
+    emissiveIntensity: 0.44,
+    roughness: 0.9,
     metalness: 0,
-    clearcoat: 0.42,
-    clearcoatRoughness: 0.2,
     side: THREE.DoubleSide
+  });
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uJetTime = { value: 0 };
+    shader.vertexShader = shader.vertexShader.replace("#include <common>", `
+      #include <common>
+      varying vec3 vJetWorld;
+    `).replace("#include <begin_vertex>", `
+      #include <begin_vertex>
+      vJetWorld = (modelMatrix * instanceMatrix * vec4(position, 1.0)).xyz;
+    `);
+    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `
+      #include <common>
+      uniform float uJetTime;
+      varying vec3 vJetWorld;
+    `).replace("#include <color_fragment>", `
+      #include <color_fragment>
+      float flow = sin(vJetWorld.x * 7.0 + vJetWorld.y * 5.2 - uJetTime * 2.4) *
+        sin(vJetWorld.z * 6.3 - vJetWorld.y * 3.8 + uJetTime * 1.2);
+      float crust = sin(vJetWorld.x * 11.0 + vJetWorld.z * 9.0 +
+        sin(vJetWorld.y * 4.1) * 1.7);
+      float heat = smoothstep(-0.55, 0.65, flow * 0.72 + crust * 0.28);
+      diffuseColor.rgb *= mix(vec3(0.56, 0.4, 0.31), vec3(0.92, 0.74, 0.52), heat);
+    `).replace("#include <emissivemap_fragment>", `
+      #include <emissivemap_fragment>
+      totalEmissiveRadiance *= 0.22 + heat * 0.52;
+    `);
+    material.userData.jetShader = shader;
+  };
+  material.customProgramCacheKey = () => "flowing-lava-jets-v2";
+  const splashMaterial = new THREE.MeshBasicMaterial({
+    color: 0xb9330b, transparent: true, opacity: 0.42,
+    depthWrite: false, side: THREE.DoubleSide
   });
   const dropsPerJet = 7;
   const impactDropsPerJet = 10;
-  const stemGeometry = new THREE.CylinderGeometry(0.13, 0.31, 1, 14, 18, false);
+  const streamsPerJet = 3;
+  const stemGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 10, 18);
   const stemPositions = stemGeometry.attributes.position;
-  for (let vertexIndex = 0; vertexIndex < stemPositions.count; vertexIndex += 1) {
-    const x = stemPositions.getX(vertexIndex);
-    const y = stemPositions.getY(vertexIndex);
-    const z = stemPositions.getZ(vertexIndex);
+  for (let vertex = 0; vertex < stemPositions.count; vertex += 1) {
+    const x = stemPositions.getX(vertex);
+    const y = stemPositions.getY(vertex);
+    const z = stemPositions.getZ(vertex);
     const progress = y + 0.5;
-    const angle = Math.atan2(z, x);
-    const surfaceNoise = 1
-      + Math.sin(progress * 19 + angle * 3) * 0.055
-      + Math.sin(progress * 37 - angle * 5) * 0.028;
-    stemPositions.setX(vertexIndex, x * surfaceNoise);
-    stemPositions.setZ(vertexIndex, z * surfaceNoise);
+    const ripple = 0.77 + Math.sin(progress * 15.2) * 0.13 +
+      Math.sin(progress * 31.4 + Math.atan2(z, x) * 2.0) * 0.09;
+    stemPositions.setXYZ(vertex,
+      x * ripple + Math.sin(progress * 5.7) * progress * 0.15,
+      y,
+      z * ripple + Math.cos(progress * 6.2) * progress * 0.13);
   }
   stemPositions.needsUpdate = true;
   stemGeometry.computeVertexNormals();
-  const stems = new THREE.InstancedMesh(stemGeometry, material, count);
+  const stems = new THREE.InstancedMesh(stemGeometry, material, count * streamsPerJet);
   const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.2, 11, 8), material, count);
   const drops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 9, 7), material, count * dropsPerJet);
   const impactDrops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.075, 7, 5), material, count * impactDropsPerJet);
-  const splashes = new THREE.InstancedMesh(new THREE.RingGeometry(0.34, 0.62, 18), material, count);
+  const splashes = new THREE.InstancedMesh(new THREE.RingGeometry(0.34, 0.62, 18), splashMaterial, count);
   stems.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   heads.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   drops.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -1340,8 +1451,8 @@ function createLavaJetSystem(count = 24) {
   drops.frustumCulled = false;
   impactDrops.frustumCulled = false;
   splashes.frustumCulled = false;
-  stems.castShadow = true;
-  heads.castShadow = true;
+  stems.castShadow = false;
+  heads.castShadow = false;
   drops.castShadow = true;
   group.add(stems, heads, drops, impactDrops, splashes);
   let seed = 4831;
@@ -1354,7 +1465,7 @@ function createLavaJetSystem(count = 24) {
       z: Math.sin(angle) * distance,
       phase: random(),
       rate: 0.75 + random() * 0.55,
-      height: 1.4 + random() * 3.2,
+      height: 1.2 + random() * 1.65,
       width: 0.7 + random() * 0.7,
       rotation: random() * Math.PI * 2,
       driftX: (random() - 0.5) * 1.5,
@@ -1363,7 +1474,7 @@ function createLavaJetSystem(count = 24) {
       streamTiltZ: (random() - 0.5) * 0.65
     };
   });
-  return { group, stems, heads, drops, impactDrops, splashes, material, jets, dropsPerJet, impactDropsPerJet, matrixHelper: new THREE.Object3D() };
+  return { group, stems, heads, drops, impactDrops, splashes, material, splashMaterial, jets, streamsPerJet, dropsPerJet, impactDropsPerJet, matrixHelper: new THREE.Object3D() };
 }
 
 function animateLavaJets(system, enabled, time, settings = DEFAULT_LAVA_SETTINGS) {
@@ -1372,13 +1483,13 @@ function animateLavaJets(system, enabled, time, settings = DEFAULT_LAVA_SETTINGS
   const active = enabled && settings.enabled !== false && visibleCount > 0;
   system.group.visible = active;
   if (!active) return;
-  system.stems.count = visibleCount;
+  system.stems.count = visibleCount * system.streamsPerJet;
   system.heads.count = visibleCount;
   system.drops.count = visibleCount * system.dropsPerJet;
   system.impactDrops.count = visibleCount * system.impactDropsPerJet;
   system.splashes.count = visibleCount;
-  system.material.map.offset.set((time * 0.00006) % 1, -(time * 0.00011) % 1);
   const seconds = time * 0.001;
+  if (system.material.userData.jetShader) system.material.userData.jetShader.uniforms.uJetTime.value = seconds;
   const interval = THREE.MathUtils.clamp(Number(settings.interval) || DEFAULT_LAVA_SETTINGS.interval, 2, 14);
   const heightScale = THREE.MathUtils.clamp(Number(settings.height) || DEFAULT_LAVA_SETTINGS.height, 0.4, 1.8);
   const helper = system.matrixHelper;
@@ -1391,24 +1502,38 @@ function animateLavaJets(system, enabled, time, settings = DEFAULT_LAVA_SETTINGS
     const envelope = growth * release;
     const height = Math.max(0.001, envelope * jet.height * heightScale);
     const streamActive = active && envelope > 0.02;
-    const pulse = 0.94 + Math.sin(seconds * 7.4 + index * 1.9) * 0.06;
-    helper.position.set(jet.x, streamActive ? 0.04 + height * 0.5 : -10, jet.z);
-    helper.scale.set(streamActive ? jet.width * pulse : 0.001, height, streamActive ? jet.width * (2 - pulse) : 0.001);
-    helper.rotation.set(jet.streamTiltZ * 0.035, jet.rotation, -jet.streamTiltX * 0.035);
-    helper.updateMatrix();
-    system.stems.setMatrixAt(index, helper.matrix);
+    for (let strand = 0; strand < system.streamsPerJet; strand += 1) {
+      const angle = jet.rotation + strand * 2.399;
+      const strandHeight = height * (strand === 0 ? 1 : 0.68 + strand * 0.07);
+      const spread = strand === 0 ? 0 : jet.width * 0.17;
+      const sway = Math.sin(seconds * 5.2 + index * 1.7 + strand * 2.4) * 0.07;
+      helper.position.set(jet.x + Math.cos(angle) * spread +
+        jet.streamTiltX * strandHeight * 0.23 + sway,
+        streamActive ? 0.04 + strandHeight * 0.5 : -10,
+        jet.z + Math.sin(angle) * spread +
+        jet.streamTiltZ * strandHeight * 0.23 - sway * 0.5);
+      const width = strand === 0 ? 0.48 : 0.26;
+      const pulse = 0.93 + Math.sin(seconds * 9 + index * 1.7 + strand) * 0.07;
+      helper.scale.set(streamActive ? jet.width * width * pulse : 0.001,
+        streamActive ? strandHeight : 0.001,
+        streamActive ? jet.width * width * pulse : 0.001);
+      helper.rotation.set(jet.streamTiltZ * 0.2,
+        angle, -jet.streamTiltX * 0.2);
+      helper.updateMatrix();
+      system.stems.setMatrixAt(index * system.streamsPerJet + strand, helper.matrix);
+    }
 
     helper.position.set(
-      jet.x + jet.streamTiltX * 0.035 * height,
+      jet.x + jet.streamTiltX * 0.48 * height,
       streamActive ? 0.04 + height : -10,
-      jet.z + jet.streamTiltZ * 0.035 * height
+      jet.z + jet.streamTiltZ * 0.48 * height
     );
-    const headScale = streamActive ? jet.width * (0.72 + Math.sin(seconds * 8.3 + index) * 0.08) : 0.001;
-    helper.scale.set(headScale, headScale * 0.7, headScale);
+    const headScale = streamActive ? jet.width * (0.13 + Math.sin(seconds * 8.3 + index) * 0.025) : 0.001;
+    helper.scale.set(headScale, headScale * 1.25, headScale);
     helper.rotation.set(0, jet.rotation, 0);
     helper.updateMatrix();
     system.heads.setMatrixAt(index, helper.matrix);
-    const splashScale = active ? (0.35 + Math.sin(Math.min(jetProgress * 1.7, 1) * Math.PI) * 1.55) * jet.width : 0.001;
+    const splashScale = active ? (0.35 + Math.sin(Math.min(jetProgress * 1.7, 1) * Math.PI) * 0.9) * jet.width : 0.001;
     helper.position.set(jet.x, 0.035, jet.z);
     helper.scale.set(splashScale, splashScale, splashScale);
     helper.rotation.set(Math.PI / 2, 0, jet.rotation);
@@ -1650,45 +1775,12 @@ function animateLavaFootsteps(system, enabled, time) {
 function createLavaCrustPlateSystem(maxPlates = 64) {
   const group = new THREE.Group();
   group.name = "Placas flotantes de lava";
-  const textureCanvas = document.createElement("canvas");
-  textureCanvas.width = textureCanvas.height = 256;
-  const textureContext = textureCanvas.getContext("2d");
-  textureContext.fillStyle = "#171211";
-  textureContext.fillRect(0, 0, 256, 256);
-  let textureSeed = 9127;
-  const textureRandom = () => { textureSeed = (textureSeed * 16807) % 2147483647; return (textureSeed - 1) / 2147483646; };
-  for (let index = 0; index < 620; index += 1) {
-    const light = Math.floor(22 + textureRandom() * 42);
-    const red = Math.floor(light * (0.9 + textureRandom() * 0.35));
-    const alpha = 0.08 + textureRandom() * 0.24;
-    const radiusX = 1 + textureRandom() * 7;
-    const radiusY = 0.6 + textureRandom() * 3.5;
-    textureContext.fillStyle = `rgba(${red},${Math.floor(light * 0.62)},${Math.floor(light * 0.55)},${alpha})`;
-    textureContext.beginPath();
-    textureContext.ellipse(textureRandom() * 256, textureRandom() * 256, radiusX, radiusY, textureRandom() * Math.PI, 0, Math.PI * 2);
-    textureContext.fill();
-  }
-  textureContext.lineCap = "round";
-  for (let crackIndex = 0; crackIndex < 34; crackIndex += 1) {
-    let x = textureRandom() * 256;
-    let y = textureRandom() * 256;
-    textureContext.beginPath();
-    textureContext.moveTo(x, y);
-    for (let segment = 0; segment < 4; segment += 1) {
-      x += (textureRandom() - 0.5) * 28;
-      y += 7 + textureRandom() * 18;
-      textureContext.lineTo(x, y);
-    }
-    textureContext.strokeStyle = `rgba(105,20,8,${0.16 + textureRandom() * 0.2})`;
-    textureContext.lineWidth = 0.6 + textureRandom() * 1.4;
-    textureContext.stroke();
-  }
-  const crustTexture = new THREE.CanvasTexture(textureCanvas);
+  const crustTexture = new THREE.TextureLoader().load(volcanicBlackEarthTexture);
   crustTexture.colorSpace = THREE.SRGBColorSpace;
   crustTexture.wrapS = crustTexture.wrapT = THREE.RepeatWrapping;
-  crustTexture.repeat.set(1.35, 1.35);
-  crustTexture.anisotropy = 8;
-  const plateGeometry = new THREE.CylinderGeometry(1, 1, 0.12, 14, 3, false);
+  crustTexture.repeat.set(1.5, 1.5);
+  crustTexture.anisotropy = 16;
+  const plateGeometry = new THREE.CylinderGeometry(1, 1, 0.17, 18, 3, false);
   const platePositions = plateGeometry.attributes.position;
   for (let index = 0; index < platePositions.count; index += 1) {
     const x = platePositions.getX(index);
@@ -1704,29 +1796,20 @@ function createLavaCrustPlateSystem(maxPlates = 64) {
   platePositions.needsUpdate = true;
   plateGeometry.computeVertexNormals();
   const plateMaterial = new THREE.MeshStandardMaterial({
-    color: 0x6b514a,
+    color: 0x686b6d,
     map: crustTexture,
     bumpMap: crustTexture,
-    bumpScale: 0.085,
-    emissive: 0x160100,
-    emissiveIntensity: 0.08,
-    roughness: 0.98,
-    metalness: 0.015
+    bumpScale: 0.13,
+    roughness: 1,
+    metalness: 0
   });
-  const lavaTopTexture = createFloorTexture("infernal");
-  lavaTopTexture.repeat.set(1.1, 1.1);
-  const lavaTopMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xd84622,
-    map: lavaTopTexture,
-    bumpMap: lavaTopTexture,
-    bumpScale: 0.055,
-    emissiveMap: lavaTopTexture,
-    emissive: 0x7d0b00,
-    emissiveIntensity: 0.62,
-    roughness: 0.63,
-    metalness: 0,
-    clearcoat: 0.18,
-    clearcoatRoughness: 0.42
+  const ashTopMaterial = new THREE.MeshStandardMaterial({
+    color: 0x808184,
+    map: crustTexture,
+    bumpMap: crustTexture,
+    bumpScale: 0.16,
+    roughness: 1,
+    metalness: 0
   });
   const rimGeometry = new THREE.RingGeometry(0.92, 1.01, 14, 1);
   const rimPositions = rimGeometry.attributes.position;
@@ -1739,27 +1822,27 @@ function createLavaCrustPlateSystem(maxPlates = 64) {
   }
   rimPositions.needsUpdate = true;
   const rimMaterial = new THREE.MeshBasicMaterial({
-    color: 0x7a0b02,
+    color: 0x481006,
     transparent: true,
-    opacity: 0.38,
+    opacity: 0.25,
     depthWrite: false,
     side: THREE.DoubleSide
   });
   const plates = new THREE.InstancedMesh(plateGeometry, plateMaterial, maxPlates);
-  const lavaPlates = new THREE.InstancedMesh(plateGeometry, [plateMaterial, lavaTopMaterial, plateMaterial], maxPlates);
+  const ashPlates = new THREE.InstancedMesh(plateGeometry, [plateMaterial, ashTopMaterial, plateMaterial], maxPlates);
   const rims = new THREE.InstancedMesh(rimGeometry, rimMaterial, maxPlates);
   plates.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  lavaPlates.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  ashPlates.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   rims.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   plates.frustumCulled = false;
-  lavaPlates.frustumCulled = false;
+  ashPlates.frustumCulled = false;
   rims.frustumCulled = false;
   plates.castShadow = true;
   plates.receiveShadow = true;
-  lavaPlates.castShadow = true;
-  lavaPlates.receiveShadow = true;
+  ashPlates.castShadow = true;
+  ashPlates.receiveShadow = true;
   rims.renderOrder = 2;
-  group.add(rims, plates, lavaPlates);
+  group.add(rims, plates, ashPlates);
   let seed = 6329;
   const random = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
   const plateData = Array.from({ length: maxPlates }, (_, index) => {
@@ -1776,18 +1859,17 @@ function createLavaCrustPlateSystem(maxPlates = 64) {
       flowSpeed: 0.055 + random() * 0.075,
       rotation: random() * Math.PI * 2,
       bob: 0.022 + random() * 0.04,
-      lavaTop: random() < 0.38
+      ashTop: random() < 0.38
     };
   });
   return {
     group,
     plates,
-    lavaPlates,
+    ashPlates,
     rims,
     plateData,
     crustTexture,
-    lavaTopTexture,
-    lavaTopMaterial,
+    ashTopMaterial,
     helper: new THREE.Object3D(),
     avoidanceBounds: new THREE.Box3(),
     avoidanceSize: new THREE.Vector3(),
@@ -1819,7 +1901,7 @@ function animateLavaCrustPlates(system, time, content, quality = 1) {
   system.rims.count = visibleCount;
   const helper = system.helper;
   let rockyCount = 0;
-  let lavaCount = 0;
+  let ashCount = 0;
   for (let index = 0; index < visibleCount; index += 1) {
     const plate = system.plateData[index];
     const bob = Math.sin(seconds * (0.42 + Math.abs(plate.drift) * 2) + plate.phase) * plate.bob;
@@ -1868,9 +1950,9 @@ function animateLavaCrustPlates(system, time, content, quality = 1) {
     helper.scale.set(plate.size * plate.aspect * 0.93, 0.68 + plate.size * 0.08, plate.size / plate.aspect * 0.93);
     helper.rotation.set(Math.sin(seconds * 0.31 + plate.phase) * 0.018, rotation, Math.cos(seconds * 0.27 + plate.phase) * 0.016);
     helper.updateMatrix();
-    if (plate.lavaTop) {
-      system.lavaPlates.setMatrixAt(lavaCount, helper.matrix);
-      lavaCount += 1;
+    if (plate.ashTop) {
+      system.ashPlates.setMatrixAt(ashCount, helper.matrix);
+      ashCount += 1;
     } else {
       system.plates.setMatrixAt(rockyCount, helper.matrix);
       rockyCount += 1;
@@ -1883,9 +1965,9 @@ function animateLavaCrustPlates(system, time, content, quality = 1) {
     system.rims.setMatrixAt(index, helper.matrix);
   }
   system.plates.count = rockyCount;
-  system.lavaPlates.count = lavaCount;
+  system.ashPlates.count = ashCount;
   system.plates.instanceMatrix.needsUpdate = true;
-  system.lavaPlates.instanceMatrix.needsUpdate = true;
+  system.ashPlates.instanceMatrix.needsUpdate = true;
   system.rims.instanceMatrix.needsUpdate = true;
 }
 
@@ -1899,7 +1981,7 @@ function createLavaAtmosphereSystem() {
     [-1.5, 0.45, -6, 0xe91800],
     [2.5, 0.6, 6.5, 0xff8a24]
   ].map(([x, y, z, color]) => {
-    const light = new THREE.PointLight(color, 0, 15, 1.8);
+     const light = new THREE.PointLight(color, 0, 15, 1.8);
     light.position.set(x, y, z);
     group.add(light);
     return light;
@@ -2027,7 +2109,7 @@ function animateLavaAtmosphere(system, enabled, time, center, camera, scene, sce
     scene.fog = system.infernalFog;
   }
   system.lights.forEach((light, index) => {
-    light.intensity = (27 + quality * 20) * (0.77 + Math.sin(seconds * (4.1 + index * 0.37) + index * 1.9) * 0.13 + Math.sin(seconds * 10.7 + index) * 0.06);
+    light.intensity = (12 + quality * 11) * (0.77 + Math.sin(seconds * (4.1 + index * 0.37) + index * 1.9) * 0.13 + Math.sin(seconds * 10.7 + index) * 0.06);
     light.position.x = center.x + [-5.5, 5.5, -1.5, 2.5][index];
     light.position.z = center.z + [2.5, 1.8, -6, 6.5][index];
   });
@@ -2282,6 +2364,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const cemeteryLightingSettings = sceneEffects.cemeteryLighting || DEFAULT_CEMETERY_LIGHTING;
   const castleLightingSettings = sceneEffects.castleLighting || DEFAULT_CASTLE_LIGHTING;
   const gothicLightingSettings = sceneEffects.gothicLighting || DEFAULT_GOTHIC_LIGHTING;
+  const spaceSettings = sceneEffects.space || DEFAULT_SPACE_SETTINGS;
   const fogSettings = normalizeChurchFog(sceneEffects.fog);
   const rainSettings = normalizeRain(sceneEffects.rain);
   const stormSettings = normalizeStorm(sceneEffects.storm);
@@ -2346,8 +2429,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const [viewportRecordingBlob, setViewportRecordingBlob] = useState(null);
   const [viewportConverting, setViewportConverting] = useState(false);
   const [recordingCountdown, setRecordingCountdown] = useState(null);
-  const [activeCameraShot, setActiveCameraShot] = useState("");
-  const [cameraShotSelection, setCameraShotSelection] = useState("general");
+  const [cinematicCamera, setCinematicCamera] = useState(() => ({ ...DEFAULT_CINEMATIC_CAMERA }));
+  const [directorPreset, setDirectorPreset] = useState("hollywood");
   const [libraryTab, setLibraryTab] = useState("objects");
   const [sceneSearch, setSceneSearch] = useState("");
   const [environmentIsolated, setEnvironmentIsolated] = useState(false);
@@ -2360,6 +2443,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const [performanceMode, setPerformanceMode] = useState(() => localStorage.getItem("neon:three-quality") || "auto");
   const [performanceStats, setPerformanceStats] = useState({ fps: 0, triangles: 0, geometries: 0, textures: 0 });
   const [modelLoading, setModelLoading] = useState("");
+  const [rigStage, setRigStage] = useState("");
   const [soundtrack, setSoundtrack] = useState(null);
   const [poseBone, setPoseBone] = useState("LeftArm");
   const [poseVersion, setPoseVersion] = useState(0);
@@ -2484,7 +2568,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   }
 
   function findRigBone(character, boneId) {
-    const expected = String(boneId || "").toLowerCase();
+    const expected = String(boneId || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
     let match = null;
     character?.traverse((object) => {
       const normalized = String(object.name || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
@@ -2493,6 +2577,15 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     return match;
   }
 
+  function poseBoneOptions(character) {
+    const semantic = POSE_BONES.filter((entry) => findRigBone(character, entry.id));
+    const seen = new Set(semantic.map((entry) => findRigBone(character, entry.id)?.uuid));
+    const other = [];
+    character?.traverse((item) => {
+      if (item.isBone && !seen.has(item.uuid)) other.push({ id: item.name, name: item.name });
+    });
+    return [...semantic, ...other];
+  }
   function updateBonePose(axis, degrees) {
     const character = selectedRef.current;
     const bone = findRigBone(character, poseBone);
@@ -2503,7 +2596,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     offsets[bone.name] = current;
     character.userData.poseOffsets = offsets;
     setPoseVersion((version) => version + 1);
-    setStatus(`${POSE_BONES.find((entry) => entry.id === poseBone)?.name || "Hueso"} ajustado`);
+    setStatus(`${POSE_BONES.find((entry) => entry.id === poseBone)?.name || bone.name} ajustado`);
   }
 
   function resetBonePose() {
@@ -2571,13 +2664,25 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         environment: runtime.scene.environment,
         environmentIntensity: runtime.scene.environmentIntensity,
         floorVisible: runtime.floor.visible,
-        effectsVisible: runtime.sceneEffectSystem.group.visible
+        effectsVisible: runtime.sceneEffectSystem.group.visible,
+        spaceVisible: runtime.spaceScene.visible,
+        spaceShipVisible: runtime.spaceShipSet.visible,
+        spacePanoramaVisible: runtime.spacePanorama.visible,
+        cloudsPanoramaVisible: runtime.cloudsPanoramaBackdrop.visible,
+        medievalVillagePanoramaVisible: runtime.medievalVillagePanorama.visible,
+        spiderwebRuinsPanoramaVisible: runtime.spiderwebRuinsPanorama.visible
       };
       runtime.scene.background = new Color("#111318");
       runtime.scene.environment = null;
       runtime.scene.environmentIntensity = 0;
       runtime.floor.visible = false;
       runtime.sceneEffectSystem.group.visible = false;
+      runtime.spaceScene.visible = false;
+      runtime.spaceShipSet.visible = false;
+      runtime.spacePanorama.visible = false;
+      runtime.cloudsPanoramaBackdrop.visible = false;
+      runtime.medievalVillagePanorama.visible = false;
+      runtime.spiderwebRuinsPanorama.visible = false;
       setEnvironmentIsolated(true);
       setStatus("Modo personajes activo");
       return;
@@ -2588,6 +2693,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     runtime.scene.environmentIntensity = saved.environmentIntensity;
     runtime.floor.visible = saved.floorVisible;
     runtime.sceneEffectSystem.group.visible = saved.effectsVisible;
+    runtime.spaceScene.visible = saved.spaceVisible;
+    runtime.spaceShipSet.visible = saved.spaceShipVisible;
+    runtime.spacePanorama.visible = saved.spacePanoramaVisible;
+    runtime.cloudsPanoramaBackdrop.visible = saved.cloudsPanoramaVisible;
+    runtime.medievalVillagePanorama.visible = saved.medievalVillagePanoramaVisible;
+    runtime.spiderwebRuinsPanorama.visible = saved.spiderwebRuinsPanoramaVisible;
     environmentIsolationRef.current = null;
     setEnvironmentIsolated(false);
     setStatus("Fondo, piso y efectos restaurados");
@@ -2858,6 +2969,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setSelectedIds(object ? [object.userData.editorId] : []);
     }
     selectedRef.current = object || null;
+    const availableBones = poseBoneOptions(object);
+    if (availableBones.length && !availableBones.some((entry) => entry.id === poseBone)) setPoseBone(availableBones[0].id);
     setSelectedId(object?.userData.editorId || "");
     if (object && !object.userData?.locked && modeRef.current !== "sculpt") {
       runtime.transform.setSpace(object.userData?.editableAttachment ? "local" : "world");
@@ -2961,7 +3074,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       geometryOverrides,
       camera: {
         position: runtime.camera.position.toArray(),
-        target: runtime.orbit.target.toArray()
+        target: runtime.orbit.target.toArray(),
+        up: runtime.camera.up.toArray(),
+        fov: runtime.camera.fov,
+        near: runtime.camera.near,
+        cinematic: cinematicCamera
       },
       animationDuration,
       animationTracks,
@@ -2972,7 +3089,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       freezeMotion,
       activeLightingRig,
       lightingRigBaseline: lightingRigBaselineRef.current,
-      editor: { mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, selectedId }
+      editor: { mode, propertyTab, directorPreset, deformAmount, sculptBrush, sculptRadius, sculptStrength, selectedId }
     };
   }
 
@@ -3016,11 +3133,17 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     });
     runtime.camera.position.fromArray(state.camera?.position || [7, 5, 8]);
     runtime.orbit.target.fromArray(state.camera?.target || [0, 1, 0]);
+    runtime.camera.up.fromArray(state.camera?.up || [0, 1, 0]);
+    runtime.camera.fov = state.camera?.fov ?? 45;
+    runtime.camera.near = state.camera?.near ?? 0.05;
+    runtime.camera.updateProjectionMatrix();
     runtime.orbit.update();
+    setCinematicCamera({ ...DEFAULT_CINEMATIC_CAMERA, ...(state.camera?.cinematic || {}) });
     const loadedOrbit = new THREE.Spherical().setFromVector3(runtime.camera.position.clone().sub(runtime.orbit.target));
     cameraOrbitRef.current = { lastTheta: loadedOrbit.theta, theta: loadedOrbit.theta };
     setBackground(state.background || DEFAULT_BACKGROUND);
-    setEnvironmentBackground(state.environmentBackground || "solid");
+    const legacyShip = state.environmentBackground === "sky-castle-courtyard";
+    setEnvironmentBackground(legacyShip ? "sky-space-ship" : state.environmentBackground || "solid");
     setSkyMotionEnabled(state.skyMotionEnabled !== false);
     setSkyMotionSpeed(state.skyMotionSpeed ?? 0.35);
     setSceneEffects(Object.fromEntries(Object.entries(DEFAULT_SCENE_EFFECTS).map(([key, defaults]) => [key,
@@ -3040,7 +3163,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         : key === "gothicLighting" ? normalizeGothicLighting(state.sceneEffects?.gothicLighting || {
           enabled: state.environmentBackground === "sky-gothic-church"
         })
-        : key === "fog" ? normalizeChurchFog(state.environmentBackground === "sky-gothic-church"
+        : key === "space" ? normalizeSpaceSettings(state.sceneEffects?.space)
+        : key === "fog" ? normalizeChurchFog(legacyShip
+          && state.sceneEffects?.fog?.intensity === 0.12 && state.sceneEffects?.fog?.color === "#9aa69e"
+          ? DEFAULT_SCENE_EFFECTS.fog
+          : state.environmentBackground === "sky-gothic-church"
           && state.sceneEffects?.fog?.intensity === 0.18 && state.sceneEffects?.fog?.color === "#75849a"
           ? { ...state.sceneEffects.fog, intensity: 0.035, height: 1.1, coverage: 24, color: "#41424d" }
           : state.environmentBackground === "sky-night-swamp" && state.sceneEffects?.fog?.intensity === 0.58
@@ -3052,9 +3179,13 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                   color: "#4c3938", windSpeed: 0.48, windDirection: 42 }
             : state.sceneEffects?.fog)
         : key === "rain" ? normalizeRain(state.sceneEffects?.rain)
-          : key === "storm" ? normalizeStorm(state.sceneEffects?.storm) : { ...defaults, ...state.sceneEffects?.[key] }
+          : key === "storm" ? normalizeStorm(state.sceneEffects?.storm)
+            : key === "particles" && legacyShip && state.sceneEffects?.particles?.intensity === 0.2
+              && state.sceneEffects?.particles?.color === "#e6c98d"
+              ? { ...defaults, enabled: true, intensity: 0.06, color: "#8ce5e2" }
+              : { ...defaults, ...state.sceneEffects?.[key] }
     ])));
-    setGridVisible(state.gridVisible !== false);
+    setGridVisible(legacyShip ? false : state.gridVisible !== false);
     setAmbientIntensity(state.ambientIntensity ?? 0.7);
     setExposure(state.exposure ?? 1.15);
     setFloorVisible(state.floorVisible !== false);
@@ -3065,7 +3196,9 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       && String(state.floorColor).toLowerCase() === "#193c35";
     const legacyMedievalFloor = state.environmentBackground === "sky-medieval-apocalypse"
       && state.floorSurface === "medieval-apocalypse" && String(state.floorColor).toLowerCase() === "#5d4436";
-    const restoredFloorSurface = legacyCastleFloor ? "castle-stone"
+    const legacySpaceFloor = state.environmentBackground === "sky-space" && state.floorSurface === "fantasy";
+    const legacyShipFloor = legacyShip && state.floorSurface === "ruined-gothic-church";
+    const restoredFloorSurface = legacyShipFloor ? "ship-deck" : legacyCastleFloor ? "castle-stone" : legacySpaceFloor ? "space-nebula"
       : state.floorSurface || (state.environmentBackground && state.environmentBackground !== "solid" ? "shadow" : "plastic");
     setFloorColor(legacyCastleFloor ? defaultFloorColor("castle-stone") : legacyGothicFloor ? defaultFloorColor("gothic-church")
       : legacySwampFloor ? defaultFloorColor("night-swamp")
@@ -3128,6 +3261,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setAnimationPlaying(false);
     refreshObjects();
     setPropertyTab(state.editor?.propertyTab || "object");
+    setDirectorPreset(state.editor?.directorPreset || (state.camera?.cinematic?.preset ? "selected-camera" : "hollywood"));
     setDeformAmount(state.editor?.deformAmount ?? 0.25);
     setSculptBrush(state.editor?.sculptBrush || "inflate");
     setSculptRadius(state.editor?.sculptRadius ?? 0.65);
@@ -3165,6 +3299,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       object.animations = gltf.animations;
       ensureNeonMaskPulse(object);
       ensureDemonEyePulse(object);
+      ensureAngelHalo(object);
       ensureRetroTvScreen(object);
       runtime.content.add(object);
       registerModelAnimations(object, gltf.animations);
@@ -3312,6 +3447,15 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     scene.add(realisticSkyDome);
     const sceneEffectSystem = createSceneEffectSystem();
     scene.add(sceneEffectSystem.group);
+    const spaceScene = createSpaceScene();
+    scene.add(spaceScene);
+    const spaceShipSet = createSpaceShipSet();
+    scene.add(spaceShipSet);
+    const spacePanorama = createPanoramaBackdrop({
+      name: "Panorama nitido espacial", horizontalRepeat: 3.8, horizontalOffset: -0.68, horizontalMirror: true,
+      horizonCompression: 1.5, verticalScale: 1.55
+    });
+    scene.add(spacePanorama);
     const ruinedChurchDebris = createRuinedChurchDebrisSystem();
     scene.add(ruinedChurchDebris);
     const apocalypseDebris = createApocalypseDebrisSystem();
@@ -3342,16 +3486,16 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const churchPanorama = createChurchPanorama();
     scene.add(churchPanorama);
     const infernalPanorama = createPanoramaBackdrop({
-      name: "Panorama nitido infernal", horizontalRepeat: 2, horizonCompression: 2
+      name: "Panorama nitido infernal", horizontalRepeat: 2.7, horizontalMirror: true, horizonCompression: 2.5
     });
     scene.add(infernalPanorama);
     const apocalypsePanorama = createPanoramaBackdrop({
-      name: "Panorama nitido de apocalipsis", horizontalRepeat: 3, horizonCompression: 2
+      name: "Panorama nitido de apocalipsis", horizontalRepeat: 3.6, horizonCompression: 2.5
     });
     scene.add(apocalypsePanorama);
     const medievalPanorama = createPanoramaBackdrop({
-      name: "Panorama nitido medieval", horizontalRepeat: 4, horizontalOffset: 0.17,
-      horizonCompression: 1.4, verticalOffset: 0.03, verticalScale: 2.2,
+      name: "Panorama nitido medieval", horizontalRepeat: 4.6, horizontalOffset: -0.13,
+      horizonCompression: 1.7, verticalOffset: 0.03, verticalScale: 2.05,
       seamBlend: 0.08, zenithCap: 1
     });
     scene.add(medievalPanorama);
@@ -3363,8 +3507,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     scene.add(cemeteryPanorama);
     const moonlitPanorama = createPanoramaBackdrop({
       name: "Panorama nitido de cumbres luna llena", horizontalRepeat: 2,
-      horizontalOffset: 0.72, horizonCompression: 1.25, verticalOffset: -0.06,
-      verticalScale: 5.8, seamBlend: 0.045
+      horizontalOffset: 0.72, horizonCompression: 1.25, verticalOffset: -0.28,
+      verticalScale: 2.7, horizontalMirror: true, zenithCap: 1
     });
     scene.add(moonlitPanorama);
     const castlePanorama = createCastleBackdrop();
@@ -3372,11 +3516,28 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const gothicPanorama = createGothicChurchBackdrop();
     scene.add(gothicPanorama);
     const swampPanorama = createPanoramaBackdrop({
-      name: "Panorama nitido de pantano", horizontalRepeat: 2, horizontalOffset: 0.84,
-      horizonCompression: 1.3, verticalOffset: 0.13, verticalScale: 1.5,
+      name: "Panorama nitido de pantano", horizontalRepeat: 2.6, horizontalOffset: 0.84,
+      horizonCompression: 1.8, verticalOffset: 0.13, verticalScale: 1.32,
       horizonFade: 0, seamBlend: 0.08, zenithCap: 1
     });
     scene.add(swampPanorama);
+    const cloudsPanoramaBackdrop = createPanoramaBackdrop({
+      name: "Panorama nitido de nubes", horizontalMirror: true,
+      horizonCompression: 1.7, verticalScale: 1.3
+    });
+    scene.add(cloudsPanoramaBackdrop);
+    const medievalVillagePanorama = createPanoramaBackdrop({
+      name: "Panorama nitido de aldea medieval", horizontalRepeat: 4.3,
+      horizontalOffset: -1.65, horizontalMirror: true,
+      horizonCompression: 3, verticalScale: 3.1, verticalOffset: -0.19
+    });
+    scene.add(medievalVillagePanorama);
+    const spiderwebRuinsPanorama = createPanoramaBackdrop({
+      name: "Panorama nitido de ruinas de telaranas", horizontalRepeat: 4.3,
+      horizontalOffset: -1.6, horizontalMirror: true,
+      horizonCompression: 3, verticalScale: 3.1, verticalOffset: -0.19
+    });
+    scene.add(spiderwebRuinsPanorama);
 
     const orbit = new OrbitControls(camera, renderer.domElement);
     orbit.enableDamping = true;
@@ -3446,6 +3607,25 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
+    let shipPointerStart = null;
+    let shipHover = null;
+    const canvasCursor = renderer.domElement.style.cursor;
+    const canvasTitle = renderer.domElement.title;
+    const setShipHover = (hit) => {
+      const id = hit?.object.userData.shipInteraction || null;
+      if (id === shipHover) return;
+      shipHover = id;
+      spaceShipSet.userData.hover(id);
+      renderer.domElement.style.cursor = id ? "pointer" : canvasCursor;
+      const names = { anatomy: "anatomia", orbit: "orbitas", navigation: "navegacion" };
+      renderer.domElement.title = id ? "Cambiar holograma: " + names[id] : canvasTitle;
+    };
+    const visibleShipHit = (contentHits) => {
+      const hit = spaceShipSet.userData.pick(raycaster);
+      if (!hit) return null;
+      const foreground = (contentHits || raycaster.intersectObjects(content.children, true))[0];
+      return foreground && foreground.distance < hit.distance ? null : hit;
+    };
     const brushCursor = new THREE.Mesh(
       new THREE.SphereGeometry(1, 24, 16),
       new THREE.MeshBasicMaterial({ color: 0xd86cff, wireframe: true, transparent: true, opacity: 0.72, depthTest: false })
@@ -3486,6 +3666,13 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setPointerRay(event);
       const markers = [...(runtimeRef.current?.lightMarkers?.values() || [])];
       const hits = raycaster.intersectObjects([...content.children, ...markers], true);
+      const shipHit = event.button === 0 && !event.shiftKey && !transform.axis ? visibleShipHit(hits) : null;
+      if (shipHit) {
+        shipPointerStart = { id: shipHit.object.userData.shipInteraction, pointerId: event.pointerId,
+          x: event.clientX, y: event.clientY };
+        return;
+      }
+      shipPointerStart = null;
       let object = hits[0]?.object || null;
       let marker = object;
       while (marker && !marker.userData?.editorLightId && marker.parent) marker = marker.parent;
@@ -3496,12 +3683,22 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       selectObject(object?.userData?.editorId ? object : null, event.shiftKey);
     };
     const onPointerMove = (event) => {
+      if (shipPointerStart && Math.hypot(event.clientX - shipPointerStart.x, event.clientY - shipPointerStart.y) > 5) {
+        shipPointerStart = null;
+      }
       const navigationStart = cameraNavigationRef.current;
       if (navigationStart?.canvas && !transform.dragging && Math.hypot(event.clientX - navigationStart.x, event.clientY - navigationStart.y) > 5) {
         releaseCameraForManualNavigation();
         cameraNavigationRef.current = null;
       }
-      if (modeRef.current !== "sculpt") return;
+      if (modeRef.current !== "sculpt") {
+        if (!event.buttons && !transform.dragging && !transform.axis) {
+          setPointerRay(event);
+          setShipHover(visibleShipHit());
+        } else setShipHover(null);
+        return;
+      }
+      setShipHover(null);
       const hit = sculptHit(event);
       brushCursor.visible = Boolean(hit);
       if (!hit) return;
@@ -3511,6 +3708,17 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     };
     const onPointerUp = (event) => {
       if (cameraNavigationRef.current?.canvas) cameraNavigationRef.current = null;
+      const shipStart = shipPointerStart;
+      shipPointerStart = null;
+      if (shipStart && event.type === "pointerup" && event.pointerId === shipStart.pointerId
+        && !transform.dragging && Math.hypot(event.clientX - shipStart.x, event.clientY - shipStart.y) <= 5) {
+        setPointerRay(event);
+        const hit = visibleShipHit();
+        if (hit?.object.userData.shipInteraction === shipStart.id) {
+          const message = spaceShipSet.userData.activate(shipStart.id);
+          if (message) setStatus(message);
+        }
+      }
       if (!sculptingRef.current) return;
       sculptingRef.current = false;
       orbit.enabled = true;
@@ -3525,6 +3733,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setStatus("Trazo de escultura aplicado");
     };
     const onPointerLeave = () => {
+      shipPointerStart = null;
+      setShipHover(null);
       if (cameraNavigationRef.current?.canvas) cameraNavigationRef.current = null;
       if (!sculptingRef.current) brushCursor.visible = false;
     };
@@ -3546,7 +3756,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     observer.observe(host);
     resize();
 
-    const runtime = { scene, camera, renderer, content, ambient, floor, grass, realisticSkyDome, churchPanorama, infernalPanorama, apocalypsePanorama, medievalPanorama, cemeteryPanorama, moonlitPanorama, castlePanorama, gothicPanorama, swampPanorama, castleInterior, gothicInterior, swampSet, medievalSet, moonlitPeaksSet, grid, keyLight, cemeteryFill, cemeteryMoonLights, orbit, transform, transformHelper, brushCursor, sceneEffectSystem, ruinedChurchDebris, apocalypseDebris, cemeteryDetails, cemeteryBats, swampBats, lightHelper: null, lightMarkers: new Map(), mixers: new Map(), poseApplications: new Map(), poseBoneCache: new WeakMap(), poseRotationCache: new WeakMap(), backgroundTexture: null, baseEnvironment: environmentTexture };
+    const runtime = { scene, camera, renderer, content, ambient, floor, grass, realisticSkyDome, churchPanorama, infernalPanorama, apocalypsePanorama, medievalPanorama, cemeteryPanorama, moonlitPanorama, castlePanorama, gothicPanorama, swampPanorama, spacePanorama, cloudsPanoramaBackdrop, medievalVillagePanorama, spiderwebRuinsPanorama, castleInterior, gothicInterior, swampSet, medievalSet, moonlitPeaksSet, spaceScene, spaceShipSet, grid, keyLight, cemeteryFill, cemeteryMoonLights, orbit, transform, transformHelper, brushCursor, sceneEffectSystem, ruinedChurchDebris, apocalypseDebris, cemeteryDetails, cemeteryBats, swampBats, lightHelper: null, lightMarkers: new Map(), mixers: new Map(), poseApplications: new Map(), poseBoneCache: new WeakMap(), poseRotationCache: new WeakMap(), backgroundTexture: null, baseEnvironment: environmentTexture };
     runtimeRef.current = runtime;
     sceneEffectSystem.churchLighting.userData.bind(scene, { ambient, keyLight, ruins: ruinedChurchDebris, panorama: churchPanorama });
     const cemeteryLighting = createCemeteryLighting(scene, { ambient, keyLight, fill: cemeteryFill, moonLights: cemeteryMoonLights, panorama: cemeteryPanorama });
@@ -3574,7 +3784,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         previousRenderTime = time;
         return;
       }
-      orbit.update();
+      if (!cameraShotRef.current?.frame) orbit.update();
       renderCount += 1;
       const delta = previousRenderTime ? Math.min((time - previousRenderTime) / 1000, 0.05) : 0;
       previousRenderTime = time;
@@ -3591,7 +3801,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           textures: renderer.info.memory.textures
         });
         const mode = performanceModeRef.current;
-        const shouldReduce = mode === "performance" || (mode === "auto" && (performanceSample.reduced ? fps < 52 || triangles > 750_000 : fps < 34 || triangles > 1_200_000));
+        const shouldReduce = mode === "performance" || (mode === "auto" && (performanceSample.reduced ? fps < 52 : fps < 34));
         if (shouldReduce !== performanceSample.reduced) {
           performanceSample.reduced = shouldReduce;
           renderer.setPixelRatio(shouldReduce ? 1 : Math.min(window.devicePixelRatio, 2));
@@ -3611,6 +3821,9 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       ruinedChurchDebris.visible = Boolean(runtime.floor.visible && runtime.floor.userData.surface === "ruined-gothic-church");
       apocalypseDebris.visible = Boolean(runtime.floor.visible && runtime.floor.userData.surface === "apocalypse");
       const sceneSky = skyMotionRef.current.preset;
+      spaceShipSet.userData.animate(sceneTime, Boolean(runtime.floor.visible && runtime.floor.userData.surface === "ship-deck"
+        && sceneSky === "sky-space-ship" && !environmentIsolationRef.current), performanceSampleRef.current.reduced);
+      if (!spaceShipSet.visible && shipHover) setShipHover(null);
       medievalSet.userData.animate(sceneTime, Boolean(runtime.floor.visible && runtime.floor.userData.surface === "medieval-apocalypse"
         && (sceneSky === "sky-medieval-apocalypse" || sceneSky === "sky-medieval-village")),
       sceneSky === "sky-medieval-village" ? "village" : "battle");
@@ -3783,6 +3996,13 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       }
       const churchFogActive = CHURCH_FOG_BACKGROUNDS.has(skyMotionRef.current.preset);
       animateSceneEffects(scene, sceneEffectSystem, sceneEffectsRef.current, sceneDelta, sceneTime, performanceSampleRef.current.reduced ? 0.35 : 1, churchFogActive);
+      spaceScene.userData.animate(sceneEffectsRef.current.space, sceneTime,
+        skyMotionRef.current.preset === "sky-space" && !environmentIsolationRef.current,
+        floor.visible && floor.userData.surface === "space-nebula",
+        performanceSampleRef.current.reduced ? 0.6 : 1);
+      if (floor.userData.surface === "space-nebula" && floor.material.userData.nebulaShader) {
+        floor.material.userData.nebulaShader.uniforms.uNebulaTime.value = sceneTime * 0.001;
+      }
       if (skyMotionRef.current.preset === "sky-cemetery" && sceneEffectsRef.current.fog.enabled) {
         const fog = sceneEffectsRef.current.fog;
         if (!scene.fog?.isFogExp2) scene.fog = new THREE.FogExp2(fog.color, 0.006 + fog.intensity * 0.008);
@@ -3912,7 +4132,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       const skyTexture = runtimeRef.current?.backgroundTexture;
       const skyMotion = skyMotionRef.current;
       if (skyTexture && skyMotion.enabled && skyMotion.preset.startsWith("sky-")) {
-        const presetRate = { "sky-clouds": 1, "sky-space": 0.4, "sky-sun": 0.65, "sky-night": 0.5, "sky-day": 0.8, "sky-sunset": 0.7, "sky-infernal": 0.82, "sky-apocalypse": 0.04, "sky-cemetery": 0.42, "sky-medieval-apocalypse": 0, "sky-gothic-church": 0.025, "sky-night-swamp": 0, "sky-ruined-gothic-church": 0.08, "sky-castle-interior": 0, "sky-castle-courtyard": 0.035, "sky-medieval-village": 0.025, "sky-moonlit-peaks": 0, "sky-spiderweb-ruins": 0.07 }[skyMotion.preset] ?? 0.7;
+        const presetRate = { "sky-clouds": 1, "sky-space": 0.4, "sky-sun": 0.65, "sky-night": 0.5, "sky-day": 0.8, "sky-sunset": 0.7, "sky-infernal": 0.82, "sky-apocalypse": 0.04, "sky-cemetery": 0.42, "sky-medieval-apocalypse": 0, "sky-gothic-church": 0.025, "sky-night-swamp": 0, "sky-ruined-gothic-church": 0.08, "sky-castle-interior": 0, "sky-space-ship": 0.025, "sky-medieval-village": 0, "sky-moonlit-peaks": 0, "sky-spiderweb-ruins": 0 }[skyMotion.preset] ?? 0.7;
         const rotationStep = sceneDelta * skyMotion.speed * presetRate * 0.6;
         scene.backgroundRotation.y = (scene.backgroundRotation.y + rotationStep) % (Math.PI * 2);
         scene.environmentRotation.y = scene.backgroundRotation.y;
@@ -4020,6 +4240,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       renderer.domElement.removeEventListener("pointerup", onPointerUp);
       renderer.domElement.removeEventListener("pointercancel", onPointerUp);
       renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
+      setShipHover(null);
       brushCursor.geometry.dispose();
       brushCursor.material.dispose();
       transform.dispose();
@@ -4030,6 +4251,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         marker.material.dispose();
       });
       runtimeRef.current?.backgroundTexture?.dispose?.();
+      runtimeRef.current?.moonlitZenithTexture?.dispose?.();
       runtimeRef.current?.mixers?.forEach(({ mixer }) => mixer.stopAllAction());
       Object.values(sceneEffectSystem.systems).forEach((points) => {
         points.geometry.dispose();
@@ -4052,7 +4274,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       sceneEffectSystem.lavaJets.drops.geometry.dispose();
       sceneEffectSystem.lavaJets.impactDrops.geometry.dispose();
       sceneEffectSystem.lavaJets.splashes.geometry.dispose();
-      sceneEffectSystem.lavaJets.material.map?.dispose?.();
+      sceneEffectSystem.lavaJets.splashMaterial.dispose();
       sceneEffectSystem.lavaJets.material.dispose();
       sceneEffectSystem.lavaGas.points.geometry.dispose();
       sceneEffectSystem.lavaGas.points.material.map?.dispose?.();
@@ -4069,13 +4291,20 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       sceneEffectSystem.lavaAtmosphere.crustPlates.plates.geometry.dispose();
       sceneEffectSystem.lavaAtmosphere.crustPlates.crustTexture.dispose();
       sceneEffectSystem.lavaAtmosphere.crustPlates.plates.material.dispose();
-      sceneEffectSystem.lavaAtmosphere.crustPlates.lavaTopTexture.dispose();
-      sceneEffectSystem.lavaAtmosphere.crustPlates.lavaTopMaterial.dispose();
+      sceneEffectSystem.lavaAtmosphere.crustPlates.ashTopMaterial.dispose();
       sceneEffectSystem.lavaAtmosphere.crustPlates.rims.geometry.dispose();
       sceneEffectSystem.lavaAtmosphere.crustPlates.rims.material.dispose();
       sceneEffectSystem.lavaAtmosphere.shadowCatcher.geometry.dispose();
       sceneEffectSystem.lavaAtmosphere.shadowCatcher.material.dispose();
       scene.remove(sceneEffectSystem.group);
+      spaceScene.userData.dispose();
+      scene.remove(spaceScene);
+      spaceShipSet.userData.dispose();
+      scene.remove(spaceShipSet);
+      scene.remove(spacePanorama);
+      scene.remove(cloudsPanoramaBackdrop);
+      scene.remove(medievalVillagePanorama);
+      scene.remove(spiderwebRuinsPanorama);
       ruinedChurchDebris.userData.dispose?.();
       scene.remove(ruinedChurchDebris);
       apocalypseDebris.userData.dispose?.();
@@ -4115,6 +4344,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       castlePanorama.userData.dispose();
       gothicPanorama.userData.dispose();
       swampPanorama.userData.dispose();
+      spacePanorama.userData.dispose();
+      cloudsPanoramaBackdrop.userData.dispose();
+      medievalVillagePanorama.userData.dispose();
+      spiderwebRuinsPanorama.userData.dispose();
       environmentTexture.dispose();
       renderer.domElement.removeEventListener("webglcontextlost", handleContextLost);
       renderer.domElement.removeEventListener("webglcontextrestored", handleContextRestored);
@@ -4209,6 +4442,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     runtime.castlePanorama.userData.setTexture(null);
     runtime.gothicPanorama.userData.setTexture(null);
     runtime.swampPanorama.userData.setTexture(null);
+    runtime.spacePanorama.userData.setTexture(null);
+    runtime.cloudsPanoramaBackdrop.userData.setTexture(null);
+    runtime.medievalVillagePanorama.userData.setTexture(null);
+    runtime.spiderwebRuinsPanorama.userData.setTexture(null);
     runtime.scene.backgroundBlurriness = 0;
     runtime.backgroundTexture?.dispose?.();
     runtime.backgroundTexture = null;
@@ -4220,6 +4457,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.scene.environmentRotation.x = 0;
       return undefined;
     }
+    const isSpacePanorama = preset.id === "sky-space" || preset.id === "sky-space-ship";
     let cancelled = false;
     new THREE.TextureLoader().load(preset.image, (texture) => {
       if (cancelled || runtimeRef.current !== runtime) { texture.dispose(); return; }
@@ -4227,6 +4465,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       texture.mapping = THREE.EquirectangularReflectionMapping;
       texture.wrapS = THREE.MirroredRepeatWrapping;
       texture.repeat.x = 2;
+      if (isSpacePanorama || preset.id === "clouds" || preset.id === "sky-clouds"
+        || preset.id === "sky-medieval-village" || preset.id === "sky-spiderweb-ruins") {
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.repeat.set(1, 1);
+      }
       if (["sky-ruined-gothic-church", "sky-apocalypse", "sky-cemetery", "sky-castle-interior", "sky-gothic-church", "sky-night-swamp", "sky-medieval-apocalypse", "sky-moonlit-peaks"].includes(preset.id)) {
         texture.wrapS = THREE.RepeatWrapping;
         texture.repeat.set(1, 1);
@@ -4235,15 +4478,37 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       texture.magFilter = THREE.LinearFilter;
       texture.generateMipmaps = true;
       texture.anisotropy = runtime.renderer.capabilities.getMaxAnisotropy();
+      if (isSpacePanorama || preset.id === "clouds" || preset.id === "sky-clouds"
+        || preset.id === "sky-medieval-village" || preset.id === "sky-spiderweb-ruins") {
+        texture.minFilter = THREE.LinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = false;
+      }
       texture.needsUpdate = true;
       runtime.backgroundTexture = texture;
       runtime.scene.background = texture;
       runtime.scene.backgroundIntensity = preset.backgroundIntensity ?? 1;
       runtime.scene.backgroundRotation.x = preset.backgroundRotationX ?? 0;
-      runtime.scene.environment = texture;
+      runtime.scene.environment = preset.id === "sky-space-ship" ? runtime.baseEnvironment : texture;
       runtime.scene.environmentIntensity = preset.environment ?? 0.65;
       runtime.scene.environmentRotation.x = preset.backgroundRotationX ?? 0;
-      if (preset.id === "sky-ruined-gothic-church") {
+      if (isSpacePanorama) {
+        runtime.spacePanorama.userData.setTexture(texture, preset.backgroundIntensity ?? 1);
+        runtime.scene.background = new Color("#03070d");
+      } else if (preset.id === "clouds" || preset.id === "sky-clouds") {
+        runtime.cloudsPanoramaBackdrop.userData.setTexture(texture, preset.backgroundIntensity ?? 1);
+        runtime.scene.background = new Color("#87b8d9");
+      } else if (preset.id === "sky-medieval-village") {
+        runtime.scene.backgroundRotation.y = 0;
+        runtime.scene.environmentRotation.y = 0;
+        runtime.medievalVillagePanorama.userData.setTexture(texture, preset.backgroundIntensity ?? 1);
+        runtime.scene.background = new Color("#493d32");
+      } else if (preset.id === "sky-spiderweb-ruins") {
+        runtime.scene.backgroundRotation.y = 0;
+        runtime.scene.environmentRotation.y = 0;
+        runtime.spiderwebRuinsPanorama.userData.setTexture(texture, preset.backgroundIntensity ?? 1);
+        runtime.scene.background = new Color("#182026");
+      } else if (preset.id === "sky-ruined-gothic-church") {
         runtime.churchPanorama.userData.setTexture(texture, 0.8);
         runtime.scene.background = new Color("#0d1724");
       } else if (preset.id === "sky-infernal") {
@@ -4263,6 +4528,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       } else if (preset.id === "sky-moonlit-peaks") {
         runtime.scene.backgroundRotation.y = 0;
         runtime.scene.environmentRotation.y = 0;
+        if (!runtime.moonlitZenithTexture) {
+          runtime.moonlitZenithTexture = new THREE.TextureLoader().load(moonlitZenithTextureUrl);
+          runtime.moonlitZenithTexture.colorSpace = THREE.SRGBColorSpace;
+          runtime.moonlitZenithTexture.anisotropy = 8;
+        }
+        runtime.moonlitPanorama.userData.setZenithTexture(runtime.moonlitZenithTexture);
         runtime.moonlitPanorama.userData.setTexture(texture, preset.backgroundIntensity ?? 1);
         runtime.scene.background = new Color("#0b1520");
       } else if (preset.id === "sky-castle-interior") {
@@ -4311,7 +4582,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     if (floor.material.bumpMap !== floor.material.map) floor.material.bumpMap?.dispose?.();
     floor.material.dispose();
     floor.material = createFloorMaterial(floorSurface, floorColor);
-    const geometrySurface = ["infernal", "cemetery", "night-swamp", "medieval-apocalypse", "moonlit-peaks"].includes(floorSurface) ? floorSurface : "flat";
+    const geometrySurface = ["infernal", "cemetery", "night-swamp", "medieval-apocalypse", "moonlit-peaks", "space-nebula", "ship-deck"].includes(floorSurface) ? floorSurface : "flat";
     if (floor.userData.geometrySurface !== geometrySurface) {
       floor.geometry.dispose();
       floor.geometry = floorSurface === "infernal"
@@ -4319,10 +4590,13 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         : floorSurface === "cemetery" ? createCemeteryTerrainGeometry()
           : floorSurface === "night-swamp" ? createSwampTerrainGeometry()
             : floorSurface === "medieval-apocalypse" ? createMedievalTerrainGeometry()
-              : floorSurface === "moonlit-peaks" ? createMoonlitTerrainGeometry() : new THREE.PlaneGeometry(280, 280);
+              : floorSurface === "moonlit-peaks" ? createMoonlitTerrainGeometry()
+                : floorSurface === "space-nebula" ? createNebulaFloorGeometry()
+                  : floorSurface === "ship-deck" ? new THREE.PlaneGeometry(27, 32).translate(0, 5, 0) : new THREE.PlaneGeometry(280, 280);
       floor.userData.geometrySurface = geometrySurface;
     }
     floor.userData.surface = floorSurface;
+    floor.renderOrder = floorSurface === "space-nebula" ? -1 : 0;
     floor.position.y = floorSurface === "ruined-gothic-church" ? -0.19 : -0.015;
     const ruins = runtimeRef.current.ruinedChurchDebris;
     if (floorSurface === "ruined-gothic-church") ruins.userData.build();
@@ -4343,6 +4617,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         material.color.copy(ruinedChurchFloorTint(floorColor));
         runtimeRef.current.ruinedChurchDebris.userData.setTint(material.color);
       }
+      else if (floorSurface === "infernal") material.color.copy(infernalFloorTint(floorColor));
       else material.color.set(floorColor);
     }
     if (floorSurface === "grass") {
@@ -4424,8 +4699,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         object.quaternion.fromArray(before.quaternion).slerp(new THREE.Quaternion().fromArray(after.quaternion), alpha);
       }
       object.scale.fromArray(before.scale).lerp(new Vector3().fromArray(after.scale), alpha);
+      if (before.poseOffsets || after.poseOffsets) {
+        const names = new Set([...Object.keys(before.poseOffsets || {}), ...Object.keys(after.poseOffsets || {})]);
+        object.userData.poseOffsets = Object.fromEntries([...names].map((name) => [name, [0, 1, 2].map((axis) =>
+          THREE.MathUtils.lerp(before.poseOffsets?.[name]?.[axis] || 0, after.poseOffsets?.[name]?.[axis] || 0, alpha)
+        )]));
+      }
     });
-    if (syncUi) syncSelection();
+    if (syncUi) { syncSelection(); setPoseVersion((version) => version + 1); }
   }
 
   function seekAnimation(time) {
@@ -4584,6 +4865,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     }
     const byId = Object.fromEntries(CAMERA_SHOTS.map((shot) => [shot.id, shot]));
     const styles = {
+      classic: [byId.general, byId.full, byId["american-front"], byId.medium, byId["medium-close"], byId["close-neutral"]],
       "youtube-reveal": [byId["youtube-overhead"], byId["youtube-medium"], byId["youtube-face"]],
       "youtube-documentary": [byId["youtube-establishing"], byId["youtube-medium"], byId["youtube-interview"], byId["youtube-face"], byId["youtube-face-side"]],
       "youtube-interview": [byId["youtube-medium"], byId["youtube-interview"], byId["youtube-face"]],
@@ -4602,10 +4884,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const frames = times.map((time, index) => {
       const source = shots[index % shots.length];
       const variation = index % 2 ? -1 : 1;
-      const shot = { ...source, angle: (source.angle || 0) + variation * ((index * 17) % 24) };
+      const shot = preset === "classic" ? source : { ...source, angle: (source.angle || 0) + variation * ((index * 17) % 24) };
       const pose = calculateCameraShotPose(shot, subject);
       const spherical = new THREE.Spherical().setFromVector3(pose.position.clone().sub(pose.target));
-      return { id: makeId(), time, position: pose.position.toArray(), target: pose.target.toArray(), orbit: { radius: spherical.radius, phi: spherical.phi, theta: spherical.theta }, continuousOrbit: false, up: pose.up.toArray(), fov: pose.fov, transition, shotName: source.name, followSubjectId: subject.userData.editorId, followOrigin };
+      return { id: makeId(), time, position: pose.position.toArray(), target: pose.target.toArray(), orbit: { radius: spherical.radius, phi: spherical.phi, theta: spherical.theta }, continuousOrbit: false, up: pose.up.toArray(), fov: pose.fov, transition: preset === "classic" ? "cut" : transition, shotName: source.name, followSubjectId: preset === "classic" ? null : subject.userData.editorId, followOrigin: preset === "classic" ? null : followOrigin };
     });
     setAnimationPlaying(false);
     animationDurationRef.current = duration;
@@ -4724,7 +5006,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       window.removeEventListener("studio:workspace-save", save);
       window.removeEventListener("studio:workspace-load", load);
     };
-  }, [background, environmentBackground, skyMotionEnabled, skyMotionSpeed, sceneEffects, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, grassSettings, lavaSettings, realisticSky, renderResolution, transparentPng, animationDuration, animationTracks, animationLoop, cameraShake, cameraFollow, slowMotion, freezeMotion, activeLightingRig, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, selectedId]);
+  }, [background, environmentBackground, skyMotionEnabled, skyMotionSpeed, sceneEffects, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, grassSettings, lavaSettings, realisticSky, renderResolution, transparentPng, animationDuration, animationTracks, animationLoop, cameraShake, cameraFollow, cinematicCamera, directorPreset, slowMotion, freezeMotion, activeLightingRig, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, selectedId]);
 
   useEffect(() => {
     if (!active || autosaveReadyRef.current || !runtimeRef.current) return;
@@ -4788,7 +5070,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       }
     }, 6000);
     return () => clearTimeout(timer);
-  }, [active, autosaveRevision, objects, selection, background, environmentBackground, skyMotionEnabled, skyMotionSpeed, sceneEffects, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, grassSettings, lavaSettings, realisticSky, renderResolution, transparentPng, animationDuration, animationTracks, animationLoop, cameraShake, cameraFollow, slowMotion, freezeMotion, activeLightingRig, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, poseVersion, viewportRecording, animationExporting]);
+  }, [active, autosaveRevision, objects, selection, background, environmentBackground, skyMotionEnabled, skyMotionSpeed, sceneEffects, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, grassSettings, lavaSettings, realisticSky, renderResolution, transparentPng, animationDuration, animationTracks, animationLoop, cameraShake, cameraFollow, cinematicCamera, directorPreset, slowMotion, freezeMotion, activeLightingRig, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, poseVersion, viewportRecording, animationExporting]);
 
   useEffect(() => {
     if (openProjectSignal) setStatus("Selecciona un proyecto desde Inicio");
@@ -5121,6 +5403,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     if (!environment) return;
     pushHistory();
     setEnvironmentBackground(preset.id);
+    if (preset.id === "clouds") setRealisticSky((current) => ({ ...current, enabled: false }));
     setFloorSurface(environment.floor);
     setFloorColor(defaultFloorColor(environment.floor));
     setFloorVisible(true);
@@ -5152,10 +5435,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         }
       },
       "sky-space": {
-        floor: "fantasy",
+        floor: "space-nebula",
         effects: {
-          fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.12, color: "#15132f" },
-          particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.82, color: "#c3b7ff" }
+          space: { ...DEFAULT_SPACE_SETTINGS },
+          fog: { ...DEFAULT_CHURCH_FOG, enabled: true, intensity: 0.18, height: 2.1,
+            coverage: 48, color: "#203449", windSpeed: 0.36, windDirection: 22, turbulence: 0.72 }
         }
       },
       "sky-sun": {
@@ -5183,10 +5467,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     };
     const skyScene = skyScenes[preset.id];
     setEnvironmentBackground(preset.id);
+    if (preset.id === "sky-clouds") setRealisticSky((current) => ({ ...current, enabled: false }));
     const nextFloorSurface = skyScene?.floor || "shadow";
     setFloorSurface(nextFloorSurface);
     setFloorColor(defaultFloorColor(nextFloorSurface));
     setFloorVisible(true);
+    if (preset.id === "sky-space") setGridVisible(false);
     setSkyMotionEnabled(true);
     setSceneEffects({
       ...structuredClone(DEFAULT_SCENE_EFFECTS),
@@ -5205,12 +5491,13 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const skyPreset = SKY_BACKGROUNDS.find((preset) => preset.id === scenePreset.sky);
     if (!skyPreset || !runtimeRef.current) return;
     pushHistory();
-    if (["ruined-gothic-church", "gothic-church", "castle-interior"].includes(scenePreset.id) && activeLightingRig) clearLightingRig({ recordHistory: false });
+    if (["ruined-gothic-church", "gothic-church", "castle-interior", "space-ship"].includes(scenePreset.id) && activeLightingRig) clearLightingRig({ recordHistory: false });
     setEnvironmentBackground(skyPreset.id);
+    if (scenePreset.id === "medieval-village") setRealisticSky((current) => ({ ...current, enabled: false }));
     setFloorSurface(scenePreset.floor);
     setFloorColor(defaultFloorColor(scenePreset.floor));
     setFloorVisible(true);
-    if (scenePreset.id === "moonlit-peaks") setGridVisible(false);
+    if (scenePreset.id === "moonlit-peaks" || scenePreset.id === "space-ship") setGridVisible(false);
     setSkyMotionEnabled(true);
     setAmbientIntensity(skyPreset.ambient);
     setExposure(skyPreset.exposure);
@@ -5247,6 +5534,13 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       fog: { ...DEFAULT_CHURCH_FOG, enabled: true, intensity: 0.14, height: 1.7, coverage: 46, color: "#263c3b", windSpeed: 0.42 },
       particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.18, color: "#849f77" },
     },
+    "space-nebula": {
+      ...structuredClone(DEFAULT_SCENE_EFFECTS),
+      space: { ...DEFAULT_SPACE_SETTINGS },
+      fog: { ...DEFAULT_CHURCH_FOG, enabled: true, intensity: 0.18, height: 2.1,
+        coverage: 48, color: "#203449", windSpeed: 0.36, windDirection: 22, turbulence: 0.72 },
+      particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.18, color: "#b7e6ff" },
+    },
     "ruined-gothic-church": {
       ...structuredClone(DEFAULT_SCENE_EFFECTS),
       fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.12, color: "#354151" },
@@ -5260,10 +5554,9 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.06, color: "#53453c" },
       castleLighting: { ...DEFAULT_CASTLE_LIGHTING, enabled: true },
     },
-    "castle-courtyard": {
+    "space-ship": {
       ...structuredClone(DEFAULT_SCENE_EFFECTS),
-      fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.12, color: "#9aa69e" },
-      particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.2, color: "#e6c98d" },
+      particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: false, intensity: 0.06, color: "#8ce5e2" },
     },
     "medieval-village": {
       ...structuredClone(DEFAULT_SCENE_EFFECTS),
@@ -5309,7 +5602,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     runtime.camera.position.copy(center).add(directions[view].normalize().multiplyScalar(size * 1.45));
     runtime.camera.up.set(0, 1, 0);
     runtime.orbit.update();
-    setActiveCameraShot("");
   }
 
   function calculateCameraShotPose(shot, subject, framingBounds = null) {
@@ -5354,55 +5646,187 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     return { fov: shot.fov, position, target, up };
   }
 
-  function applyCameraShot(shot) {
+
+  function selectedCinematicSubjects(settings) {
+    const orderedSelection = [...selectedIdsRef.current].map(findEditorObject);
+    return [
+      ...(settings.shot === "ots" && orderedSelection.length > 1 ? orderedSelection : [selectedRef.current, ...orderedSelection])
+    ]
+      .filter((object, index, all) => object && object.visible && !object.isLight && all.indexOf(object) === index)
+      .slice(0, 2);
+  }
+
+  function applyCinematicCamera(next, { instant = false, recordHistory = true, label = "cinematografico" } = {}) {
     const runtime = runtimeRef.current;
-    if (!runtime || !shot) return;
-    const subject = selectedRef.current && !selectedRef.current.isLight ? selectedRef.current : runtime.content;
-    const pose = calculateCameraShotPose(shot, subject);
+    if (!runtime) return;
+    const subjects = selectedCinematicSubjects(next);
+    if (!subjects.length) {
+      setStatus("Selecciona un objeto o personaje para encuadrar");
+      return;
+    }
+    const pose = frameCinematicSubjects(subjects, runtime.camera, next);
     if (!pose) {
-      setStatus("Selecciona un objeto para aplicar el plano");
+      setStatus("El objeto seleccionado no tiene geometria visible");
+      return;
+    }
+    if (recordHistory) pushHistory();
+    releaseCameraForManualNavigation();
+    setCinematicCamera(next);
+    setDirectorPreset("selected-camera");
+    const { camera, orbit } = runtime;
+    const finish = () => {
+      camera.position.copy(pose.position);
+      camera.quaternion.copy(pose.quaternion);
+      camera.up.copy(pose.up);
+      camera.fov = pose.fov;
+      camera.near = pose.near;
+      camera.updateProjectionMatrix();
+      orbit.target.copy(pose.target);
+      orbit.enabled = true;
+      orbit.update();
+      const spherical = new THREE.Spherical().setFromVector3(camera.position.clone().sub(orbit.target));
+      cameraOrbitRef.current = { lastTheta: spherical.theta, theta: spherical.theta };
+      cameraShotRef.current = null;
+      setStatus("Plano " + label + " listo");
+    };
+    if (instant || next.transition === "instant") {
+      finish();
       return;
     }
 
-    if (cameraShotRef.current?.frame) cancelAnimationFrame(cameraShotRef.current.frame);
-    const startPosition = runtime.camera.position.clone();
-    const startTarget = runtime.orbit.target.clone();
-    const startUp = runtime.camera.up.clone();
-    const startFov = runtime.camera.fov;
+    const fromPosition = camera.position.clone();
+    const fromTarget = orbit.target.clone();
+    const fromUp = camera.up.clone();
+    const fromQuaternion = camera.quaternion.clone();
+    const fromFov = camera.fov;
+    const fromNear = camera.near;
     const startedAt = performance.now();
-    const duration = 900;
-    runtime.orbit.enabled = false;
-    setActiveCameraShot(shot.id);
-    setStatus(`Aplicando plano ${shot.name.toLowerCase()}`);
-
+    const duration = THREE.MathUtils.clamp(next.duration, 0.2, 3) * 1000;
+    orbit.enabled = false;
     const animate = (now) => {
       const progress = Math.min((now - startedAt) / duration, 1);
-      const eased = progress < 0.5
-        ? 4 * progress * progress * progress
-        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-      runtime.camera.position.lerpVectors(startPosition, pose.position, eased);
-      runtime.orbit.target.lerpVectors(startTarget, pose.target, eased);
-      runtime.camera.up.lerpVectors(startUp, pose.up, eased).normalize();
-      runtime.camera.fov = THREE.MathUtils.lerp(startFov, pose.fov, eased);
-      runtime.camera.updateProjectionMatrix();
-      runtime.camera.lookAt(runtime.orbit.target);
-
+      const eased = progress * progress * (3 - 2 * progress);
+      camera.position.lerpVectors(fromPosition, pose.position, eased);
+      camera.quaternion.copy(fromQuaternion).slerp(pose.quaternion, eased);
+      camera.up.lerpVectors(fromUp, pose.up, eased).normalize();
+      camera.fov = THREE.MathUtils.lerp(fromFov, pose.fov, eased);
+      camera.near = THREE.MathUtils.lerp(fromNear, pose.near, eased);
+      camera.updateProjectionMatrix();
+      orbit.target.lerpVectors(fromTarget, pose.target, eased);
       if (progress < 1) {
         cameraShotRef.current.frame = requestAnimationFrame(animate);
-        return;
+      } else {
+        finish();
       }
-      runtime.orbit.enabled = true;
-      runtime.orbit.update();
-      const spherical = new THREE.Spherical().setFromVector3(runtime.camera.position.clone().sub(runtime.orbit.target));
-      cameraOrbitRef.current = { lastTheta: spherical.theta, theta: spherical.theta };
-      cameraShotRef.current = null;
-      setStatus(`Plano ${shot.name.toLowerCase()} listo`);
     };
-
     cameraShotRef.current = { frame: requestAnimationFrame(animate) };
   }
 
+  function applyShotPreset(type) {
+    const shot = CINEMATIC_SHOTS.find((entry) => entry.id === type);
+    if (!shot) return;
+    applyCinematicCamera({
+      ...cinematicCamera, shot: type, lens: shot.lens, lookAt: shot.lookAt,
+      distance: 1, composition: 0, faceOff: false, preset: ""
+    }, { label: shot.name });
+  }
+
+  function applyCameraAngle(type) {
+    const angle = CINEMATIC_ANGLES.find((entry) => entry.id === type);
+    if (!angle) return;
+    applyCinematicCamera({
+      ...cinematicCamera, angle: type, azimuth: angle.azimuth,
+      elevation: angle.elevation, roll: angle.roll, height: 0,
+      faceOff: false, preset: ""
+    }, { label: angle.name });
+  }
+
+  function applyCinematicPreset(type) {
+    const preset = CINEMATIC_PRESETS.find((entry) => entry.id === type);
+    if (!preset) return;
+    const angle = CINEMATIC_ANGLES.find((entry) => entry.id === preset.angle);
+    applyCinematicCamera({
+      ...cinematicCamera, shot: preset.shot, angle: preset.angle,
+      lens: preset.lens, lookAt: preset.lookAt,
+      azimuth: preset.azimuth ?? angle.azimuth,
+      elevation: preset.elevation ?? angle.elevation,
+      roll: preset.roll ?? angle.roll,
+      height: 0, distance: preset.distance ?? 1,
+      composition: preset.composition ?? 0,
+      faceOff: Boolean(preset.faceOff), preset: type
+    }, { label: preset.name });
+  }
+
+  function updateCinematicControl(patch, label, instant = true) {
+    applyCinematicCamera({ ...cinematicCamera, ...patch, preset: "" }, { label, instant, recordHistory: false });
+  }
+
+  function createSelectedCameraDirection(transition) {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    const subjects = selectedCinematicSubjects(cinematicCamera);
+    if (!subjects.length) {
+      setStatus("Selecciona un objeto o personaje para animar el plano");
+      return;
+    }
+    const startPose = frameCinematicSubjects(subjects, runtime.camera, {
+      ...cinematicCamera,
+      distance: cinematicCamera.distance * 1.18,
+      azimuth: cinematicCamera.azimuth - 6
+    });
+    const endPose = frameCinematicSubjects(subjects, runtime.camera, cinematicCamera);
+    if (!startPose || !endPose) {
+      setStatus("No se puede encuadrar el objeto seleccionado");
+      return;
+    }
+    releaseCameraForManualNavigation();
+    const duration = Math.max(6, Math.min(animationDuration, 20));
+    const followOrigin = subjects[0].getWorldPosition(new Vector3()).toArray();
+    const shotName = CINEMATIC_PRESETS.find((item) => item.id === cinematicCamera.preset)?.name
+      || CINEMATIC_SHOTS.find((item) => item.id === cinematicCamera.shot)?.name
+      || "Plano del panel";
+    const frames = [startPose, endPose].map((pose, index) => {
+      const spherical = new THREE.Spherical().setFromVector3(pose.position.clone().sub(pose.target));
+      return {
+        id: makeId(),
+        time: index * duration,
+        position: pose.position.toArray(),
+        target: pose.target.toArray(),
+        orbit: { radius: spherical.radius, phi: spherical.phi, theta: spherical.theta },
+        continuousOrbit: false,
+        up: pose.up.toArray(),
+        fov: pose.fov,
+        transition,
+        shotName,
+        followSubjectId: subjects[0].userData.editorId,
+        followOrigin
+      };
+    });
+    runtime.camera.position.copy(startPose.position);
+    runtime.orbit.target.copy(startPose.target);
+    runtime.camera.up.copy(startPose.up);
+    runtime.camera.fov = startPose.fov;
+    runtime.camera.near = startPose.near;
+    runtime.camera.updateProjectionMatrix();
+    runtime.orbit.update();
+    cameraOrbitRef.current = { lastTheta: frames[0].orbit.theta, theta: frames[0].orbit.theta };
+    animationDurationRef.current = duration;
+    setAnimationDuration(duration);
+    animationTimeRef.current = 0;
+    setAnimationTime(0);
+    setAnimationTracks((current) => ({ ...current, [CAMERA_TRACK_ID]: frames }));
+    const retainedFreezes = freezeMotionRef.current.filter((segment) => !segment.autoDirector);
+    freezeMotionRef.current = retainedFreezes;
+    setFreezeMotion(retainedFreezes);
+    setStatus("Plano " + shotName + " en reproduccion");
+    setTimeout(() => setGlobalPlayback(true), 0);
+  }
+
   function createAutomaticDirection(preset = "hollywood", transition = "cinematic") {
+    if (preset === "selected-camera") {
+      createSelectedCameraDirection(transition);
+      return;
+    }
     const runtime = runtimeRef.current;
     const subject = selectedRef.current;
     const automaticScenePreset = ["tv-priest-orbit", "tv-first-person"].includes(preset);
@@ -5412,6 +5836,18 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     }
     const byId = Object.fromEntries(CAMERA_SHOTS.map((shot) => [shot.id, shot]));
     const presets = {
+      classic: {
+        name: "Clasico - planos fijos", duration: 24, forceTransition: "cut", followSubject: false,
+        shots: [
+          { ...byId.general, angle: 0, elevation: 3, time: 0 },
+          { ...byId.full, angle: 0, elevation: 2, time: 4 },
+          { ...byId["american-front"], time: 8 },
+          { ...byId.medium, angle: 0, elevation: 2, time: 12 },
+          { ...byId["medium-close"], time: 16 },
+          { ...byId["close-neutral"], time: 20 },
+          { ...byId["close-neutral"], time: 24 }
+        ]
+      },
       "youtube-reveal": {
         name: "YouTube - Descenso al rostro", duration: 10, forceTransition: "smooth", shots: [
           { ...byId["youtube-overhead"], time: 0, angle: -16, elevation: 72 },
@@ -5716,8 +6152,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         fov: pose.fov,
         transition: direction.forceTransition || transition,
         shotName: shot.name,
-        followSubjectId: directionSubject.userData.editorId,
-        followOrigin
+        followSubjectId: direction.followSubject === false ? null : directionSubject.userData.editorId,
+        followOrigin: direction.followSubject === false ? null : followOrigin
       };
     });
     if (direction.continuousOrbit) {
@@ -5736,7 +6172,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     runtime.camera.updateProjectionMatrix();
     runtime.orbit.update();
     cameraOrbitRef.current = { lastTheta: first.orbit.theta, theta: first.orbit.theta };
-    setActiveCameraShot("");
     setAnimationPlaying(false);
     animationDurationRef.current = duration;
     setAnimationDuration(duration);
@@ -5767,7 +6202,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     runtime.orbit._rotateLeft(deltaX * rotationScale);
     runtime.orbit._rotateUp(deltaY * rotationScale);
     runtime.orbit.update();
-    setActiveCameraShot("");
   }
 
   function zoomCamera(factor) {
@@ -5776,7 +6210,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     releaseCameraForManualNavigation();
     if (factor < 1) runtime.orbit.dollyIn(factor);
     else runtime.orbit.dollyOut(1 / factor);
-    setActiveCameraShot("");
   }
 
   function releaseCameraForManualNavigation() {
@@ -5838,7 +6271,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       rotation: [...(object.userData.animationRotation || [object.rotation.x, object.rotation.y, object.rotation.z])],
       rotationOrder: object.rotation.order,
       quaternion: object.quaternion.toArray(),
-      scale: object.scale.toArray()
+      scale: object.scale.toArray(),
+      poseOffsets: poseBoneOptions(object).length ? structuredClone(object.userData.poseOffsets || {}) : undefined
     };
     setAnimationTracks((current) => {
       const existing = (current[objectId] || []).filter((frame) => Math.abs(frame.time - keyframe.time) > 0.02);
@@ -5860,7 +6294,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       continuousOrbit: true,
       up: runtime.camera.up.toArray(),
       fov: runtime.camera.fov,
-      shotName: CAMERA_SHOTS.find((shot) => shot.id === activeCameraShot)?.name || ""
+      shotName: ""
     };
     const currentFrames = animationTracks[CAMERA_TRACK_ID] || [];
     const replacing = currentFrames.some((frame) => Math.abs(frame.time - keyframe.time) <= 0.02);
@@ -5952,6 +6386,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const swampBatsWereVisible = runtime.swampBats.visible;
     const swampSetWasVisible = runtime.swampSet.visible;
     const castleInteriorWasVisible = runtime.castleInterior.visible;
+    const spaceShipWasVisible = runtime.spaceShipSet.visible;
     const gothicInteriorWasVisible = runtime.gothicInterior.visible;
     const skyWasVisible = runtime.realisticSkyDome.visible;
     const churchPanoramaWasVisible = runtime.churchPanorama.visible;
@@ -5963,6 +6398,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const castlePanoramaWasVisible = runtime.castlePanorama.visible;
     const gothicPanoramaWasVisible = runtime.gothicPanorama.visible;
     const swampPanoramaWasVisible = runtime.swampPanorama.visible;
+    const spacePanoramaWasVisible = runtime.spacePanorama.visible;
+    const cloudsPanoramaWasVisible = runtime.cloudsPanoramaBackdrop.visible;
+    const medievalVillagePanoramaWasVisible = runtime.medievalVillagePanorama.visible;
+    const spiderwebRuinsPanoramaWasVisible = runtime.spiderwebRuinsPanorama.visible;
     const apocalypseFiresWereVisible = runtime.sceneEffectSystem.apocalypseFires.visible;
     const magicSeal = runtime.sceneEffectSystem.magic.getObjectByName("Sello arcano");
     const magicSealWasVisible = magicSeal.visible;
@@ -6006,6 +6445,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.swampBats.visible = false;
       runtime.swampSet.visible = false;
       runtime.castleInterior.visible = false;
+      runtime.spaceShipSet.visible = false;
       runtime.gothicInterior.visible = false;
       runtime.realisticSkyDome.visible = false;
       runtime.churchPanorama.visible = false;
@@ -6017,6 +6457,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.castlePanorama.visible = false;
       runtime.gothicPanorama.visible = false;
       runtime.swampPanorama.visible = false;
+      runtime.spacePanorama.visible = false;
+      runtime.cloudsPanoramaBackdrop.visible = false;
+      runtime.medievalVillagePanorama.visible = false;
+      runtime.spiderwebRuinsPanorama.visible = false;
       runtime.sceneEffectSystem.apocalypseFires.visible = false;
       magicSeal.visible = false;
       runtime.sceneEffectSystem.churchFog.visible = false;
@@ -6043,6 +6487,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.swampBats.visible = swampBatsWereVisible;
       runtime.swampSet.visible = swampSetWasVisible;
       runtime.castleInterior.visible = castleInteriorWasVisible;
+      runtime.spaceShipSet.visible = spaceShipWasVisible;
       runtime.gothicInterior.visible = gothicInteriorWasVisible;
       runtime.realisticSkyDome.visible = skyWasVisible;
       runtime.churchPanorama.visible = churchPanoramaWasVisible;
@@ -6054,6 +6499,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.castlePanorama.visible = castlePanoramaWasVisible;
       runtime.gothicPanorama.visible = gothicPanoramaWasVisible;
       runtime.swampPanorama.visible = swampPanoramaWasVisible;
+      runtime.spacePanorama.visible = spacePanoramaWasVisible;
+      runtime.cloudsPanoramaBackdrop.visible = cloudsPanoramaWasVisible;
+      runtime.medievalVillagePanorama.visible = medievalVillagePanoramaWasVisible;
+      runtime.spiderwebRuinsPanorama.visible = spiderwebRuinsPanoramaWasVisible;
       runtime.sceneEffectSystem.apocalypseFires.visible = apocalypseFiresWereVisible;
       magicSeal.visible = magicSealWasVisible;
       runtime.sceneEffectSystem.churchFog.visible = churchFogWasVisible;
@@ -6293,6 +6742,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         pasted.animations = animations;
         ensureNeonMaskPulse(pasted);
         ensureDemonEyePulse(pasted);
+        ensureAngelHalo(pasted);
         ensureRetroTvScreen(pasted);
         for (const attachment of descriptor.attachments || []) {
           const attachmentPreset = STATIC_MODELS.find((entry) => entry.id === attachment.assetId);
@@ -6510,6 +6960,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setSceneEffects((current) => ({
       ...current,
       [effect]: effect === "magic" ? normalizeMagicSettings({ ...current.magic, [key]: value })
+        : effect === "space" ? normalizeSpaceSettings({ ...current.space, [key]: value })
         : effect === "churchLighting" ? normalizeChurchLighting({ ...current.churchLighting, [key]: value })
           : effect === "cemeteryLighting" ? normalizeCemeteryLighting({ ...current.cemeteryLighting, [key]: value })
             : effect === "castleLighting" ? normalizeCastleLighting({ ...current.castleLighting, [key]: value })
@@ -6579,11 +7030,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         particles: { enabled: true, intensity: 0.28, color: "#ffd08a" },
         storm: { enabled: false, intensity: 0.6 }
       },
-      castleCourtyard: {
-        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.12, color: "#9aa69e" },
+      spaceShip: {
+        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: false },
         fire: { enabled: false, intensity: 0.6 },
         rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: false },
-        particles: { enabled: true, intensity: 0.2, color: "#e6c98d" },
+        particles: { enabled: true, intensity: 0.06, color: "#8ce5e2" },
         storm: { enabled: false, intensity: 0.6 }
       },
       medievalVillage: {
@@ -6610,7 +7061,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       clear: structuredClone(DEFAULT_SCENE_EFFECTS)
     };
     setSceneEffects({ ...structuredClone(DEFAULT_SCENE_EFFECTS), ...presets[preset] });
-    const names = { castleInterior: "Interior del castillo", castleCourtyard: "Patio medieval", medievalVillage: "Aldea humeda", moonlitPeaks: "Cumbres luna llena", spiderwebRuins: "Ruinas de telaranas" };
+    const names = { castleInterior: "Interior del castillo", spaceShip: "Space Ship", medievalVillage: "Aldea humeda", moonlitPeaks: "Cumbres luna llena", spiderwebRuins: "Ruinas de telaranas" };
     setStatus(`Efectos ${names[preset] || preset} aplicados`);
   }
 
@@ -7190,6 +7641,63 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     }
   }
 
+  async function rigSelectedModel() {
+    const original = selectedRef.current;
+    if (!original || rigStage || original.userData.locked) return;
+    setRigStage("Preparando malla");
+    try {
+      const source = cloneSkeleton(original);
+      source.position.set(0, 0, 0);
+      source.quaternion.identity();
+      source.scale.set(1, 1, 1);
+      const binary = await new GLTFExporter().parseAsync(source, { binary: true, onlyVisible: true });
+      const body = new FormData();
+      body.append("model", new File([binary], "model.glb", { type: "model/gltf-binary" }));
+      const response = await fetch(`${API}/api/three/local-rig3d`, { method: "POST", body });
+      const submitted = await response.json();
+      if (!response.ok) throw new Error(submitted.error || "No se pudo iniciar el esqueleto.");
+      for (;;) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const progressResponse = await fetch(`${API}/api/three/local-rig3d/${submitted.id}`);
+        const progress = await progressResponse.json();
+        if (!progressResponse.ok || progress.status === "failed") {
+          throw new Error(progress.error || "No se pudo crear el esqueleto.");
+        }
+        setRigStage(progress.stage || "Creando esqueleto");
+        if (progress.status !== "done") continue;
+        const gltf = await createGLTFLoader().loadAsync(progress.url);
+        const runtime = runtimeRef.current;
+        if (!runtime || !original.parent || findEditorObject(original.userData.editorId) !== original) {
+          throw new Error("El modelo original ya no esta en la escena.");
+        }
+        pushHistory();
+        const rigged = gltf.scene;
+        rigged.name = original.name;
+        rigged.userData = { ...original.userData, editorType: "model", locallyRigged: true };
+        rigged.position.copy(original.position);
+        rigged.quaternion.copy(original.quaternion);
+        rigged.scale.copy(original.scale);
+        rigged.traverse((item) => {
+          if (item.isMesh) { item.castShadow = true; item.receiveShadow = true; }
+        });
+        runtime.mixers.get(original.userData.editorId)?.mixer.stopAllAction();
+        runtime.mixers.delete(original.userData.editorId);
+        original.parent.remove(original);
+        runtime.content.add(rigged);
+        disposeObject(original);
+        refreshObjects();
+        selectObject(rigged);
+        setStatus(`${rigged.name} tiene esqueleto`);
+        break;
+      }
+    } catch (error) {
+      console.error(error);
+      setStatus(error.message || "No se pudo crear el esqueleto.");
+    } finally {
+      setRigStage("");
+    }
+  }
+
   async function addNeonboy(modelPreset = CHARACTER_MODELS[0]) {
     const runtime = runtimeRef.current;
     if (!runtime) return;
@@ -7237,6 +7745,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       model.position.y -= bounds.min.y;
       runtime.content.add(model);
       placeObjectInFreeSpot(model, runtime.content);
+      ensureAngelHalo(model);
       registerModelAnimations(model, gltf.animations);
       let selectedObject = model;
       const guitarConfig = modelPreset.id === "profe"
@@ -7553,6 +8062,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     ...group,
     items: objects.filter((item) => item.category === group.id && (!normalizedSceneSearch || item.name.toLocaleLowerCase("es").includes(normalizedSceneSearch)))
   })).filter((group) => group.items.length);
+  const canFrameSelected = objects.some((item) => selectedIds.includes(item.id) && item.visible && item.type !== "light");
 
   return (
     <section className="three-editor">
@@ -7639,7 +8149,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
               <button disabled={!textDraft.trim()} onClick={selectedRef.current?.userData.editorType === "text" ? () => updateSelectedText() : addText} type="button"><Type size={16} /> {selectedRef.current?.userData.editorType === "text" ? "Aplicar cambios" : "Agregar texto"}</button>
             </div>
           </> : <div className="three-character-library">
-            {["Neonboy", "Neoncruzader", "Demon", "Zombie", "Reptiliano", "Profe", "Cura"].map((character) => <section key={character}>
+            {["Neonboy", "Neoncruzader", "Demon", "Zombie", "Reptiliano", "Angel", "Profe", "Cura"].map((character) => <section key={character}>
               <div className="three-library-section-title"><strong>{character}</strong><span>{CHARACTER_MODELS.filter((model) => model.character === character).length}</span></div>
               <div className="three-add-grid">
                 {CHARACTER_MODELS.filter((model) => model.character === character).map((model) => <button disabled={Boolean(modelLoading)} key={model.id} onClick={() => addNeonboy(model)} type="button"><Sparkles size={22} /><span>{model.animation}</span></button>)}
@@ -7693,6 +8203,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
             <button className={propertyTab === "object" ? "active" : ""} onClick={() => setPropertyTab("object")} type="button"><Box size={15} /><span>Objeto</span></button>
             <button className={propertyTab === "model" ? "active" : ""} onClick={() => setPropertyTab("model")} type="button"><Hammer size={15} /><span>Modelar</span></button>
             <button className={propertyTab === "material" ? "active" : ""} onClick={() => setPropertyTab("material")} type="button"><Palette size={15} /><span>Material</span></button>
+            <button className={propertyTab === "camera" ? "active" : ""} onClick={() => setPropertyTab("camera")} type="button"><Camera size={15} /><span>Camara</span></button>
             <button className={propertyTab === "scene" ? "active" : ""} onClick={() => setPropertyTab("scene")} type="button"><Sun size={15} /><span>Escena</span></button>
             <button className={propertyTab === "effects" ? "active" : ""} onClick={() => setPropertyTab("effects")} type="button"><Sparkles size={15} /><span>Efectos</span></button>
             <button className={propertyTab === "output" ? "active" : ""} onClick={() => setPropertyTab("output")} type="button"><Download size={15} /><span>Salida</span></button>
@@ -7712,29 +8223,116 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
             <button aria-label="Acercar" onClick={(event) => event.detail === 0 && zoomCamera(0.92)} onPointerCancel={stopContinuousZoom} onPointerDown={(event) => startContinuousZoom(event, "in")} onPointerLeave={stopContinuousZoom} onPointerUp={stopContinuousZoom} type="button"><ZoomIn size={18} /></button>
             <button aria-label="Alejar" onClick={(event) => event.detail === 0 && zoomCamera(1.09)} onPointerCancel={stopContinuousZoom} onPointerDown={(event) => startContinuousZoom(event, "out")} onPointerLeave={stopContinuousZoom} onPointerUp={stopContinuousZoom} type="button"><ZoomOut size={18} /></button>
           </div>
-          <div className="three-camera-shots">
-            <div className="three-camera-shots-title"><Film size={15} /><span>PLANOS</span></div>
-            <div className="three-camera-shot-picker">
-              <select onChange={(event) => setCameraShotSelection(event.target.value)} value={cameraShotSelection}>
-                <optgroup label="Encuadres clasicos">
-                  {CAMERA_SHOTS.slice(0, 5).map((shot) => <option key={shot.id} value={shot.id}>{shot.name}</option>)}
-                </optgroup>
-                <optgroup label="Angulos cinematograficos">
-                  {CAMERA_SHOTS.slice(5, 13).map((shot) => <option key={shot.id} value={shot.id}>{shot.name}</option>)}
-                </optgroup>
-                <optgroup label="YouTube / documental">
-                  {CAMERA_SHOTS.slice(13).map((shot) => <option key={shot.id} value={shot.id}>{shot.name}</option>)}
-                </optgroup>
-              </select>
-              <button className={activeCameraShot === cameraShotSelection ? "active" : ""} data-tooltip="Aplicar plano" onClick={() => applyCameraShot(CAMERA_SHOTS.find((shot) => shot.id === cameraShotSelection))} type="button"><Camera size={16} /></button>
-            </div>
-          </div>
           <div className="three-camera-recording three-recording-controls">
             <button aria-label="Grabar render" className={viewportRecording ? "recording" : ""} disabled={viewportRecording || recordingCountdown !== null || viewportConverting} onClick={startViewportRecording} type="button"><Circle fill="currentColor" size={15} /><span>REC</span></button>
             <button aria-label="Detener grabacion" disabled={!viewportRecording && recordingCountdown === null} onClick={stopViewportRecording} type="button"><Square fill="currentColor" size={14} /><span>STOP</span></button>
             <button aria-label="Descargar grabacion WebM" disabled={!viewportRecordingBlob || viewportRecording || recordingCountdown !== null || viewportConverting} onClick={() => downloadViewportRecording("webm")} type="button"><Download size={16} /><span>WebM</span></button>
             <button aria-label="Descargar grabacion MP4 H.264" disabled={!viewportRecordingBlob || viewportRecording || recordingCountdown !== null || viewportConverting} onClick={() => downloadViewportRecording("h264")} type="button"><Film size={16} /><span>{viewportConverting ? "Procesando" : "H.264"}</span></button>
           </div>
+          <fieldset className="three-tab-camera three-cinematic-section">
+            <legend>CINEMATIC CAMERA</legend>
+            <div className="three-cinematic-grid">
+              {CINEMATIC_SHOTS.map((shot) => <button
+                className={cinematicCamera.shot === shot.id ? "active" : ""}
+                disabled={!canFrameSelected}
+                key={shot.id}
+                onClick={() => applyShotPreset(shot.id)}
+                type="button"
+              >{shot.name}</button>)}
+            </div>
+          </fieldset>
+          <fieldset className="three-tab-camera three-cinematic-section">
+            <legend>CAMERA ANGLES</legend>
+            <div className="three-cinematic-grid">
+              {CINEMATIC_ANGLES.map((angle) => <button
+                className={cinematicCamera.angle === angle.id ? "active" : ""}
+                disabled={!canFrameSelected}
+                key={angle.id}
+                onClick={() => applyCameraAngle(angle.id)}
+                type="button"
+              >{angle.name}</button>)}
+            </div>
+          </fieldset>
+          <fieldset className="three-tab-camera three-cinematic-section">
+            <legend>CINEMATIC PRESETS</legend>
+            <div className="three-cinematic-grid">
+              {CINEMATIC_PRESETS.map((preset) => <button
+                className={cinematicCamera.preset === preset.id ? "active" : ""}
+                disabled={!canFrameSelected}
+                key={preset.id}
+                onClick={() => applyCinematicPreset(preset.id)}
+                type="button"
+              >{preset.name}</button>)}
+            </div>
+          </fieldset>
+          <fieldset className="three-tab-camera three-cinematic-section">
+            <legend>LENS &amp; FRAMING</legend>
+            <div className="three-cinematic-lenses">
+              {[18, 24, 28, 35, 50, 70, 85, 100, 135].map((lens) => <button
+                className={cinematicCamera.lens === lens ? "active" : ""}
+                disabled={!canFrameSelected}
+                key={lens}
+                onClick={() => applyCinematicCamera({ ...cinematicCamera, lens, preset: "" }, { label: "de " + lens + " mm" })}
+                type="button"
+              >{lens}mm</button>)}
+            </div>
+            <label><span>Lens ({cinematicCamera.lens} mm)</span><input
+              aria-label="Lens"
+              disabled={!canFrameSelected}
+              max="135" min="18"
+              onChange={(event) => updateCinematicControl({ lens: Number(event.target.value) }, "manual")}
+              onPointerDown={pushHistory}
+              step="1" type="range" value={cinematicCamera.lens}
+            /></label>
+            <label><span>CAMERA HEIGHT ({Math.round(cinematicCamera.height * 100)}%)</span><input
+              aria-label="Camera Height"
+              disabled={!canFrameSelected}
+              max="1" min="-1"
+              onChange={(event) => updateCinematicControl({ height: Number(event.target.value) }, "manual")}
+              onPointerDown={pushHistory}
+              step="0.05" type="range" value={cinematicCamera.height}
+            /></label>
+            <label><span>CAMERA DISTANCE ({cinematicCamera.distance.toFixed(2)}x)</span><input
+              aria-label="Camera Distance"
+              disabled={!canFrameSelected}
+              max="3" min="0.6"
+              onChange={(event) => updateCinematicControl({ distance: Number(event.target.value) }, "manual")}
+              onPointerDown={pushHistory}
+              step="0.05" type="range" value={cinematicCamera.distance}
+            /></label>
+            <label><span>CAMERA ANGLE ({Math.round(cinematicCamera.azimuth)}°)</span><input
+              aria-label="Camera Angle"
+              disabled={!canFrameSelected}
+              max="180" min="-180"
+              onChange={(event) => updateCinematicControl({ angle: "custom", azimuth: Number(event.target.value), faceOff: false }, "manual")}
+              onPointerDown={pushHistory}
+              step="1" type="range" value={cinematicCamera.azimuth}
+            /></label>
+            <label><span>LOOK AT</span><select
+              disabled={!canFrameSelected}
+              onChange={(event) => applyCinematicCamera({ ...cinematicCamera, lookAt: event.target.value, preset: "" }, { label: "de enfoque" })}
+              value={cinematicCamera.lookAt}
+            >
+              <option value="head">Head</option>
+              <option value="chest">Chest</option>
+              <option value="center">Center</option>
+              <option value="feet">Feet</option>
+            </select></label>
+            <div className="three-cinematic-transition">
+              <span>TRANSITION</span>
+              <div>
+                <button className={cinematicCamera.transition === "instant" ? "active" : ""} onClick={() => setCinematicCamera({ ...cinematicCamera, transition: "instant" })} type="button">Instant</button>
+                <button className={cinematicCamera.transition === "smooth" ? "active" : ""} onClick={() => setCinematicCamera({ ...cinematicCamera, transition: "smooth" })} type="button">Smooth</button>
+              </div>
+            </div>
+            <label><span>Duration ({cinematicCamera.duration.toFixed(1)} s)</span><input
+              aria-label="Transition Duration"
+              disabled={cinematicCamera.transition !== "smooth"}
+              max="3" min="0.2"
+              onChange={(event) => setCinematicCamera({ ...cinematicCamera, duration: Number(event.target.value) })}
+              step="0.1" type="range" value={cinematicCamera.duration}
+            /></label>
+          </fieldset>
           {selection ? (
             <>
               <fieldset className="three-tab-object">
@@ -7836,6 +8434,13 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                       </div>
                     </fieldset>
                   )}
+                  {selectedRef.current?.userData?.editorType === "model" && !poseBoneOptions(selectedRef.current).length && !selection.modelAnimation && (
+                    <fieldset className="three-tab-model">
+                      <legend>Esqueleto</legend>
+                      <button className="three-sculpt-toggle" disabled={Boolean(rigStage) || selection.locked} onClick={rigSelectedModel} type="button"><Sparkles size={16} /> Crear esqueleto</button>
+                      {rigStage && <small role="status">{rigStage}</small>}
+                    </fieldset>
+                  )}
                   {selection.modelAnimation && (
                     <fieldset className="three-tab-model">
                       <legend>Animacion del modelo</legend>
@@ -7878,11 +8483,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                       </div>
                     </fieldset>
                   )}
-                  {POSE_BONES.some((entry) => findRigBone(selectedRef.current, entry.id)) && (
+                  {poseBoneOptions(selectedRef.current).length > 0 && (
                     <fieldset className="three-tab-model" key={`pose:${poseVersion}`}>
                       <legend>Pose del personaje</legend>
                       <label><span>Parte</span><select onChange={(event) => { if (poseGizmoRef.current) closeBoneGizmo(); setPoseBone(event.target.value); }} value={poseBone}>
-                        {POSE_BONES.filter((entry) => findRigBone(selectedRef.current, entry.id)).map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+                        {poseBoneOptions(selectedRef.current).map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
                       </select></label>
                       {['X', 'Y', 'Z'].map((axis, index) => {
                         const bone = findRigBone(selectedRef.current, poseBone);
@@ -7890,6 +8495,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                         return <label key={axis}><span>Rotacion {axis}</span><input disabled={selection.locked} max="180" min="-180" onChange={(event) => updateBonePose(index, event.target.value)} onPointerDown={pushHistory} step="1" type="range" value={value} /></label>;
                       })}
                       <button disabled={selection.locked} onClick={resetBonePose} type="button"><RotateCcw size={16} /> Restaurar parte</button>
+                      <button disabled={selection.locked} onClick={addAnimationKeyframe} type="button"><Film size={16} /> Guardar keyframe</button>
                       <button className={poseGizmoRef.current ? "active" : ""} disabled={selection.locked} onClick={poseGizmoRef.current ? closeBoneGizmo : openBoneGizmo} type="button"><Rotate3D size={16} /> {poseGizmoRef.current ? "Cerrar rotador" : "Rotar sobre el personaje"}</button>
                     </fieldset>
                   )}
@@ -8031,6 +8637,18 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                   step="0.05" type="range" value={gothicLightingSettings[key]} />
               </label>)}
             </div>}
+            {environmentBackground === "sky-space" && <div className="three-church-lighting-controls three-space-controls">
+              <div className="three-sublegend">Espacio profundo</div>
+              <label className="three-check"><input checked={spaceSettings.starsEnabled} onChange={(event) => { pushHistory(); updateSceneEffect("space", "starsEnabled", event.target.checked); }} type="checkbox" /><Sparkles size={16} /> Estrellas titilantes</label>
+              <label><span>Intensidad ({spaceSettings.starIntensity.toFixed(2)})</span><input aria-label="Espacio: Intensidad del titilo" disabled={!spaceSettings.starsEnabled} max="2" min="0" onChange={(event) => updateSceneEffect("space", "starIntensity", Number(event.target.value))} onPointerDown={pushHistory} step="0.05" type="range" value={spaceSettings.starIntensity} /></label>
+              <label><span>Duracion del titilo ({spaceSettings.twinkleDuration.toFixed(1)} s)</span><input aria-label="Espacio: Duracion del titilo" disabled={!spaceSettings.starsEnabled} max="12" min="0.5" onChange={(event) => updateSceneEffect("space", "twinkleDuration", Number(event.target.value))} onPointerDown={pushHistory} step="0.5" type="range" value={spaceSettings.twinkleDuration} /></label>
+              <label><span>Gas nebuloso ({spaceSettings.nebulaIntensity.toFixed(2)})</span><input aria-label="Espacio: Intensidad de nebulosa" max="1.5" min="0" onChange={(event) => updateSceneEffect("space", "nebulaIntensity", Number(event.target.value))} onPointerDown={pushHistory} step="0.05" type="range" value={spaceSettings.nebulaIntensity} /></label>
+              <label className="three-check"><input checked={spaceSettings.coreEnabled} onChange={(event) => { pushHistory(); updateSceneEffect("space", "coreEnabled", event.target.checked); }} type="checkbox" /><Sun size={16} /> Estrella 3D</label>
+              <label><span>Giro ({spaceSettings.rotationSpeed.toFixed(2)})</span><input aria-label="Espacio: Velocidad de giro" disabled={!spaceSettings.coreEnabled} max="1.5" min="0" onChange={(event) => updateSceneEffect("space", "rotationSpeed", Number(event.target.value))} onPointerDown={pushHistory} step="0.05" type="range" value={spaceSettings.rotationSpeed} /></label>
+              <label><span>Brillo estrella ({spaceSettings.glowIntensity.toFixed(2)})</span><input aria-label="Espacio: Brillo de estrella" disabled={!spaceSettings.coreEnabled} max="2" min="0" onChange={(event) => updateSceneEffect("space", "glowIntensity", Number(event.target.value))} onPointerDown={pushHistory} step="0.05" type="range" value={spaceSettings.glowIntensity} /></label>
+              <label className="three-check"><input checked={spaceSettings.lightingEnabled} onChange={(event) => { pushHistory(); updateSceneEffect("space", "lightingEnabled", event.target.checked); }} type="checkbox" /><Lightbulb size={16} /> Luz astral</label>
+              <label><span>Fuerza de luz ({spaceSettings.lightIntensity.toFixed(2)})</span><input aria-label="Espacio: Fuerza de luz" disabled={!spaceSettings.lightingEnabled} max="2" min="0" onChange={(event) => updateSceneEffect("space", "lightIntensity", Number(event.target.value))} onPointerDown={pushHistory} step="0.05" type="range" value={spaceSettings.lightIntensity} /></label>
+            </div>}
             <div className="three-background-presets">
               {ENVIRONMENT_BACKGROUNDS.map((preset) => <button className={environmentBackground === preset.id ? "active" : ""} key={preset.id} onClick={() => applyEnvironmentPreset(preset)} style={preset.image ? { backgroundImage: `url(${environmentThumbnail(preset)})` } : { background: background }} type="button"><span>{preset.name}</span></button>)}
             </div>
@@ -8147,7 +8765,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
               <button onClick={() => applyEffectsPreset("acidRain")} type="button"><CloudRain size={15} /> Lluvia acida</button>
               <button onClick={() => applyEffectsPreset("spectralEclipse")} type="button"><CloudLightning size={15} /> Eclipse</button>
               <button onClick={() => applyEffectsPreset("castleInterior")} type="button"><Flame size={15} /> Castillo interior</button>
-              <button onClick={() => applyEffectsPreset("castleCourtyard")} type="button"><Sparkles size={15} /> Patio medieval</button>
+              <button onClick={() => applyEffectsPreset("spaceShip")} type="button"><Sparkles size={15} /> Space Ship</button>
               <button onClick={() => applyEffectsPreset("medievalVillage")} type="button"><CloudRain size={15} /> Aldea humeda</button>
               <button onClick={() => applyEffectsPreset("moonlitPeaks")} type="button"><CloudLightning size={15} /> Cumbres luna</button>
               <button onClick={() => applyEffectsPreset("spiderwebRuins")} type="button"><Sparkles size={15} /> Telaranas nocturnas</button>
@@ -8213,6 +8831,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         cameraFollow={cameraFollow}
         cameraShake={cameraShake}
         cameraKeyframes={animationTracks[CAMERA_TRACK_ID] || []}
+        cinematicSelectionName={CINEMATIC_PRESETS.find((item) => item.id === cinematicCamera.preset)?.name || CINEMATIC_SHOTS.find((item) => item.id === cinematicCamera.shot)?.name || "Plano actual"}
+        directorPreset={directorPreset}
         animationLoop={animationLoop}
         currentTime={animationTime}
         duration={animationDuration}
@@ -8241,6 +8861,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           setAnimationDuration(nextDuration);
           seekAnimation(Math.min(animationTime, nextDuration));
         }}
+        onDirectorPresetChange={setDirectorPreset}
         onDeleteMarker={deleteAnimationMarker}
         onDuplicateMarker={duplicateAnimationMarker}
         onUpdateMarker={updateAnimationMarker}

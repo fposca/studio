@@ -1706,82 +1706,13 @@ label {
   color: #fff;
 }
 
-.three-camera-shots {
-  border-bottom: 1px solid #303740;
-  padding: 9px 7px;
-}
-
-.three-camera-shots-title {
-  align-items: center;
-  color: #8a96a2;
-  display: flex;
-  font-size: 9px;
-  font-weight: 800;
-  gap: 6px;
-  margin: 0 2px 7px;
-}
-
-.three-camera-shot-grid {
-  display: grid;
-  gap: 5px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.three-camera-shot-grid button {
-  justify-content: center;
-  min-height: 31px;
-  min-width: 0;
-  padding: 5px 7px;
-}
-
-.three-camera-shot-grid button.active {
-  background: #7440ae;
-  border-color: #a970e8;
-  color: #fff;
-}
-
-.three-camera-shot-grid button:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-}
-
-.three-camera-shot-picker {
-  display: grid;
-  gap: 6px;
-  grid-template-columns: minmax(0, 1fr) 36px;
-}
-
-.three-camera-shot-picker select {
-  background: #20262c;
-  border: 1px solid #39434d;
-  border-radius: 5px;
-  color: #dce2e8;
-  min-height: 36px;
-  min-width: 0;
-  padding: 6px 8px;
-  width: 100%;
-}
-
-.three-camera-shot-picker button {
-  align-items: center;
-  display: flex;
-  justify-content: center;
-  min-height: 36px;
-  min-width: 36px;
-  padding: 6px;
-}
-
-.three-camera-shot-picker button.active {
-  background: #7440ae;
-  border-color: #a970e8;
-  color: #fff;
-}
 
 .three-camera-recording {
   border-bottom: 1px solid #303740;
   display: grid;
   gap: 6px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  padding: 0 7px 7px;
+  padding: 7px;
 }
 
 .three-camera-recording button {
@@ -1842,7 +1773,7 @@ label {
   background: #191d22;
   border-bottom: 1px solid #303740;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   padding: 0 4px;
   position: sticky;
   top: 0;
@@ -1879,6 +1810,7 @@ label {
 .three-properties .three-tab-object,
 .three-properties .three-tab-model,
 .three-properties .three-tab-material,
+.three-properties .three-tab-camera,
 .three-properties .three-tab-scene,
 .three-properties .three-tab-effects,
 .three-properties .three-tab-output,
@@ -1887,6 +1819,7 @@ label {
 .three-properties[data-tab="object"] .three-tab-object,
 .three-properties[data-tab="model"] .three-tab-model,
 .three-properties[data-tab="material"] .three-tab-material,
+.three-properties[data-tab="camera"] .three-tab-camera,
 .three-properties[data-tab="scene"] .three-tab-scene,
 .three-properties[data-tab="effects"] .three-tab-effects,
 .three-properties[data-tab="output"] .three-tab-output { display: grid; }
@@ -1894,6 +1827,89 @@ label {
 .three-properties[data-tab="object"] .three-tab-selection,
 .three-properties[data-tab="model"] .three-tab-selection,
 .three-properties[data-tab="material"] .three-tab-selection { display: block; }
+
+.three-properties .three-cinematic-section {
+  gap: 10px;
+  padding: 12px 10px;
+}
+
+.three-cinematic-section legend {
+  color: #a9d8d0;
+  font-size: 10px;
+}
+
+.three-cinematic-grid,
+.three-cinematic-lenses {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.three-cinematic-lenses {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.three-cinematic-grid button,
+.three-cinematic-lenses button,
+.three-cinematic-transition button {
+  background: #22292e;
+  border: 1px solid #3a464c;
+  border-radius: 4px;
+  color: #d4dee1;
+  font-size: 10px;
+  line-height: 1.2;
+  min-height: 35px;
+  min-width: 0;
+  padding: 6px 4px;
+  white-space: normal;
+}
+
+.three-cinematic-lenses button {
+  min-height: 29px;
+}
+
+.three-cinematic-grid button.active,
+.three-cinematic-lenses button.active,
+.three-cinematic-transition button.active {
+  background: #21433e;
+  border-color: #459e8d;
+  color: #e3fff4;
+}
+
+.three-cinematic-grid button:disabled,
+.three-cinematic-lenses button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.three-cinematic-section label {
+  gap: 5px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.three-cinematic-section label span,
+.three-cinematic-transition > span {
+  color: #9caeb2;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.three-cinematic-section input[type="range"],
+.three-cinematic-section select {
+  min-width: 0;
+  width: 100%;
+}
+
+.three-cinematic-transition {
+  display: grid;
+  gap: 6px;
+}
+
+.three-cinematic-transition > div {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
 
 .three-model-actions {
   display: grid;
@@ -2562,20 +2578,37 @@ label {
 @media (max-width: 720px) {
   .three-editor {
     grid-template-rows: 50px auto auto;
-    height: auto;
+    height: max-content;
     min-height: calc(100vh - 112px);
-    overflow: auto;
+    overflow: visible;
   }
 
   .three-animation {
     grid-template-areas: "heading" "controls" "timeline" "time" "audio" "export";
     grid-template-columns: 1fr;
-    min-width: 390px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .three-animation-controls,
+  .three-animation-export {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .three-animation-export button {
+    min-width: 0;
+  }
+
+  .three-animation-time {
+    justify-content: flex-start;
   }
 
   .three-workspace {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 420px auto auto;
+    height: max-content;
     min-height: 0;
   }
 

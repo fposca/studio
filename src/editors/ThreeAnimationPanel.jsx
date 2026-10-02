@@ -5,8 +5,10 @@ export default function ThreeAnimationPanel({
   animationLoop,
   cameraFollow,
   cameraShake,
+  cinematicSelectionName,
   currentTime,
   cameraKeyframes,
+  directorPreset,
   duration,
   keyframes,
   onAddKeyframe,
@@ -20,6 +22,7 @@ export default function ThreeAnimationPanel({
   onCameraFollowChange,
   onCameraShakeChange,
   onDurationChange,
+  onDirectorPresetChange,
   onDeleteMarker,
   onDuplicateMarker,
   onUpdateMarker,
@@ -43,7 +46,6 @@ export default function ThreeAnimationPanel({
 }) {
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [selectedFreeze, setSelectedFreeze] = useState(null);
-  const [directorPreset, setDirectorPreset] = useState("hollywood");
   const [directorTransition, setDirectorTransition] = useState("cinematic");
   const [exportFormat, setExportFormat] = useState("h264");
   const markers = [
@@ -85,22 +87,25 @@ export default function ThreeAnimationPanel({
         <span>{selectedName || "Selecciona un objeto"}</span>
       </div>
       <div className="three-animation-controls">
-        <button className={playing ? "active" : ""} data-tooltip="Reproducir todas las animaciones" onClick={() => onPlayingChange(true)} type="button"><Play size={17} /></button>
-        <button className={!playing ? "active" : ""} data-tooltip="Congelar todas las animaciones" onClick={() => onPlayingChange(false)} type="button"><Pause size={17} /></button>
+        <button aria-label={playing ? "Pausar secuencia" : "Reproducir secuencia"} className={playing ? "active" : ""} data-tooltip={playing ? "Pausar camara y animaciones" : "Reproducir camara y animaciones"} onClick={() => onPlayingChange(!playing)} type="button">{playing ? <Pause size={17} /> : <Play size={17} />}</button>
         <button data-tooltip="Detener y volver al inicio" onClick={onStop} type="button"><Square size={16} /></button>
         <button data-tooltip="Volver al inicio" onClick={() => onSeek(0)} type="button"><RotateCcw size={17} /></button>
         <label className="three-loop-toggle"><input checked={animationLoop} onChange={(event) => onAnimationLoopChange(event.target.checked)} type="checkbox" /><RotateCcw size={15} /> Bucle</label>
         <button disabled={!selectedName} onClick={onAddKeyframe} type="button"><Diamond size={16} /> Keyframe</button>
         <button disabled={!keyframes.length} data-tooltip="Borrar animacion del objeto" onClick={onClear} type="button"><Trash2 size={16} /></button>
-        <button data-tooltip="Guardar rotacion y vista de la escena" onClick={onAddCameraKeyframe} type="button"><Camera size={16} /> Vista {cameraKeyframes.length}</button>
+        <button data-tooltip="Guardar vista de camara en el tiempo actual" onClick={onAddCameraKeyframe} type="button"><Camera size={16} /> Guardar vista</button>
         <div className="three-director-control">
-          <select aria-label="Estilo de direccion automatica" onChange={(event) => setDirectorPreset(event.target.value)} value={directorPreset}>
+          <select aria-label="Estilo de direccion automatica" onChange={(event) => onDirectorPresetChange(event.target.value)} value={directorPreset}>
+            <optgroup label="Camara">
+              <option value="selected-camera">Camara: {cinematicSelectionName}</option>
+            </optgroup>
             <optgroup label="YouTube / documental">
               <option value="youtube-reveal">YouTube - Descenso al rostro</option>
               <option value="youtube-documentary">YouTube - Documental</option>
               <option value="youtube-interview">YouTube - Entrevista</option>
             </optgroup>
             <optgroup label="Cine y musica">
+            <option value="classic">Clasico - planos fijos</option>
             <option value="hollywood">Hollywood</option>
             <option value="dialogue">Dialogo</option>
             <option value="dialogue-push">Dialogo - Zoom lento</option>
@@ -128,7 +133,7 @@ export default function ThreeAnimationPanel({
             <option value="smooth">Suave</option>
             <option value="cut">Cortes</option>
           </select>
-          <button disabled={!selectedName && !["tv-priest-orbit", "tv-first-person"].includes(directorPreset)} data-tooltip={directorPreset === "tv-priest-orbit" ? "Girar alrededor de la TV y el cura" : directorPreset === "tv-first-person" ? "Acercarse de frente a la pantalla de la TV" : "Crear secuencia cinematografica para la seleccion"} onClick={() => onAutoDirect(directorPreset, directorTransition)} type="button"><Film size={16} /> Director</button>
+          <button disabled={!selectedName && !["tv-priest-orbit", "tv-first-person"].includes(directorPreset)} data-tooltip={directorPreset === "selected-camera" ? "Animar plano " + cinematicSelectionName : directorPreset === "tv-priest-orbit" ? "Girar alrededor de la TV y el cura" : directorPreset === "tv-first-person" ? "Acercarse de frente a la pantalla de la TV" : "Crear secuencia cinematografica para la seleccion"} onClick={() => onAutoDirect(directorPreset, directorTransition)} type="button"><Film size={16} /> Director</button>
         </div>
         <button disabled={!selectedMarker} data-tooltip="Eliminar marcador seleccionado (Delete)" onClick={deleteSelectedMarker} type="button"><Trash2 size={16} /></button>
         <button disabled={!cameraKeyframes.length} data-tooltip="Borrar animacion de vista" onClick={onClearCamera} type="button"><CameraOff size={16} /></button>
@@ -190,7 +195,7 @@ export default function ThreeAnimationPanel({
       <div className="three-animation-audio">
         <label className="three-audio-upload"><Upload size={15} /><span>{soundtrack?.name || "Cargar musica"}</span><input accept="audio/*,.mp3,.wav,.m4a,.ogg" onChange={(event) => { onAudioImport(event.target.files?.[0]); event.target.value = ""; }} type="file" /></label>
         {soundtrack && <>
-          <button disabled={!selectedName || !soundtrack.beats.length} onClick={() => onBeatDirect(directorPreset, directorTransition)} type="button"><Music size={16} /> Al ritmo</button>
+          <button data-tooltip={directorPreset === "selected-camera" ? "Elige un estilo musical en Director" : "Crear tomas al ritmo de la musica"} disabled={!selectedName || !soundtrack.beats.length || directorPreset === "selected-camera"} onClick={() => onBeatDirect(directorPreset, directorTransition)} type="button"><Music size={16} /> Al ritmo</button>
           <span>{soundtrack.beats.length} beats</span>
           <button data-tooltip="Quitar audio" onClick={onRemoveAudio} type="button"><Trash2 size={15} /></button>
         </>}

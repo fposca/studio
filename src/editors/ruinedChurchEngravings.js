@@ -78,6 +78,12 @@ export function applyChurchEngravings(material) {
       }
     `).replace('#include <map_fragment>', `
       #include <map_fragment>
+      float stoneWear = carvingNoise(vChurchStoneWorld.xz * 3.8) * 0.54 +
+        carvingNoise(vChurchStoneWorld.xz * 22.0 + 19.1) * 0.32 +
+        carvingNoise(vChurchStoneWorld.xz * 83.0) * 0.14;
+      float darkVeins = smoothstep(0.4, 0.72,
+        carvingNoise(vChurchStoneWorld.xz * vec2(9.0, 30.0) + 31.0));
+      diffuseColor.rgb *= (0.82 + stoneWear * 0.36) * (1.0 - darkVeins * 0.12);
       float carvingPixel = max(fwidth(vChurchTile.x), fwidth(vChurchTile.y));
       float carvingFade = 1.0 - smoothstep(0.025, 0.075, carvingPixel);
       float carvingLine = carvingDistance(vChurchTile);
@@ -90,8 +96,8 @@ export function applyChurchEngravings(material) {
         carvingWidth + carvingAA, carvingLine)) * carvingPresence;
       float carvingBevel = (1.0 - smoothstep(carvingWidth, carvingWidth + 0.005 + carvingAA,
         carvingLine)) * carvingPresence;
-      diffuseColor.rgb *= 1.0 - carvingCut * 0.78;
-      diffuseColor.rgb *= 1.0 + max(0.0, carvingBevel - carvingCut) * 0.12;
+      diffuseColor.rgb *= 1.0 - carvingCut * 0.85;
+      diffuseColor.rgb *= 1.0 + max(0.0, carvingBevel - carvingCut) * 0.2;
 
       // World-space colonies cross tile boundaries; finer growth fades before it aliases.
       vec2 mossPosition = vChurchStoneWorld.xz;
@@ -109,7 +115,7 @@ export function applyChurchEngravings(material) {
       vec3 mossColor = mix(vec3(0.024, 0.052, 0.013), vec3(0.13, 0.18, 0.047),
         mossClumps * 0.6 + mossGrain * 0.4);
       mossColor *= (0.78 + mossGrain * 0.44) * (1.0 - carvingCut * 0.6);
-      diffuseColor.rgb = mix(diffuseColor.rgb, mossColor, moss * 0.9);
+      diffuseColor.rgb = mix(diffuseColor.rgb, mossColor, moss * 0.65);
       float carvingHeight = -0.012 * carvingBevel *
         (0.4 + 0.6 * (1.0 - smoothstep(0.0, carvingWidth + carvingAA, carvingLine)));
       float churchSurfaceHeight = carvingHeight + moss * (0.003 + mossGrain * 0.007);
@@ -122,5 +128,5 @@ export function applyChurchEngravings(material) {
       #endif
     `);
   };
-  material.customProgramCacheKey = () => 'ruined-church-engravings-v3';
+  material.customProgramCacheKey = () => 'ruined-church-engravings-v4';
 }

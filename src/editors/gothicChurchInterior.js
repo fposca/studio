@@ -1,6 +1,7 @@
 import * as THREE from "three";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import stoneTextureUrl from "../assets/environments/castle-interior-stone-v1.png";
-import woodTextureUrl from "../assets/environments/walnut-texture.png";
+import woodTextureUrl from "../assets/environments/gothic-pew-oak-v1.png";
 import rugTextureUrl from "../assets/environments/castle-runner-wool-v1.png";
 import { createFlameTexture } from "./castleInterior.js";
 
@@ -16,6 +17,29 @@ export function normalizeGothicLighting(value = {}) {
     result[key] = Number.isFinite(number) ? THREE.MathUtils.clamp(number, 0, max) : DEFAULT_GOTHIC_LIGHTING[key];
   }
   return result;
+}
+
+function createDistressedTexture(base, stain, vertical, seed) {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 128;
+  const context = canvas.getContext("2d");
+  context.fillStyle = base;
+  context.fillRect(0, 0, 128, 128);
+  let state = seed;
+  const random = () => { state = state * 16807 % 2147483647; return (state - 1) / 2147483646; };
+  for (let index = 0; index < 190; index += 1) {
+    context.fillStyle = `rgba(${stain},${0.025 + random() * 0.13})`;
+    const x = random() * 128;
+    const y = random() * 128;
+    const length = 3 + random() * 26;
+    context.fillRect(x, y, vertical ? 0.4 + random() * 1.4 : length,
+      vertical ? length : 0.4 + random() * 1.4);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+  return texture;
 }
 
 export function createGothicChurchInterior() {
@@ -35,18 +59,30 @@ export function createGothicChurchInterior() {
   stoneTexture.repeat.set(1, 2);
   woodTexture.repeat.set(2, 1);
   rugTexture.repeat.set(1, 5);
+  const waxTexture = createDistressedTexture("#e7d8ba", "104,82,58", true, 2231);
+  const patinaTexture = createDistressedTexture("#74624d", "28,53,47", false, 7801);
   const flameTexture = createFlameTexture();
   const stone = new THREE.MeshStandardMaterial({ color: 0xb1aaa2, map: stoneTexture,
     bumpMap: stoneTexture, bumpScale: 0.055, roughness: 1, metalness: 0 });
   const carvedStone = new THREE.MeshStandardMaterial({ color: 0x82796f, map: stoneTexture,
     bumpMap: stoneTexture, bumpScale: 0.04, roughness: 1, metalness: 0 });
-  const wood = new THREE.MeshStandardMaterial({ color: 0x786b60, map: woodTexture,
-    bumpMap: woodTexture, bumpScale: 0.02, roughness: 0.92, metalness: 0 });
-  const iron = new THREE.MeshStandardMaterial({ color: 0x493d33, roughness: 0.82, metalness: 0.48 });
+  const wood = new THREE.MeshStandardMaterial({ color: 0xdccdb8, map: woodTexture,
+    bumpMap: woodTexture, bumpScale: 0.055, roughness: 0.88, metalness: 0 });
+  const carvedWood = new THREE.MeshStandardMaterial({ color: 0xb7a18b, map: woodTexture,
+    bumpMap: woodTexture, bumpScale: 0.045, roughness: 0.92, metalness: 0 });
+  const darkWood = new THREE.MeshStandardMaterial({ color: 0x80715f, map: woodTexture,
+    bumpMap: woodTexture, bumpScale: 0.035, roughness: 0.94, metalness: 0 });
+  const iron = new THREE.MeshStandardMaterial({ color: 0x716a5c, map: patinaTexture,
+    bumpMap: patinaTexture, bumpScale: 0.014, roughness: 0.62, metalness: 0.58 });
+  const agedBrass = new THREE.MeshStandardMaterial({ color: 0xb4a27b, map: patinaTexture,
+    bumpMap: patinaTexture, bumpScale: 0.01, roughness: 0.48, metalness: 0.7 });
   const wool = new THREE.MeshStandardMaterial({ color: 0xd2b8aa, map: rugTexture,
     bumpMap: rugTexture, bumpScale: 0.013, roughness: 1, metalness: 0 });
   const woolTrim = new THREE.MeshStandardMaterial({ color: 0x91744c, roughness: 1, metalness: 0 });
-  const candleWax = new THREE.MeshStandardMaterial({ color: 0xe6d4ae, roughness: 0.92, metalness: 0 });
+  const candleWax = new THREE.MeshStandardMaterial({ color: 0xfff7e6, map: waxTexture,
+    bumpMap: waxTexture, bumpScale: 0.014, roughness: 0.95, metalness: 0 });
+  const candleRim = new THREE.MeshStandardMaterial({ color: 0xe9d7b7, roughness: 0.98, metalness: 0 });
+  const wickMaterial = new THREE.MeshStandardMaterial({ color: 0x34251e, roughness: 1, metalness: 0 });
   const flameMaterial = new THREE.SpriteMaterial({ map: flameTexture, color: 0xffc377,
     toneMapped: false, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
 
@@ -67,29 +103,62 @@ export function createGothicChurchInterior() {
     }
   }
 
-  const pewSeat = new THREE.BoxGeometry(3.6, 0.17, 0.78);
-  const pewBack = new THREE.BoxGeometry(3.6, 0.9, 0.15);
-  const pewEnd = new THREE.BoxGeometry(0.16, 1.05, 1.05);
+  const pewSeat = new RoundedBoxGeometry(3.6, 0.18, 0.78, 2, 0.035);
+  const pewBack = new RoundedBoxGeometry(3.6, 0.9, 0.17, 2, 0.028);
+  const pewEnd = new RoundedBoxGeometry(0.16, 1.05, 1.05, 2, 0.035);
   const pewLeg = new THREE.BoxGeometry(0.16, 0.63, 0.72);
-  const pewRail = new THREE.BoxGeometry(3.64, 0.12, 0.21);
-  const pewFinial = new THREE.ConeGeometry(0.11, 0.35, 8);
+  const pewRail = new RoundedBoxGeometry(3.68, 0.13, 0.25, 2, 0.03);
+  const pewMoulding = new RoundedBoxGeometry(3.4, 0.055, 0.045, 2, 0.012);
+  const pewPanel = new RoundedBoxGeometry(0.98, 0.65, 0.023, 2, 0.015);
+  const pewPanelInner = new RoundedBoxGeometry(0.83, 0.51, 0.014, 2, 0.012);
+  const pewEndPanel = new RoundedBoxGeometry(0.026, 0.72, 0.82, 2, 0.012);
+  const pewEndInset = new RoundedBoxGeometry(0.012, 0.58, 0.68, 2, 0.008);
+  const pewFinial = new THREE.SphereGeometry(0.105, 10, 8);
+  const pewCollar = new THREE.CylinderGeometry(0.11, 0.13, 0.075, 10);
   for (const x of [-7.2, 7.2]) for (const z of [-6, -13, -20, -27]) {
     const seat = new THREE.Mesh(pewSeat, wood);
+    seat.name = "Banco gotico";
     seat.position.set(x, 0.72, z);
+    seat.castShadow = seat.receiveShadow = true;
     const back = new THREE.Mesh(pewBack, wood);
     back.position.set(x, 1.13, z + 0.42);
     back.rotation.x = -0.13;
+    back.castShadow = back.receiveShadow = true;
+    for (const side of [-1, 1]) {
+      const moulding = new THREE.Mesh(pewMoulding, carvedWood);
+      moulding.position.set(0, side * 0.385, 0.101);
+      back.add(moulding);
+    }
+    for (const offset of [-1.13, 0, 1.13]) {
+      const panel = new THREE.Mesh(pewPanel, darkWood);
+      panel.position.set(offset, -0.015, 0.098);
+      const inner = new THREE.Mesh(pewPanelInner, carvedWood);
+      inner.position.z = 0.021;
+      panel.add(inner);
+      back.add(panel);
+    }
     const rail = new THREE.Mesh(pewRail, wood);
     rail.position.set(x, 1.61, z + 0.48);
+    rail.castShadow = true;
     group.add(seat, back, rail);
     for (const offset of [-1.72, 1.72]) {
       const end = new THREE.Mesh(pewEnd, wood);
       end.position.set(x + offset, 0.54, z);
+      const side = Math.sign(offset);
+      const endPanel = new THREE.Mesh(pewEndPanel, darkWood);
+      endPanel.position.set(side * 0.091, 0.07, 0);
+      const endInset = new THREE.Mesh(pewEndInset, carvedWood);
+      endInset.position.x = side * 0.021;
+      endPanel.add(endInset);
+      end.add(endPanel);
       const leg = new THREE.Mesh(pewLeg, wood);
       leg.position.set(x + offset * 0.72, 0.32, z);
-      const finial = new THREE.Mesh(pewFinial, wood);
-      finial.position.set(x + offset, 1.24, z + 0.38);
-      group.add(end, leg, finial);
+      const finial = new THREE.Mesh(pewFinial, carvedWood);
+      finial.position.set(x + offset, 1.43, z + 0.38);
+      const collar = new THREE.Mesh(pewCollar, darkWood);
+      collar.position.set(x + offset, 1.32, z + 0.38);
+      end.castShadow = leg.castShadow = finial.castShadow = true;
+      group.add(end, leg, collar, finial);
     }
   }
 
@@ -132,32 +201,74 @@ export function createGothicChurchInterior() {
   crossBar.position.set(0, 2.8, -36.1);
   group.add(crossPost, crossBar);
 
-  const standBase = new THREE.CylinderGeometry(0.34, 0.38, 0.1, 10);
-  const standStem = new THREE.CylinderGeometry(0.045, 0.06, 1.25, 8);
-  const candleGeometry = new THREE.CylinderGeometry(0.055, 0.06, 0.29, 8);
+  const standBase = new THREE.LatheGeometry([
+    [0, 0], [0.27, 0], [0.35, 0.035], [0.34, 0.075], [0.22, 0.11], [0.12, 0.16]
+  ].map(([radius, height]) => new THREE.Vector2(radius, height)), 20);
+  const standStem = new THREE.LatheGeometry([
+    [0.105, 0], [0.075, 0.08], [0.055, 0.28], [0.095, 0.42],
+    [0.052, 0.54], [0.045, 0.94], [0.085, 1.12], [0.065, 1.23]
+  ].map(([radius, height]) => new THREE.Vector2(radius, height)), 16);
+  const candleGeometry = new THREE.CylinderGeometry(0.052, 0.063, 1, 14, 4);
+  const candleLip = new THREE.TorusGeometry(0.052, 0.011, 6, 14);
+  const candleWick = new THREE.CylinderGeometry(0.006, 0.009, 0.065, 6);
+  const candleDrip = new THREE.CylinderGeometry(0.01, 0.016, 1, 6);
+  const cupGeometry = new THREE.LatheGeometry([
+    [0.035, 0], [0.087, 0.012], [0.11, 0.043], [0.096, 0.055]
+  ].map(([radius, height]) => new THREE.Vector2(radius, height)), 14);
+  const cupLip = new THREE.TorusGeometry(0.099, 0.009, 6, 14);
+  const armGeometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, 1.28, 0), new THREE.Vector3(0.15, 1.27, 0),
+    new THREE.Vector3(0.28, 1.2, 0), new THREE.Vector3(0.36, 1.35, 0)
+  ]), 12, 0.026, 7, false);
   const candleLights = [];
   const flames = [];
   for (const x of [-4.9, 4.9]) for (const z of [-9, -23]) {
     const stand = new THREE.Group();
+    stand.name = "Candelabro gotico";
     stand.position.set(x, 0, z);
     const base = new THREE.Mesh(standBase, iron);
-    base.position.y = 0.05;
     const stem = new THREE.Mesh(standStem, iron);
-    stem.position.y = 0.72;
+    stem.position.y = 0.13;
+    base.castShadow = stem.castShadow = true;
     stand.add(base, stem);
-    for (const offset of [-0.36, 0, 0.36]) {
-      const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.05, 0.06, 8), iron);
+    for (const side of [-1, 1]) {
+      const arm = new THREE.Mesh(armGeometry, agedBrass);
+      arm.scale.x = side;
+      arm.castShadow = true;
+      stand.add(arm);
+    }
+    for (const [index, offset] of [-0.36, 0, 0.36].entries()) {
+      const height = [0.31, 0.37, 0.28][index];
+      const cup = new THREE.Mesh(cupGeometry, agedBrass);
       cup.position.set(offset, 1.36, 0);
+      const lip = new THREE.Mesh(cupLip, agedBrass);
+      lip.rotation.x = Math.PI / 2;
+      lip.position.set(offset, 1.415, 0);
       const candle = new THREE.Mesh(candleGeometry, candleWax);
-      candle.position.set(offset, 1.53, 0);
+      candle.scale.y = height;
+      candle.position.set(offset, 1.415 + height * 0.5, 0);
+      const top = 1.415 + height;
+      const rim = new THREE.Mesh(candleLip, candleRim);
+      rim.rotation.x = Math.PI / 2;
+      rim.position.set(offset, top, 0);
+      const wick = new THREE.Mesh(candleWick, wickMaterial);
+      wick.position.set(offset, top + 0.027, 0);
+      const drips = [];
+      for (const [angle, length] of [[0.65, 0.07], [2.9, 0.11], [4.7, 0.055]]) {
+        const drip = new THREE.Mesh(candleDrip, candleRim);
+        drip.scale.y = length;
+        drip.position.set(offset + Math.cos(angle) * 0.055, top - length * 0.48, Math.sin(angle) * 0.055);
+        drips.push(drip);
+      }
       const flame = new THREE.Sprite(flameMaterial);
-      flame.position.set(offset, 1.76, 0);
-      flame.scale.set(0.25, 0.42, 1);
-      stand.add(cup, candle, flame);
+      flame.position.set(offset, top + 0.14, 0);
+      flame.scale.set(0.15, 0.28, 1);
+      cup.castShadow = candle.castShadow = true;
+      stand.add(cup, lip, candle, rim, wick, ...drips, flame);
       flames.push({ flame, phase: x * 0.7 + z * 0.3 + offset * 4 });
     }
     const light = new THREE.PointLight(0xffae65, 0, 12, 2);
-    light.position.y = 1.78;
+    light.position.y = 1.86;
     stand.add(light);
     candleLights.push(light);
     group.add(stand);
@@ -195,7 +306,7 @@ export function createGothicChurchInterior() {
     });
     flames.forEach(({ flame, phase }) => {
       flame.visible = active && settings.candles > 0;
-      flame.scale.y = 0.42 * (1 + settings.flicker * Math.sin(time * 0.014 + phase) * 0.15);
+      flame.scale.y = 0.28 * (1 + settings.flicker * Math.sin(time * 0.014 + phase) * 0.15);
     });
     glassLights.forEach((light, index) => { light.intensity = active ? (index ? 155 : 190) * settings.glass : 0; });
     dust.visible = active && settings.dust > 0;
@@ -222,6 +333,8 @@ export function createGothicChurchInterior() {
     stoneTexture.dispose();
     woodTexture.dispose();
     rugTexture.dispose();
+    waxTexture.dispose();
+    patinaTexture.dispose();
     flameTexture.dispose();
   };
   return group;

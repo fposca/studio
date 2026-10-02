@@ -1,10 +1,27 @@
 import * as THREE from "three";
 import groundTextureUrl from "../assets/environments/moonlit-peaks-ground-v1.png";
 import moonTextureUrl from "../assets/environments/moonlit-disc-v1.png";
+import coniferTextureUrl from "../assets/environments/moonlit-conifer-v1.png";
 import { moonlitGroundHeight } from "./moonlitTerrain.js";
 
 const GROUND_Y = -0.015;
 const MOON_DIRECTION = new THREE.Vector3(-0.28, 0.18, -1).normalize();
+const GROVES = [
+  { x: -14, z: -12, radius: 6, count: 14 },
+  { x: 15, z: -14, radius: 6, count: 14 },
+  { x: -23, z: -27, radius: 7, count: 13 },
+  { x: 23, z: -26, radius: 7, count: 13 },
+  { x: -15, z: -42, radius: 7, count: 10 },
+  { x: 16, z: -40, radius: 7, count: 10 }
+];
+const PROWLER_PATHS = [
+  { x: -14, z: -12, dx: 2.6, dz: 1.8, phase: 0 },
+  { x: 15, z: -14, dx: 2.8, dz: 1.9, phase: 1.4 },
+  { x: -23, z: -27, dx: 3.1, dz: 2, phase: 2.5 },
+  { x: 23, z: -26, dx: 3.2, dz: 2, phase: 4.1 },
+  { x: -15, z: -42, dx: 2.6, dz: 1.8, phase: 5.3 },
+  { x: 16, z: -40, dx: 2.7, dz: 1.8, phase: 3.2 }
+];
 
 function seededRandom(seed) {
   return () => {
@@ -37,6 +54,7 @@ export function createMoonlitPeaksSet() {
   let rockTexture;
   let eyeGlowTexture;
   let moonTexture;
+  let coniferTexture;
   let moonSprite;
   const prowlers = [];
 
@@ -51,6 +69,9 @@ export function createMoonlitPeaksSet() {
     eyeGlowTexture = createEyeGlowTexture();
     moonTexture = new THREE.TextureLoader().load(moonTextureUrl);
     moonTexture.colorSpace = THREE.SRGBColorSpace;
+    coniferTexture = new THREE.TextureLoader().load(coniferTextureUrl);
+    coniferTexture.colorSpace = THREE.SRGBColorSpace;
+    coniferTexture.anisotropy = 8;
     const moonMaterial = new THREE.SpriteMaterial({ map: moonTexture, color: 0xcadbe8,
       transparent: true, depthWrite: false, toneMapped: false });
     moonSprite = new THREE.Sprite(moonMaterial);
@@ -61,6 +82,11 @@ export function createMoonlitPeaksSet() {
     const stone = new THREE.MeshLambertMaterial({ map: rockTexture, color: 0xaab4bb });
     const darkStone = new THREE.MeshLambertMaterial({ map: rockTexture, color: 0x697984 });
     const scrub = new THREE.MeshLambertMaterial({ color: 0x3f4b4c, side: THREE.DoubleSide });
+    const bark = new THREE.MeshLambertMaterial({ map: rockTexture, color: 0xa1a9a5 });
+    const needles = new THREE.MeshLambertMaterial({ map: coniferTexture, color: 0xc9d9d6,
+      alphaTest: 0.45, side: THREE.DoubleSide });
+    const cactusMaterial = new THREE.MeshLambertMaterial({ color: 0x506a5d, flatShading: true });
+    const spineMaterial = new THREE.MeshLambertMaterial({ color: 0x9da69a });
     const fur = new THREE.MeshStandardMaterial({ color: 0x151b1e, roughness: 1, flatShading: true });
     const eye = new THREE.MeshBasicMaterial({ color: 0xff242c, toneMapped: false });
     const eyeGlow = new THREE.SpriteMaterial({ map: eyeGlowTexture, color: 0xff3437,
@@ -68,6 +94,10 @@ export function createMoonlitPeaksSet() {
     const shardGeometry = new THREE.DodecahedronGeometry(1, 0);
     const boulderGeometry = new THREE.IcosahedronGeometry(1, 0);
     const scrubGeometry = new THREE.ConeGeometry(0.15, 0.42, 3);
+    const trunkGeometry = new THREE.CylinderGeometry(0.08, 0.15, 1, 7);
+    const crownGeometry = new THREE.PlaneGeometry(1, 1);
+    const cactusGeometry = new THREE.CylinderGeometry(0.1, 0.15, 1, 7);
+    const spineGeometry = new THREE.ConeGeometry(0.018, 0.09, 3);
     const dummy = new THREE.Object3D();
     const color = new THREE.Color();
     const placeBatch = (name, geometry, material, count, place) => {
@@ -94,7 +124,19 @@ export function createMoonlitPeaksSet() {
       } while (Math.hypot(x, z) < radius);
       return [x, z];
     };
-    placeBatch("Grava y lajas lunares", shardGeometry, darkStone, 470, (_index, object) => {
+    const treeSites = GROVES.flatMap((grove) => Array.from({ length: grove.count }, (_, index) => {
+      const angle = index * Math.PI * 2 / grove.count + random() * 0.45;
+      const distance = grove.radius * (0.12 + Math.sqrt(random()) * 0.88);
+      return {
+        x: grove.x + Math.cos(angle) * distance,
+        z: grove.z + Math.sin(angle) * distance,
+        height: 5.8 + random() * 3.6,
+        yaw: random() * Math.PI * 2,
+        lean: (random() - 0.5) * 0.13,
+        shade: 0.74 + random() * 0.34
+      };
+    }));
+    placeBatch("Grava y lajas lunares", shardGeometry, darkStone, 800, (_index, object) => {
       const [x, z] = chooseSite(6.5);
       const size = 0.08 + random() * 0.3;
       object.position.set(x, GROUND_Y + moonlitGroundHeight(x, z) + size * 0.16, z);
@@ -102,10 +144,10 @@ export function createMoonlitPeaksSet() {
       object.scale.set(size * 1.3, size * 0.35, size);
       return 0.7 + random() * 0.3;
     });
-    const boulderSites = [[-8, -10], [9, -12], [-12, 3], [13, 5], [-6, -23], [7, -25]];
-    placeBatch("Rocas de la ladera", boulderGeometry, stone, 76, (index, object) => {
+    const boulderSites = [[-8, -10], [9, -12], [-12, 3], [13, 5], [-6, -23], [7, -25], [-18, -8], [19, -12], [-24, -23], [25, -30]];
+    placeBatch("Rocas de la ladera", boulderGeometry, stone, 210, (index, object) => {
       const [x, z] = index < boulderSites.length ? boulderSites[index] : chooseSite(9);
-      const size = index < boulderSites.length ? 0.8 + random() * 0.5 : 0.28 + random() * 0.78;
+      const size = index < boulderSites.length ? 0.9 + random() * 0.65 : 0.3 + random() * 0.92;
       object.position.set(x, GROUND_Y + moonlitGroundHeight(x, z) + size * 0.22, z);
       object.rotation.set(random() * 0.24, random() * Math.PI * 2, random() * 0.24);
       object.scale.set(size * (0.85 + random() * 0.65), size * 0.55, size);
@@ -118,6 +160,63 @@ export function createMoonlitPeaksSet() {
       object.rotation.set(random() * 0.14, random() * Math.PI * 2, random() * 0.14);
       object.scale.set(size, size, size);
       return 0.55 + random() * 0.4;
+    });
+    placeBatch("Troncos de pinos lunares", trunkGeometry, bark, treeSites.length, (index, object) => {
+      const tree = treeSites[index];
+      object.position.set(tree.x, GROUND_Y + moonlitGroundHeight(tree.x, tree.z) + tree.height * 0.48, tree.z);
+      object.rotation.set(tree.lean, tree.yaw, tree.lean * 0.6);
+      object.scale.set(1, tree.height * 0.96, 1);
+      return tree.shade;
+    });
+    placeBatch("Copas de arboleda lunar", crownGeometry, needles, treeSites.length * 2, (index, object) => {
+      const tree = treeSites[Math.floor(index / 2)];
+      object.position.set(tree.x, GROUND_Y + moonlitGroundHeight(tree.x, tree.z) + tree.height * 0.5, tree.z);
+      object.rotation.set(0, tree.yaw + (index % 2) * Math.PI * 0.5, tree.lean);
+      object.scale.set(tree.height * 0.67, tree.height, 1);
+      return tree.shade;
+    });
+    const cactusSites = Array.from({ length: 72 }, () => {
+      let x, z;
+      do {
+        x = (random() - 0.5) * 64;
+        z = (random() - 0.5) * 60 - 8;
+      } while (Math.hypot(x, z) < 7 || treeSites.some((tree) => Math.hypot(x - tree.x, z - tree.z) < 1.3));
+      return { x, z, height: 0.5 + random() * 0.8, shade: 0.65 + random() * 0.4 };
+    });
+    placeBatch("Cactus de altura", cactusGeometry, cactusMaterial, cactusSites.length, (index, object) => {
+      const cactus = cactusSites[index];
+      object.position.set(cactus.x, GROUND_Y + moonlitGroundHeight(cactus.x, cactus.z) + cactus.height * 0.5, cactus.z);
+      object.rotation.set(0, random() * Math.PI * 2, 0);
+      object.scale.set(1, cactus.height, 1);
+      return cactus.shade;
+    });
+    placeBatch("Brazos de cactus", cactusGeometry, cactusMaterial, cactusSites.length * 2, (index, object) => {
+      const cactus = cactusSites[Math.floor(index / 2)];
+      const side = index % 2 ? 1 : -1;
+      object.position.set(cactus.x + side * 0.17,
+        GROUND_Y + moonlitGroundHeight(cactus.x, cactus.z) + cactus.height * 0.48, cactus.z);
+      object.rotation.set(0, 0, -side * 1.15);
+      object.scale.set(0.58, cactus.height * 0.3, 0.58);
+      return cactus.shade;
+    });
+    placeBatch("Puntas de cactus", cactusGeometry, cactusMaterial, cactusSites.length * 2, (index, object) => {
+      const cactus = cactusSites[Math.floor(index / 2)];
+      const side = index % 2 ? 1 : -1;
+      object.position.set(cactus.x + side * (0.17 + cactus.height * 0.135),
+        GROUND_Y + moonlitGroundHeight(cactus.x, cactus.z) + cactus.height * 0.67, cactus.z);
+      object.rotation.set(0, 0, -side * 0.12);
+      object.scale.set(0.5, cactus.height * 0.26, 0.5);
+      return cactus.shade;
+    });
+    placeBatch("Espinas de cactus", spineGeometry, spineMaterial, cactusSites.length * 6, (index, object) => {
+      const cactus = cactusSites[Math.floor(index / 6)];
+      const side = index % 2 ? 1 : -1;
+      const row = Math.floor(index % 6 / 2);
+      object.position.set(cactus.x + side * 0.13,
+        GROUND_Y + moonlitGroundHeight(cactus.x, cactus.z) + cactus.height * (0.27 + row * 0.22), cactus.z);
+      object.rotation.set(0, 0, -side * Math.PI * 0.5);
+      object.scale.set(1, 1, 1);
+      return 0.7 + cactus.shade * 0.3;
     });
 
     for (const [x, z, lean] of [[-11, -16, -0.18], [12, -20, 0.13], [-17, 7, 0.2]]) {
@@ -142,15 +241,7 @@ export function createMoonlitPeaksSet() {
     const earGeometry = new THREE.ConeGeometry(0.15, 0.38, 4);
     const tailGeometry = new THREE.ConeGeometry(0.13, 0.7, 5);
     const eyeGeometry = new THREE.SphereGeometry(0.075, 8, 6);
-    const paths = [
-      { x: -13, z: -11, dx: 3, dz: 1.8, phase: 0 },
-      { x: 14, z: -13, dx: 3.2, dz: 2, phase: 1.4 },
-      { x: -20, z: -25, dx: 4, dz: 2.4, phase: 2.5 },
-      { x: 21, z: -23, dx: 4.5, dz: 2.4, phase: 4.1 },
-      { x: -11, z: 11, dx: 2.2, dz: 1.4, phase: 5.3 },
-      { x: 12, z: 13, dx: 2.5, dz: 1.3, phase: 3.2 }
-    ];
-    paths.forEach((path, index) => {
+    PROWLER_PATHS.forEach((path, index) => {
       const creature = new THREE.Group();
       creature.name = `Criatura nocturna ${index + 1}`;
       creature.scale.setScalar(index > 3 ? 0.9 : 0.75 + random() * 0.22);
@@ -189,7 +280,8 @@ export function createMoonlitPeaksSet() {
     moonFill.name = "Luz de luna en la ladera";
     moonFill.position.set(-11, 13, -9);
     group.add(moonFill);
-    group.userData.stats = { boulders: 76, shards: 470, scrub: 320, cairns: 3, creatures: paths.length };
+    group.userData.stats = { boulders: 210, shards: 800, scrub: 320, trees: treeSites.length,
+      cactus: cactusSites.length, cairns: 3, creatures: PROWLER_PATHS.length };
   };
 
   group.userData.animate = (time, active, camera, reduced = false) => {
@@ -226,6 +318,7 @@ export function createMoonlitPeaksSet() {
     rockTexture?.dispose();
     eyeGlowTexture?.dispose();
     moonTexture?.dispose();
+    coniferTexture?.dispose();
   };
   return group;
 }

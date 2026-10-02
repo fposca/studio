@@ -22,6 +22,30 @@ Abrir `http://127.0.0.1:5173/`.
 
 La API corre en `http://127.0.0.1:5174/`.
 
+## Esqueleto y animacion
+
+Para crear huesos y pesos de piel localmente, instala SkinTokens (requiere una GPU NVIDIA con al menos 14 GB de VRAM):
+
+```powershell
+.\scripts\setup-local-rig3d.ps1
+```
+
+Reinicia el servidor, selecciona un GLB sin huesos y usa **Crear esqueleto** en las propiedades del objeto. En **Pose del personaje** puedes mover cada hueso; **Guardar keyframe** registra esa pose en el tiempo actual para animarla en la linea de tiempo. El modelo no crea movimientos pregrabados automaticamente.
+
+## Camara cinematografica
+
+En el editor 3D, la pestaña **Camara** ofrece planos, angulos y combinaciones cinematograficas calculadas a partir del tamano del objeto seleccionado. Selecciona dos personajes con Mayus para usar OTS, Two Shot o Face Off con ambos. Los controles de lente, altura, distancia, orbita, punto de mira y transicion se guardan con la escena.
+
+Los presets mueven la camara al seleccionarlos; la transicion suave se reproduce en ese momento. Al elegir un plano en la pestaña **Camara**, el selector inferior de Director cambia a **Camara: [plano]**. Pulsa **Director** para crear y reproducir un movimiento basado en ese plano. Tambien puedes elegir Hollywood u otro estilo en el selector inferior para generar una secuencia de varias tomas.
+
+Para animar una secuencia manual, coloca la linea de tiempo en 0 s y pulsa **Guardar vista** abajo. Avanza a otro tiempo, elige otro plano y vuelve a pulsar **Guardar vista**. El boton **Play** (triangulo, abajo a la izquierda) reproduce las vistas guardadas; durante la reproduccion cambia a **Pausa**.
+
+## Space Ship
+
+El antiguo escenario **Patio del castillo** ahora es **Space Ship**: una cabina industrial con mamparos y metal desgastado, esclusas, conductos, ventanas al espacio y un centro de computo con terminales, teclados y racks. Los proyectos guardados con el patio se migran al nuevo escenario al abrirlos.
+
+El neon y los indicadores se animan en loop con el tiempo de la escena. Los hologramas 3D de anatomia, orbitas y navegacion cambian de modo al hacer clic o tocar la proyeccion o su botonera; arrastrar sigue controlando la camara. Volver a aplicar **Space Ship** carga su nueva iluminacion en proyectos anteriores.
+
 ## Autenticacion y roles
 
 La web y la aplicacion de escritorio usan Firebase Authentication con email y contrasena. Copia `.env.example` como `.env.local` y completa `VITE_FIREBASE_API_KEY` antes de iniciar o compilar. Por defecto, el desarrollo usa el proyecto Firebase configurado. Para trabajar completamente en local, define `VITE_USE_FIREBASE_EMULATORS=true` y levanta Emulator Suite.
