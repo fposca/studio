@@ -62,7 +62,7 @@ El neon y los indicadores se animan en loop con el tiempo de la escena. Los holo
 
 La pestana **Juego** abre una partida en tercera persona en el exterior del Partenon. Neonboy HD puede caminar, correr, saltar y atacar con punetazos y patadas; vuelve a reposo al soltar el movimiento. El objetivo es juntar las 24 monedas evitando o derrotando a cuatro guardianes. Hay vida, invulnerabilidad breve tras recibir un golpe, victoria, derrota, pausa y reinicio. Las columnas, paredes y escalones tienen colisiones con Rapier.
 
-Controles: **WASD o flechas** para moverse; **Mayus** para correr; **Espacio** para saltar; **J o clic izquierdo** para golpear; **K** para patear; **Q/E o arrastrar con boton derecho** para girar la camara; **rueda** para acercarla; **P/Escape** para pausar. En pantallas tactiles hay joystick, botones de accion y giro de camara arrastrando el escenario. Los botones tienen sus acciones y teclas en el tooltip.
+Controles: **WASD o flechas** para moverse; mantener **Shift (Mayus) + movimiento** para correr y soltar Shift para volver a caminar; **Espacio** para saltar; **J o clic izquierdo** para golpear con el arma equipada; **K** para patear; **Q/E o arrastrar con boton derecho** para girar la camara; **rueda** para acercarla; **P/Escape** para pausar. En pantallas tactiles hay joystick, botones de accion y giro de camara arrastrando el escenario. Los botones tienen sus acciones y teclas en el tooltip.
 
 El escenario admite Dia, Atardecer y Noche. Se puede silenciar y usar pantalla completa. Cambiar de pestana cierra la partida y libera sus recursos; las escenas del editor no se modifican. Las partidas todavia no se guardan.
 

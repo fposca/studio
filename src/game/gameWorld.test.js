@@ -58,6 +58,23 @@ test("jump leaves the floor, rejects an air jump and lands", (t) => {
   assert.ok(Math.abs(world.player.y) < 0.08);
 });
 
+test("running is faster than walking and releasing run restores walking then idle", (t) => {
+  const world = setup(t);
+  advance(world, 0.3, { x: 1 });
+  const walkingSpeed = world.player.speed;
+  assert.equal(world.player.mode, "walk");
+  advance(world, 0.3, { x: 1, run: true });
+  assert.ok(world.player.speed > walkingSpeed * 1.45);
+  assert.equal(world.player.mode, "run");
+  assert.equal(world.player.running, true);
+  advance(world, 0.2, { x: 1 });
+  assert.equal(world.player.mode, "walk");
+  assert.ok(Math.abs(world.player.speed - walkingSpeed) < 0.01);
+  assert.equal(world.player.running, false);
+  advance(world, 0.2);
+  assert.equal(world.player.mode, "idle");
+});
+
 test("the controller climbs the temple steps and stops at its wall", (t) => {
   const world = setup(t);
   place(world, world.player, 0, 0, -4.5);

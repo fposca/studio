@@ -3,6 +3,7 @@ import * as THREE from "three";
 export function createWeaponModel(kind) {
   const group = new THREE.Group();
   group.name = `Arma ${kind}`;
+  if (kind === "sword") group.scale.setScalar(0.72);
   const steel = new THREE.MeshStandardMaterial({ color: 0xc5d3d7, metalness: 0.9, roughness: 0.27 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x29353a, metalness: 0.85, roughness: 0.43 });
   const brass = new THREE.MeshStandardMaterial({ color: 0xc09444, metalness: 0.8, roughness: 0.32 });

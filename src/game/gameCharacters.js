@@ -5,6 +5,7 @@ import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { syncedGaitRate } from "../editors/walkGait.js";
 import { ATTACKS, attackEnvelope } from "./gameRules.js";
 import { createWeaponModel } from "./gameWeapons.js";
+import { createHandGrip } from "./gameGrip.js";
 
 const idleUrl = new URL("../assets/neonboy-animaciones/neon-inactivo-hd.glb", import.meta.url).href;
 const walkUrl = new URL("../assets/neonboy-animaciones/neonBoy-walking-alta.glb", import.meta.url).href;
@@ -104,19 +105,19 @@ export function createGameCharacter(asset, hostile = false) {
   walkAction.setEffectiveWeight(0);
   if (idleAction) idleAction.setEffectiveWeight(1);
   mixer.update(0);
-  let walkWeight = 0, jumpWeight = 0, guardWeight = 0;
-  const bindPose = [...bones.values()].map((bone) => ({ bone, quaternion: bone.quaternion.clone(), position: bone.position.clone() }));
+  let walkWeight = 0, jumpWeight = 0, guardWeight = 0, runWeight = 0;
+  const animatedPose = [...bones.values()].map((bone) => ({ bone, quaternion: bone.quaternion.clone(), position: bone.position.clone() }));
   const currentDirection = new THREE.Vector3(), targetDirection = new THREE.Vector3();
   const bonePosition = new THREE.Vector3(), childPosition = new THREE.Vector3();
   const worldQuaternion = new THREE.Quaternion(), parentQuaternion = new THREE.Quaternion();
   const desiredQuaternion = new THREE.Quaternion(), deltaQuaternion = new THREE.Quaternion();
+  const grip = !hostile ? createHandGrip(model, bones.get("RightHand")) : null;
   const weapons = hostile ? [] : ["sword", "hammer"].map((kind) => {
     const mesh = createWeaponModel(kind);
     mesh.visible = false;
-    root.add(mesh);
+    grip?.socket.add(mesh);
     return { kind, mesh };
   });
-  const handPosition = new THREE.Vector3(), weaponDirection = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
 
   // Aim in character space, then convert back to each bone's actual parent space.
   // The imported Mixamo arms and legs have different local axes.
@@ -163,13 +164,21 @@ export function createGameCharacter(asset, hostile = false) {
       walkAction.setEffectiveWeight(idleAction ? walkWeight : 1);
       walkAction.setEffectiveTimeScale(asset.demon ? 0.6 : moving ? syncedGaitRate(actor.speed, scale, hostile ? 0.65 : 1.43) : hostile ? 0.06 : 0);
       idleAction?.setEffectiveWeight(1 - walkWeight);
-      for (const pose of bindPose) { pose.bone.quaternion.copy(pose.quaternion); pose.bone.position.copy(pose.position); }
+      for (const pose of animatedPose) { pose.bone.quaternion.copy(pose.quaternion); pose.bone.position.copy(pose.position); }
       mixer.update(dt);
+      // Mixer skips unchanged tracks; restore the last animated pose, not the bind pose.
+      for (const pose of animatedPose) { pose.quaternion.copy(pose.bone.quaternion); pose.position.copy(pose.bone.position); }
       visual.rotation.z = actor.health <= 0 ? -Math.PI * 0.48 * Math.min(1, (actor.deadTime || 0.65) * 2.5) : 0;
       visual.position.y = actor.health <= 0 ? -0.03 : 0;
       root.visible = actor.health > 0 || (actor.deadTime || 0) < 2.5;
       visual.rotation.x = 0;
       const alive = actor.health > 0;
+      runWeight = THREE.MathUtils.damp(runWeight, !hostile && moving && actor.running ? 1 : 0, 12, dt);
+      if (runWeight > 0.01) {
+        visual.rotation.x = runWeight * 0.12;
+        aim("LeftForeArm", "LeftHand", [0, 0.3, 1], runWeight * 0.8);
+        aim("RightForeArm", "RightHand", [0, 0.3, 1], runWeight * 0.8);
+      }
       guardWeight = THREE.MathUtils.damp(guardWeight, alive && !hostile && actor.equipped === "unarmed" && actor.combat > 0 ? 1 : 0, 15, dt);
       jumpWeight = THREE.MathUtils.damp(jumpWeight, alive && !actor.grounded ? 1 : 0, 18, dt);
       for (const [side, sign] of [["Left", 1], ["Right", -1]]) {
@@ -238,23 +247,14 @@ export function createGameCharacter(asset, hostile = false) {
         }
       }
       if (!hostile && alive && actor.equipped !== "unarmed" && !actor.attack && jumpWeight < 0.1) {
-        aim("RightArm", "RightForeArm", [-0.5, -0.8, 0.2], 0.75);
-        aim("RightForeArm", "RightHand", [-0.1, -0.3, 0.8], 0.75);
+        aim("RightArm", "RightForeArm", [-0.3, -0.8, 0.25], 0.85);
+        aim("RightForeArm", "RightHand", [-0.15, -0.1, 1], 0.9);
       }
+      const holdingWeapon = alive && actor.equipped !== "unarmed";
+      grip?.update(holdingWeapon ? 1 : 0);
+      if (holdingWeapon) bones.get("RightHand")?.rotateY(-Math.PI / 2);
       for (const { kind, mesh } of weapons) {
-        mesh.visible = alive && actor.equipped === kind;
-        const hand = bones.get("RightHand");
-        if (!mesh.visible || !hand) continue;
-        root.updateMatrixWorld(true);
-        hand.getWorldPosition(handPosition); root.worldToLocal(handPosition);
-        mesh.position.copy(handPosition);
-        const attack = actor.attack;
-        if (attack && attack.kind === kind) {
-          const def = ATTACKS[kind];
-          const sweep = THREE.MathUtils.smoothstep(attack.elapsed, def.impact - 0.15, def.end);
-          weaponDirection.set(kind === "sword" ? -0.9 + sweep * 1.8 : -0.1, 1.2 - sweep * 1.4, -0.4 + sweep * 1.8);
-        } else weaponDirection.set(-0.2, 0.9, 0.45);
-        mesh.quaternion.setFromUnitVectors(up, weaponDirection.normalize());
+        mesh.visible = holdingWeapon && actor.equipped === kind;
       }
       for (const { material, emissive, intensity } of materials) {
         if (!emissive) continue;
@@ -282,6 +282,7 @@ export function createGameCharacter(asset, hostile = false) {
       mixer.uncacheRoot(model);
       materials.forEach(({ material }) => material.dispose());
       model.traverse((object) => object.skeleton?.dispose());
+      grip?.dispose();
       disposeObjects([ring, healthGroup, ...weapons.map(({ mesh }) => mesh)]);
     }
   };

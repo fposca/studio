@@ -79,7 +79,7 @@ export class GameWorld {
       const maxHealth = actor === this.player ? MAX_HEALTH : this.level.enemyHealth;
       Object.assign(actor, { ...actor.spawn, yaw: Math.PI, health: maxHealth, maxHealth,
         velocityY: 0, velocityX: 0, velocityZ: 0, speed: 0, grounded: false, attack: null,
-        cooldown: 0, invulnerable: 0, stun: 0, deadTime: 0, combo: 0, mode: "idle", combat: 0,
+        cooldown: 0, invulnerable: 0, stun: 0, deadTime: 0, combo: 0, mode: "idle", combat: 0, running: false,
         equipped: actor === this.player ? this.equipped : "unarmed", species: actor === this.player ? "neonboy" : this.level.enemy });
       const position = { x: actor.x, y: actor.y + BODY_OFFSET, z: actor.z };
       actor.body.setTranslation(position, true);
@@ -194,7 +194,8 @@ export class GameWorld {
     const wasAirborne = !player.grounded && player.velocityY < -2;
     this.moveActor(player, motion.x * pace + player.velocityX, motion.z * pace + player.velocityZ, dt);
     if (wasAirborne && player.grounded) this.events.push({ type: "land" });
-    player.mode = player.attack?.kind || (!player.grounded ? "jump" : player.speed > 0.1 ? "walk" : "idle");
+    player.running = Boolean(input.run && player.grounded && !player.attack && !player.stun && player.speed > MOVE_SPEED + 0.1);
+    player.mode = player.attack?.kind || (!player.grounded ? "jump" : player.running ? "run" : player.speed > 0.1 ? "walk" : "idle");
     for (const [index, enemy] of this.enemies.entries()) {
       if (enemy.health <= 0) {
         enemy.deadTime += dt;
