@@ -3,6 +3,7 @@ import { Camera, CameraOff, Copy, Diamond, Film, Loader2, Music, Pause, Play, Pl
 
 export default function ThreeAnimationPanel({
   animationLoop,
+  sceneAnimationsPlaying,
   cameraFollow,
   cameraShake,
   cinematicSelectionName,
@@ -15,6 +16,7 @@ export default function ThreeAnimationPanel({
   onAddCameraKeyframe,
   onAudioImport,
   onAnimationLoopChange,
+  onSceneAnimationsChange,
   onAutoDirect,
   onBeatDirect,
   onClear,
@@ -85,9 +87,13 @@ export default function ThreeAnimationPanel({
       <div className="three-animation-heading">
         <strong>Animacion</strong>
         <span>{selectedName || "Selecciona un objeto"}</span>
+        <label className={`three-scene-toggle ${sceneAnimationsPlaying ? "active" : ""}`} data-tooltip="Animaciones de personajes y fondo">
+          <input aria-label="Animaciones de personajes y fondo" checked={sceneAnimationsPlaying} onChange={(event) => onSceneAnimationsChange(event.target.checked)} type="checkbox" />
+          Animaciones
+        </label>
       </div>
       <div className="three-animation-controls">
-        <button aria-label={playing ? "Pausar secuencia" : "Reproducir secuencia"} className={playing ? "active" : ""} data-tooltip={playing ? "Pausar camara y animaciones" : "Reproducir camara y animaciones"} onClick={() => onPlayingChange(!playing)} type="button">{playing ? <Pause size={17} /> : <Play size={17} />}</button>
+        <button aria-label={playing ? "Pausar secuencia" : "Reproducir secuencia"} className={playing ? "active" : ""} data-tooltip={playing ? "Pausar linea de tiempo" : "Reproducir linea de tiempo"} onClick={() => onPlayingChange(!playing)} type="button">{playing ? <Pause size={17} /> : <Play size={17} />}</button>
         <button data-tooltip="Detener y volver al inicio" onClick={onStop} type="button"><Square size={16} /></button>
         <button data-tooltip="Volver al inicio" onClick={() => onSeek(0)} type="button"><RotateCcw size={17} /></button>
         <label className="three-loop-toggle"><input checked={animationLoop} onChange={(event) => onAnimationLoopChange(event.target.checked)} type="checkbox" /><RotateCcw size={15} /> Bucle</label>

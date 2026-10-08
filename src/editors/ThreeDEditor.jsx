@@ -23,11 +23,13 @@ import droidSansBoldFont from "../assets/fonts/droid_sans_bold.typeface.json";
 import droidSerifFont from "../assets/fonts/droid_serif_regular.typeface.json";
 import droidSerifBoldFont from "../assets/fonts/droid_serif_bold.typeface.json";
 import droidMonoFont from "../assets/fonts/droid_sans_mono_regular.typeface.json";
+import kalamFont from "../assets/fonts/kalam_regular.typeface.json";
+import kalamBoldFont from "../assets/fonts/kalam_bold.typeface.json";
 import diskTextureUrl from "../assets/neonboy-animaciones/disk.png";
-import retroTvVideoUrl from "../assets/neonboy-animaciones/video.mp4?url";
 import fieldPanorama from "../assets/environments/field-panorama.png";
 import cloudsPanorama from "../assets/environments/clouds-panorama.png";
-import factoryPanorama from "../assets/environments/factory-panorama.png";
+import retroGamerPreview from "../assets/environments/retro-gamer-preview.jpg";
+import parthenonPreview from "../assets/environments/parthenon-preview.jpg";
 import grassTexture from "../assets/environments/grass-texture.png";
 import dirtTexture from "../assets/environments/dirt-texture.png";
 import brushedMetalTexture from "../assets/environments/brushed-metal-texture.png";
@@ -46,6 +48,15 @@ import skySunset from "../assets/environments/sky-sunset.png";
 import skyNight from "../assets/environments/sky-night.png";
 import skySpace from "../assets/environments/sky-space-nebula-v3.png";
 import spaceShipPreview from "../assets/environments/space-ship-preview.jpg";
+import shipComputerUrl from "../assets/neonboy-animaciones/reptil-holograma.ship-optimized.glb?url";
+import shipPlatformUrl from "../assets/neonboy-animaciones/plataforma.ship-optimized.glb?url";
+import shipReptileUrl from "../assets/neonboy-animaciones/computer.ship-optimized.glb?url";
+import shipHumanUrl from "../assets/neonboy-animaciones/hombre-holograma.ship-optimized.glb?url";
+import shipSeatUrl from "../assets/neonboy-animaciones/sillon-nave.ship-optimized.glb?url";
+import throneSatanUrl from "../assets/neonboy-animaciones/trono-satanas.ship-optimized.glb?url";
+import typographyBackdropUrl from "../assets/neonboy-animaciones/tipografia.ship-optimized.glb?url";
+import typographicObjectUrl from "../assets/neonboy-animaciones/fondo-tipografico.optimized.glb?url";
+import gamerChairUrl from "../assets/neonboy-animaciones/sillon-gamer-90.optimized.glb?url";
 import skyInfernal from "../assets/environments/sky-infernal-sharp.png";
 import skyApocalypse from "../assets/environments/sky-apocalypse-sharp.png";
 import apocalypseSoilTexture from "../assets/environments/apocalypse-soil-texture.png";
@@ -73,7 +84,7 @@ import neonboyLogoModelUrl from "../assets/logo.glb?url";
 import {
   ArrowDownToLine, Box, Camera, Circle, CircleDot, ClipboardPaste, CloudFog, CloudLightning, CloudRain, Combine, Cone, Copy, Cylinder, Download, Eye,
   EyeOff, Film, Flashlight, FlipHorizontal2, Focus, Grid3X3, ImageDown, Lightbulb, LocateFixed,
-  Flame, Gauge, Group, Hammer, Link2, Lock, MousePointer2, Move3D, Music, Palette, Pause, Pill, Play, Redo2, Rotate3D, RotateCcw, Scale3D, Sparkles, Square,
+  Flame, Gauge, Group, Hammer, Link2, Lock, Moon, MousePointer2, Move3D, Music, Palette, Pause, Pill, Play, Plus, Redo2, Rotate3D, RotateCcw, Scale3D, Sparkles, Square, Sunset,
   Search, Sun, Trash2, Type, Undo2, Ungroup, Unlink2, Unlock, Upload, Wind, ZoomIn, ZoomOut
 } from "lucide-react";
 import { getProject, putProject } from "../storage/projectDb.js";
@@ -86,6 +97,7 @@ import { createRealisticRain, DEFAULT_RAIN, normalizeRain } from "./realisticRai
 import { createRealisticStorm, DEFAULT_STORM, normalizeStorm } from "./realisticStorm.js";
 import { createChurchPanorama } from "./churchPanorama.js";
 import { createPanoramaBackdrop } from "./panoramaBackdrop.js";
+import { configureFieldPanoramaTexture, createFieldPanorama } from "./fieldPanorama.js";
 import { createCastleBackdrop, createGothicChurchBackdrop } from "./interiorBackdrop.js";
 import { createGothicChurchInterior, DEFAULT_GOTHIC_LIGHTING, normalizeGothicLighting } from "./gothicChurchInterior.js";
 import { createSwampSet, createSwampTerrainGeometry } from "./swampSet.js";
@@ -98,11 +110,19 @@ import { createCemeteryBats } from "./cemeteryBats.js";
 import { createCemeteryLighting, DEFAULT_CEMETERY_LIGHTING, normalizeCemeteryLighting } from "./cemeteryLighting.js";
 import { createCastleInteriorSet, DEFAULT_CASTLE_LIGHTING, normalizeCastleLighting } from "./castleInterior.js";
 import { HD_WALK_GAIT_UNITS_PER_SECOND, speedForAnimationChange, syncedGaitRate } from "./walkGait.js";
+import { createDragonAnimationClips, DRAGON_BREATHING_CLIP, DRAGON_FLYING_CLIP, initializeDragonFlight, isDragonModel, updateDragonFlight } from "./dragonAnimation.js";
+import { ensureDragonFire, updateDragonFire } from "./dragonFire.js";
+import { animateBiblicalTypographyScene, biblicalCameraFraming, BIBLICAL_FONTS, BIBLICAL_LAYOUTS, BIBLICAL_LIGHTING, BIBLICAL_VARIANTS, createBiblicalTypographyScene, DEFAULT_BIBLICAL_TYPOGRAPHY, disposeBiblicalTypographyScene, MAX_BIBLICAL_TEXTS, normalizeBiblicalTypography, updateBiblicalTypographyScene } from "./biblicalTypography.js";
 import { DEFAULT_MASK_NEON, normalizeMaskNeon, updateMaskNeon } from "./maskNeon.js";
+import { neonboySpeechPoseAt, normalizeNeonboySpeech } from "./neonboySpeech.js";
+import { createSeatedAnimationClips, NEONBOY_AWAKE_SEATED_ID, NEONBOY_TALKING_SEATED_ID } from "./neonboySeatedAnimation.js";
 import { createApocalypseLighting, DEFAULT_APOCALYPSE_LIGHTING } from "./apocalypseLighting.js";
 import { createApocalypseFires, DEFAULT_APOCALYPSE_FIRES, MAX_APOCALYPSE_FIRES, normalizeApocalypseFires } from "./apocalypseFires.js";
 import { createSpaceScene, createNebulaFloorGeometry, createNebulaFloorMaterial, DEFAULT_SPACE_SETTINGS, normalizeSpaceSettings } from "./spaceScene.js";
 import { createSpaceShipSet } from "./spaceShipSet.js";
+import { createRetroGamerRoom } from "./retroGamerRoom.js";
+import { bindRetroGamerLighting, DEFAULT_RETRO_GAMER_LIGHTING, RETRO_GAMER_LIGHTING_MODES, normalizeRetroGamerLighting } from "./retroGamerLighting.js";
+import { bindParthenonLighting, createParthenonSet, DEFAULT_PARTHENON_LIGHTING, normalizeParthenonLighting, PARTHENON_PERIODS } from "./parthenonSet.js";
 import {
   CINEMATIC_SHOTS, CINEMATIC_ANGLES, CINEMATIC_PRESETS, DEFAULT_CINEMATIC_CAMERA,
   frameCinematicSubjects
@@ -114,13 +134,14 @@ const THREE_CLIPBOARD_ID = "clipboard:three";
 const CAMERA_TRACK_ID = "__camera__";
 const DEFAULT_BACKGROUND = "#17191d";
 const DEFAULT_FREEZE_SEGMENTS = [];
+// Casual_Walk tarda 1.4 s por ciclo, frente a 1.1 s del caminante HD original.
+const HD_WALK_GAIT_BY_MODEL = {
+  "neonBoy-walking-alta": HD_WALK_GAIT_UNITS_PER_SECOND,
+  "neon-caminando-hd": 1.12
+};
 const DEFAULT_GRASS_SETTINGS = { styleVersion: 4, enabled: true, density: 0.98, height: 0.4, windStrength: 0.46, windSpeed: 0.82 };
 const DEFAULT_LAVA_SETTINGS = {
   styleVersion: 2,
-  enabled: true,
-  jetCount: 12,
-  interval: 8,
-  height: 1,
   gasEnabled: true,
   gasCount: 8,
   gasSpeed: 1,
@@ -134,6 +155,17 @@ const SHARED_GEOMETRY_ROOTS = new WeakSet();
 const SHARED_GEOMETRIES = new WeakSet();
 const SHARED_TEXTURES = new WeakSet();
 const TV_VIDEO_ELEMENTS = new WeakMap();
+const RETRO_TV_VIDEO_URLS = import.meta.glob("../assets/neonboy-animaciones/*.mp4", { eager: true, import: "default", query: "?url" });
+const RETRO_TV_VIDEOS = Object.entries(RETRO_TV_VIDEO_URLS).map(([path, url]) => {
+  const id = path.split("/").pop().replace(/\.mp4$/i, "");
+  return {
+    id,
+    name: id === "video" ? "Video original" : id.replace(/[-_]/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()),
+    url
+  };
+}).sort((left, right) => left.id === "video" ? -1 : right.id === "video" ? 1 : left.name.localeCompare(right.name));
+const RETRO_TV_VIDEO_BY_ID = new Map(RETRO_TV_VIDEOS.map((entry) => [entry.id, entry]));
+const getRetroTvVideo = (id) => RETRO_TV_VIDEO_BY_ID.get(id) || RETRO_TV_VIDEO_BY_ID.get("video") || RETRO_TV_VIDEOS[0];
 const NEON_FACE_MATERIALS = new WeakMap();
 const NEON_FACE_SHADERS = new WeakMap();
 
@@ -190,10 +222,12 @@ function freezeMotionFactorAt(time, segments) {
 }
 
 function prepareModelAnimationClips(object, clips) {
-  const isHdWalk = object?.userData?.bundledModel === "neonBoy-walking-alta";
-  const playable = isHdWalk ? clips.filter((clip) => clip.duration >= 0.25) : clips;
+  const isHdWalk = Boolean(HD_WALK_GAIT_BY_MODEL[object?.userData?.bundledModel]);
+  const skipShortClips = isHdWalk || object?.userData?.bundledModel === "neonboy-sentado-quieto-hd";
+  const playable = skipShortClips ? clips.filter((clip) => clip.duration >= 0.25) : clips;
   return playable.map((source) => {
     const clip = source.clone();
+    if (object?.userData?.bundledModel === "neonboy-sentado-quieto-hd") clip.name = "Sentado quieto HD";
     if (isHdWalk) {
       const trackDurations = clip.tracks.map((track) => {
         const times = track.times;
@@ -281,6 +315,14 @@ const NEONBOY_ANIMATION_URLS = import.meta.glob([
   "!../assets/neonboy-animaciones/mesaTv.glb",
   "!../assets/neonboy-animaciones/retro-tv.glb",
   "!../assets/neonboy-animaciones/silla.glb",
+  "!../assets/neonboy-animaciones/sillon-nave.glb",
+  "!../assets/neonboy-animaciones/tipografia.glb",
+  "!../assets/neonboy-animaciones/trono-satanas.glb",
+  "!../assets/neonboy-animaciones/fondo-tipografico.glb",
+  "!../assets/neonboy-animaciones/fondo-tipografico.optimized.glb",
+  "!../assets/neonboy-animaciones/sillon-gamer-90.glb",
+  "!../assets/neonboy-animaciones/sillon-gamer-90.optimized.glb",
+  "!../assets/neonboy-animaciones/*.ship-optimized.glb",
   "!../assets/neonboy-animaciones/zombie-rock.glb"
 ], { import: "default", query: "?url" });
 const GUITAR_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/guitar.glb"];
@@ -295,7 +337,7 @@ const RETRO_TV_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animacio
 const CHAIR_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/silla.optimized.glb"];
 const ALTAR_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/altar.optimized.glb"];
 const BENCH_MODEL_LOADER = NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/banco.optimized.glb"];
-const CHARACTER_ASSET_FILES = new Set(["guitar.glb", "guitarra-profe.glb", "demon-guitar.glb", "zombie-guitar.glb", "palos.glb", "bateria.glb", "bateria.optimized.glb", "edificio.glb", "edificio.optimized.glb", "mesaTv.optimized.glb", "retro-tv.optimized.glb", "silla.optimized.glb", "altar.optimized.glb", "banco.optimized.glb"]);
+const CHARACTER_ASSET_FILES = new Set(["guitar.glb", "guitarra-profe.glb", "demon-guitar.glb", "zombie-guitar.glb", "palos.glb", "bateria.glb", "bateria.optimized.glb", "edificio.glb", "edificio.optimized.glb", "mesaTv.optimized.glb", "retro-tv.optimized.glb", "silla.optimized.glb", "altar.optimized.glb", "banco.optimized.glb", "sillon-nave.glb", "tipografia.glb"]);
 const STATIC_MODEL_URLS = import.meta.glob([
   "../assets/3destatic/*.glb",
   "!../assets/3destatic/Meshy_AI_Midnight_Jester_Chair_Sit_Idle_M.glb",
@@ -307,19 +349,32 @@ const OPTIMIZED_STATIC_MODEL_IDS = new Set(Object.keys(STATIC_MODEL_URLS)
 const ENVIRONMENT_THUMBNAIL_URLS = import.meta.glob("../assets/environments/thumbnails/*.jpg", { eager: true, import: "default", query: "?url" });
 const ENVIRONMENT_THUMBNAILS = Object.fromEntries(Object.entries(ENVIRONMENT_THUMBNAIL_URLS).map(([path, url]) => [path.split("/").pop().replace(/\.jpg$/i, ""), url]));
 const CHARACTER_ANIMATION_NAMES = {
+  "satanas-sentado": { character: "Satanas", animation: "Sentado HD", order: 70 },
+  "satanas-sentado-rie": { character: "Satanas", animation: "Sentado riendo HD", order: 71 },
   "Meshy_AI_Midnight_Jester_Chair_Sit_Idle_M": { character: "Neoncruzader", animation: "Sentado", order: 2 },
   "Meshy_AI_Midnight_Jester_Long_Breathe_and_Look": { character: "Neoncruzader", animation: "Respirando", order: 1 },
   "Meshy_AI_Midnight_Jester_Walk_Slowly_and_Look_": { character: "Neoncruzader", animation: "Caminando", order: 3 },
   "neon-stand": { character: "Neonboy", animation: "Hablando", order: 10 },
+  "neon-inactivo-hd": { character: "Neonboy", animation: "Inactivo HD", order: 9 },
   "neonBoy-Sit-alta": { character: "Neonboy", animation: "Sentado HD", order: 11 },
   "neon-sit-chair": { character: "Neonboy", animation: "Sentado", order: 11 },
+  "neon-sentado-hd": { character: "Neonboy", animation: "Sentado HD (dormitando)", order: 11.5 },
+  "neonboy-sentado-quieto-hd": { character: "Neonboy", animation: "Sentado quieto HD", order: 11.7 },
   "neon-hablando": { character: "Neonboy", animation: "Respirando", order: 12 },
+  "neon-escucha-hd": { character: "Neonboy", animation: "Escuchando HD", order: 12.5 },
   "neonBoy-walking-alta": {
     character: "Neonboy",
     animation: "Caminando HD",
     order: 13,
-    locomotion: { speed: 1.45, acceleration: 4.2, deceleration: 5.5, gaitUnitsPerSecond: HD_WALK_GAIT_UNITS_PER_SECOND }
+    locomotion: { speed: 1.45, acceleration: 4.2, deceleration: 5.5, gaitUnitsPerSecond: HD_WALK_GAIT_BY_MODEL["neonBoy-walking-alta"] }
   },
+  "neon-caminando-hd": {
+    character: "Neonboy",
+    animation: "Caminando casual HD",
+    order: 13.5,
+    locomotion: { speed: 1.45, acceleration: 4.2, deceleration: 5.5, gaitUnitsPerSecond: HD_WALK_GAIT_BY_MODEL["neon-caminando-hd"] }
+  },
+  "neon-habla-mano-hd": { character: "Neonboy", animation: "Hablando con mano HD", order: 13.6 },
   "Neonboy-playGuitarHD": { character: "Neonboy", animation: "Guitarrista HD", order: 14 },
   "neon-hablando-mano": { character: "Neonboy", animation: "Hablando con manos", order: 13 },
   "neon-guitar": { character: "Neonboy", animation: "Guitarrista", order: 14 },
@@ -339,6 +394,7 @@ const CHARACTER_ANIMATION_NAMES = {
   "zombie-breath": { character: "Zombie", animation: "Respirando", order: 42 },
   "zombieGuitarr": { character: "Zombie", animation: "Tocando guitarra", order: 43 },
   "angel": { character: "Angel", animation: "Base", order: 55 },
+  "dragon": { character: "Dragon", animation: "Original", order: 62 },
   "reptiliano-walk": { character: "Reptiliano", animation: "Caminando", order: 50, locomotion: true }
 };
 const isGuitaristModel = (id) => id?.startsWith("neon-guitar") || ["Neonboy-playGuitarHD", "calm-guitar", "neon-rock", "neonrock6", "neonHead", "profe", "demon-rock", "zombieGuitarr"].includes(id);
@@ -361,19 +417,64 @@ async function loadStaticPreset(preset) {
 function configureNeonFaceEmission(model) {
   if (NEON_FACE_MATERIALS.has(model)) return;
   const materials = new Set();
+  const speechOrigins = new Map();
   model.traverse((item) => {
     if (!item.isMesh) return;
     const itemMaterials = Array.isArray(item.material) ? item.material : [item.material];
-    itemMaterials.filter((material) => material?.map).forEach((material) => materials.add(material));
+    const headIndex = item.skeleton?.bones.findIndex((bone) => bone.name === "headfront") ?? -1;
+    const origin = headIndex >= 0 && model.userData.neonSpeech
+      ? new Vector3().setFromMatrixPosition(item.skeleton.boneInverses[headIndex].clone().invert())
+        .applyMatrix4(item.bindMatrix.clone().invert())
+      : null;
+    itemMaterials.filter((material) => material?.map).forEach((material) => {
+      materials.add(material);
+      if (origin) speechOrigins.set(material, origin);
+    });
   });
   materials.forEach((material) => {
     material.onBeforeCompile = (shader) => {
       const pulse = model.userData.maskPulse;
       shader.uniforms.uNeonFaceColor = { value: new Color(pulse?.color || "#ff176b") };
       shader.uniforms.uNeonFaceIntensity = { value: pulse?.enabled === false ? 0 : (pulse?.intensity ?? 4.5) * 0.45 };
-      shader.fragmentShader = `uniform vec3 uNeonFaceColor;\nuniform float uNeonFaceIntensity;\n${shader.fragmentShader}`;
+      shader.uniforms.uNeonSpeechShape = { value: new THREE.Vector4() };
+      shader.uniforms.uNeonSpeechCenter = { value: speechOrigins.get(material) || new Vector3() };
+      shader.neonSpeechSupported = speechOrigins.has(material);
+      shader.vertexShader = `uniform vec4 uNeonSpeechShape;\nuniform vec3 uNeonSpeechCenter;\nvarying vec3 vNeonSpeechPosition;\n${shader.vertexShader}`;
+      // Morph the bind pose before skinning so the mouth follows the animated head.
+      shader.vertexShader = shader.vertexShader.replace("#include <morphtarget_vertex>", `
+        #include <morphtarget_vertex>
+        vec3 speechOffset = transformed - uNeonSpeechCenter;
+        float speechX = (speechOffset.x + 0.004) / 0.058;
+        float speechSeam = -0.009 + 0.017 * min(speechX * speechX, 1.0);
+        float speechWidth = 1.0 - smoothstep(0.65, 1.22, abs(speechX));
+        float speechFront = smoothstep(-0.06, -0.035, speechOffset.z);
+        float speechHeight = 1.0 - smoothstep(0.031, 0.054, abs(speechOffset.y - speechSeam));
+        speechHeight *= 1.0 - smoothstep(0.015, 0.028, speechOffset.y);
+        float speechMask = speechWidth * speechFront * speechHeight;
+        float speechLower = 1.0 - smoothstep(-0.006, 0.005, speechOffset.y - speechSeam);
+        transformed.y += uNeonSpeechShape.x * mix(0.002, -0.014, speechLower) * speechMask;
+        transformed.y -= (speechOffset.y - speechSeam) * uNeonSpeechShape.w * 0.22 * speechMask;
+        transformed.x += (speechOffset.x + 0.004) * (uNeonSpeechShape.z * 0.07 - uNeonSpeechShape.y * 0.16) * speechMask;
+        transformed.z += uNeonSpeechShape.y * 0.003 * speechMask;
+        vNeonSpeechPosition = transformed - uNeonSpeechCenter;
+      `);
+      shader.fragmentShader = `uniform vec3 uNeonFaceColor;\nuniform float uNeonFaceIntensity;\nuniform vec4 uNeonSpeechShape;\nvarying vec3 vNeonSpeechPosition;\n${shader.fragmentShader}`;
       shader.fragmentShader = shader.fragmentShader.replace("#include <map_fragment>", `
         #include <map_fragment>
+        #ifdef USE_MAP
+          vec3 mouthPosition = vNeonSpeechPosition;
+          float grinScale = 1.0 + uNeonSpeechShape.z * 0.07 - uNeonSpeechShape.y * 0.16;
+          float grinX = (mouthPosition.x + 0.004) / (0.058 * grinScale);
+          float grinWidth = 1.0 - smoothstep(0.9, 1.0, abs(grinX));
+          float grinTaper = pow(max(0.0, 1.0 - grinX * grinX), 0.7);
+          float grinCenterY = -0.009 + 0.017 * min(grinX * grinX, 1.0) - uNeonSpeechShape.x * 0.004;
+          float grinHalfGap = uNeonSpeechShape.x * 0.006 * grinTaper;
+          float grinEdge = max(fwidth(mouthPosition.y - grinCenterY), 0.0004);
+          float grinGap = 1.0 - smoothstep(grinHalfGap - grinEdge, grinHalfGap + grinEdge, abs(mouthPosition.y - grinCenterY));
+          float grinFront = smoothstep(-0.06, -0.035, mouthPosition.z);
+          float grinOpen = grinWidth * grinGap * grinFront * smoothstep(0.015, 0.12, uNeonSpeechShape.x);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.003, 0.0, 0.006), grinOpen);
+        #endif
         float neonMaxRB = max(diffuseColor.r, diffuseColor.b);
         float neonMinRB = min(diffuseColor.r, diffuseColor.b);
         float neonChroma = neonMaxRB - diffuseColor.g;
@@ -385,7 +486,7 @@ function configureNeonFaceEmission(model) {
       `);
       NEON_FACE_SHADERS.set(material, shader);
     };
-    material.customProgramCacheKey = () => "neon-face-emission-v1";
+    material.customProgramCacheKey = () => "neon-face-emission-v6";
     material.needsUpdate = true;
   });
   NEON_FACE_MATERIALS.set(model, [...materials]);
@@ -395,6 +496,9 @@ function ensureNeonMaskPulse(model) {
   const preset = findCharacterPreset(model?.userData?.bundledModel);
   if (!preset || !["Neonboy", "Neoncruzader"].includes(preset.character)) return;
   if (NEON_FACE_MATERIALS.has(model)) return;
+  if (preset.character === "Neonboy" && VISIBLE_NEONBOY_HD_IDS.has(preset.id)) {
+    model.userData.neonSpeech = normalizeNeonboySpeech(model.userData.neonSpeech);
+  }
   model.userData.maskPulse = {
     enabled: true,
     color: "#ff176b",
@@ -407,6 +511,15 @@ function ensureNeonMaskPulse(model) {
   };
   model.userData.maskPulse = normalizeMaskNeon(model.userData.maskPulse);
   configureNeonFaceEmission(model);
+}
+
+function applyNeonboySpeechAt(model, time) {
+  const pose = neonboySpeechPoseAt(model.userData?.neonSpeech, time);
+  NEON_FACE_MATERIALS.get(model)?.forEach((material) => {
+    const shader = NEON_FACE_SHADERS.get(material);
+    if (!shader?.neonSpeechSupported) return;
+    shader.uniforms.uNeonSpeechShape.value.set(pose.open, pose.round, pose.wide, pose.press);
+  });
 }
 
 function ensureDemonEyePulse(model) {
@@ -442,66 +555,85 @@ function ensureDemonEyePulse(model) {
   head.add(group);
 }
 
-function ensureAngelHalo(model) {
+function ensureAngelAura(model) {
   if (model?.userData?.bundledModel !== "angel") return;
-  const head = model.getObjectByName("mixamorigHead") || model.getObjectByName("mixamorig:Head");
-  if (!head || head.getObjectByName("AngelHalo")) return;
+  ["AngelHalo", "AngelHaloLight"].forEach((name) => {
+    const oldEffect = model.getObjectByName(name);
+    if (!oldEffect) return;
+    oldEffect.parent.remove(oldEffect);
+    disposeObject(oldEffect);
+  });
+  if (model.getObjectByName("AngelAura")) return;
 
-  const halo = new THREE.Group();
-  halo.name = "AngelHalo";
-  halo.userData.editorHelper = true;
-  halo.position.set(0, 0.23, 0);
-  halo.rotation.x = 1.1;
+  model.updateWorldMatrix(true, true);
+  const bounds = new THREE.Box3().setFromObject(model);
+  const size = bounds.getSize(new THREE.Vector3());
+  const center = model.worldToLocal(bounds.getCenter(new THREE.Vector3()));
+  const worldScale = model.getWorldScale(new THREE.Vector3());
+  const height = Math.max(1, size.y / Math.max(0.001, Math.abs(worldScale.y)));
+  const aura = new THREE.Group();
+  aura.name = "AngelAura";
+  aura.userData.editorHelper = true;
+  aura.userData.baseScale = [height * 1.2, height * 1.55];
+  aura.position.copy(center);
 
   const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 160;
+  canvas.width = canvas.height = 128;
   const context = canvas.getContext("2d");
-  const glow = context.createRadialGradient(80, 80, 34, 80, 80, 78);
-  glow.addColorStop(0, "rgba(255, 241, 190, 0)");
-  glow.addColorStop(0.22, "rgba(255, 234, 174, 0.08)");
-  glow.addColorStop(0.43, "rgba(255, 225, 145, 0.48)");
-  glow.addColorStop(0.65, "rgba(255, 213, 115, 0.18)");
-  glow.addColorStop(1, "rgba(255, 205, 110, 0)");
+  const glow = context.createRadialGradient(64, 64, 4, 64, 64, 64);
+  glow.addColorStop(0, "rgba(255, 246, 201, 0.05)");
+  glow.addColorStop(0.3, "rgba(255, 237, 166, 0.24)");
+  glow.addColorStop(0.58, "rgba(255, 225, 139, 0.17)");
+  glow.addColorStop(0.82, "rgba(255, 215, 115, 0.05)");
+  glow.addColorStop(1, "rgba(255, 205, 100, 0)");
   context.fillStyle = glow;
-  context.fillRect(0, 0, 160, 160);
-  const glowTexture = new THREE.CanvasTexture(canvas);
-  const aura = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.68, 0.68),
-    new THREE.MeshBasicMaterial({
-      map: glowTexture,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      side: THREE.DoubleSide,
-      toneMapped: false
-    })
-  );
-  aura.name = "AngelHaloGlow";
-  aura.userData.editorHelper = true;
-  halo.add(aura);
+  context.fillRect(0, 0, 128, 128);
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(canvas),
+    color: 0xffd46d,
+    transparent: true,
+    opacity: 0.5,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    toneMapped: false
+  }));
+  sprite.name = "AngelAuraGlow";
+  sprite.userData.editorHelper = true;
+  sprite.scale.set(...aura.userData.baseScale, 1);
+  aura.add(sprite);
 
-  const ring = new THREE.Mesh(
-    new THREE.TorusGeometry(0.19, 0.012, 8, 64),
-    new THREE.MeshBasicMaterial({ color: 0xfff0c0, toneMapped: false, side: THREE.DoubleSide })
-  );
-  ring.name = "AngelHaloRing";
-  ring.userData.editorHelper = true;
-  halo.add(ring);
-
-  const light = new THREE.PointLight(0xffe3a0, 2.2, 2.6, 2);
-  light.name = "AngelHaloLight";
+  const light = new THREE.PointLight(0xffcb69, 4.8, 8.5, 2);
+  light.name = "AngelAuraLight";
   light.userData.editorHelper = true;
-  head.add(halo);
-  head.add(light);
-  light.position.set(0, 0.2, 0.04);
+  light.position.y = height * 0.07;
+  light.castShadow = false;
+  aura.add(light);
+  model.add(aura);
+}
+
+function animateAngelAura(model, time, showGlow = true) {
+  const aura = model.getObjectByName("AngelAura");
+  if (!aura) return;
+  const sprite = aura.getObjectByName("AngelAuraGlow");
+  const light = aura.getObjectByName("AngelAuraLight");
+  sprite.visible = showGlow;
+  const breath = (Math.sin(time * 0.0034) + 1) * 0.5;
+  const shimmer = Math.sin(time * 0.011) * 0.008;
+  const scale = 0.93 + breath * 0.15 + shimmer;
+  sprite.scale.set(aura.userData.baseScale[0] * scale, aura.userData.baseScale[1] * scale, 1);
+  sprite.material.opacity = 0.42 + breath * 0.16;
+  light.intensity = 4.2 + breath * 1.8;
+  light.distance = 7.8 + breath * 1.4;
 }
 
 function ensureRetroTvScreen(model) {
   if (model?.userData?.bundledStaticModel !== "retro-tv") return null;
+  const selectedVideo = getRetroTvVideo(model.userData.tvScreen?.videoId);
   model.userData.tvScreen = {
     scale: [1, 1],
     offset: [0, 0, 0],
-    ...(model.userData.tvScreen || {})
+    ...(model.userData.tvScreen || {}),
+    videoId: selectedVideo.id
   };
   const existing = model.getObjectByName("RetroTvVideoScreen");
   if (existing) {
@@ -509,45 +641,59 @@ function ensureRetroTvScreen(model) {
     if (existing.userData.basePosition) {
       existing.position.fromArray(existing.userData.basePosition).add(new Vector3().fromArray(model.userData.tvScreen.offset));
     }
-    return TV_VIDEO_ELEMENTS.get(model) || existing.material?.map?.image || null;
   }
-  model.updateWorldMatrix(true, true);
-  const inverseRoot = model.matrixWorld.clone().invert();
-  const bounds = new Box3().makeEmpty();
-  model.traverse((item) => {
-    if (!item.isMesh || item.name === "RetroTvVideoScreen") return;
-    item.geometry.computeBoundingBox();
-    const localMatrix = inverseRoot.clone().multiply(item.matrixWorld);
-    bounds.union(item.geometry.boundingBox.clone().applyMatrix4(localMatrix));
-  });
-  const size = bounds.getSize(new Vector3());
-  const center = bounds.getCenter(new Vector3());
-  const video = document.createElement("video");
-  video.src = retroTvVideoUrl;
-  video.loop = true;
-  video.preload = "auto";
-  video.playsInline = true;
-  video.crossOrigin = "anonymous";
-  const texture = new THREE.VideoTexture(video);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.minFilter = THREE.LinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  const screen = new THREE.Mesh(
-    new THREE.PlaneGeometry(size.x * 0.57, size.y * 0.38),
-    new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, side: THREE.DoubleSide })
-  );
-  screen.name = "RetroTvVideoScreen";
-  screen.position.set(center.x, center.y + size.y * 0.055, bounds.max.z + size.z * 0.008);
-  screen.userData.editorHelper = true;
-  screen.userData.basePosition = screen.position.toArray();
-  screen.scale.set(model.userData.tvScreen.scale[0], model.userData.tvScreen.scale[1], 1);
-  screen.position.add(new Vector3().fromArray(model.userData.tvScreen.offset));
-  model.add(screen);
-  TV_VIDEO_ELEMENTS.set(model, video);
+  let video = TV_VIDEO_ELEMENTS.get(model);
+  if (!video) {
+    video = document.createElement("video");
+    video.loop = true;
+    video.preload = "metadata";
+    video.playsInline = true;
+    video.crossOrigin = "anonymous";
+    const texture = new THREE.VideoTexture(video);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    if (existing) {
+      existing.material.map = texture;
+      existing.material.needsUpdate = true;
+    } else {
+      model.updateWorldMatrix(true, true);
+      const inverseRoot = model.matrixWorld.clone().invert();
+      const bounds = new Box3().makeEmpty();
+      model.traverse((item) => {
+        if (!item.isMesh) return;
+        item.geometry.computeBoundingBox();
+        const localMatrix = inverseRoot.clone().multiply(item.matrixWorld);
+        bounds.union(item.geometry.boundingBox.clone().applyMatrix4(localMatrix));
+      });
+      const size = bounds.getSize(new Vector3());
+      const center = bounds.getCenter(new Vector3());
+      const screen = new THREE.Mesh(
+        new THREE.PlaneGeometry(size.x * 0.57, size.y * 0.38),
+        new THREE.MeshBasicMaterial({ map: texture, toneMapped: false, side: THREE.DoubleSide })
+      );
+      screen.name = "RetroTvVideoScreen";
+      screen.position.set(center.x, center.y + size.y * 0.055, bounds.max.z + size.z * 0.008);
+      screen.userData.editorHelper = true;
+      screen.userData.basePosition = screen.position.toArray();
+      screen.scale.set(model.userData.tvScreen.scale[0], model.userData.tvScreen.scale[1], 1);
+      screen.position.add(new Vector3().fromArray(model.userData.tvScreen.offset));
+      model.add(screen);
+    }
+    TV_VIDEO_ELEMENTS.set(model, video);
+  }
+  if (video.getAttribute("src") !== selectedVideo.url) {
+    video.src = selectedVideo.url;
+    video.load();
+  }
   return video;
 }
 const CHARACTER_MODELS = [
   { id: "breathe-look", character: "Neoncruzader", animation: "Base", name: "Neoncruzader - Base", order: 0, url: neonboyModelUrl },
+  { id: "dragon-breathing", character: "Dragon", animation: DRAGON_BREATHING_CLIP, name: "Dragon - Respirando", order: 60, loadUrl: NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/dragon.glb"] },
+  { id: "dragon-flying", character: "Dragon", animation: DRAGON_FLYING_CLIP, name: "Dragon - Volando", order: 61, loadUrl: NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/dragon.glb"] },
+  { id: NEONBOY_AWAKE_SEATED_ID, character: "Neonboy", animation: "Sentado despierto HD", name: "Neonboy - Sentado despierto HD", order: 11.6, loadUrl: NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/neonboy-sentado-quieto-hd.glb"] },
+  { id: NEONBOY_TALKING_SEATED_ID, character: "Neonboy", animation: "Sentado hablando HD", name: "Neonboy - Sentado hablando HD", order: 11.65, loadUrl: NEONBOY_ANIMATION_URLS["../assets/neonboy-animaciones/neonboy-sentado-quieto-hd.glb"] },
   ...Object.entries(NEONBOY_ANIMATION_URLS).filter(([path]) => !CHARACTER_ASSET_FILES.has(path.split("/").pop())).map(([path, loadUrl]) => {
     const filename = path.split("/").pop().replace(/\.glb$/i, "");
     const metadata = CHARACTER_ANIMATION_NAMES[filename] || {
@@ -558,7 +704,24 @@ const CHARACTER_MODELS = [
     return { id: filename, ...metadata, name: `${metadata.character} - ${metadata.animation}`, loadUrl };
   })
 ].sort((left, right) => left.order - right.order);
+const VISIBLE_NEONBOY_HD_IDS = new Set([
+  "neon-inactivo-hd",
+  "neonBoy-Sit-alta",
+  "neon-sentado-hd",
+  NEONBOY_AWAKE_SEATED_ID,
+  NEONBOY_TALKING_SEATED_ID,
+  "neonboy-sentado-quieto-hd",
+  "neon-escucha-hd",
+  "neonBoy-walking-alta",
+  "neon-caminando-hd",
+  "neon-habla-mano-hd",
+  "Neonboy-playGuitarHD"
+]);
+const SHIP_PROP_IDS = new Set(["computer", "plataforma", "reptil-holograma", "hombre-holograma"]);
+const CHARACTER_LIBRARY_MODELS = CHARACTER_MODELS.filter((model) => model.id !== "dragon" && !SHIP_PROP_IDS.has(model.id)
+  && (model.character !== "Neonboy" || VISIBLE_NEONBOY_HD_IDS.has(model.id)));
 const findCharacterPreset = (id) => CHARACTER_MODELS.find((entry) => entry.id === id || entry.legacyIds?.includes(id));
+const TYPOGRAPHY_BACKDROP_PRESET = { id: "typography-backdrop", name: "Fondo tipografico", url: typographyBackdropUrl, backdrop: true };
 const STATIC_MODELS = [
   { id: "neonboy-logo", name: "Logo Neonboy", url: neonboyLogoModelUrl },
   { id: "disk", name: "Disco", create: createDiskPlane },
@@ -572,8 +735,17 @@ const STATIC_MODELS = [
   { id: "mesa-tv", name: "Mesa TV", loadUrl: TV_TABLE_MODEL_LOADER },
   { id: "retro-tv", name: "Retro TV con video", loadUrl: RETRO_TV_MODEL_LOADER },
   { id: "silla", name: "Silla", loadUrl: CHAIR_MODEL_LOADER },
+  { id: "gamer-chair-90", name: "Sillon gamer 90s", url: gamerChairUrl, size: 2.4 },
+  { id: "typographic-object", name: "Fondo tipografico", url: typographicObjectUrl },
   { id: "altar", name: "Altar", loadUrl: ALTAR_MODEL_LOADER },
   { id: "banco", name: "Banco de iglesia", loadUrl: BENCH_MODEL_LOADER },
+  { id: "ship-computer", name: "Computadora nave", url: shipComputerUrl },
+  { id: "ship-platform", name: "Plataforma holografica", url: shipPlatformUrl },
+  { id: "ship-reptile", name: "Holograma reptiliano", url: shipReptileUrl },
+  { id: "ship-human", name: "Holograma humano", url: shipHumanUrl },
+  { id: "ship-seat", name: "Sillon nave", url: shipSeatUrl, size: 2.4 },
+  { id: "throne-satan", name: "Trono de Satanas", url: throneSatanUrl, size: 3.2 },
+  TYPOGRAPHY_BACKDROP_PRESET,
   ...Object.entries(STATIC_MODEL_URLS).filter(([path]) => {
     const filename = path.split("/").pop().replace(/\.glb$/i, "");
     return filename.endsWith(".optimized") || !OPTIMIZED_STATIC_MODEL_IDS.has(filename);
@@ -598,16 +770,27 @@ const DEFAULT_SCENE_EFFECTS = {
   churchLighting: DEFAULT_CHURCH_LIGHTING,
   cemeteryLighting: DEFAULT_CEMETERY_LIGHTING,
   castleLighting: DEFAULT_CASTLE_LIGHTING,
+  gamerLighting: DEFAULT_RETRO_GAMER_LIGHTING,
+  parthenonLighting: DEFAULT_PARTHENON_LIGHTING,
   gothicLighting: DEFAULT_GOTHIC_LIGHTING,
   space: DEFAULT_SPACE_SETTINGS,
   apocalypseLighting: DEFAULT_APOCALYPSE_LIGHTING,
   apocalypseFires: DEFAULT_APOCALYPSE_FIRES
 };
+const SPACE_SHIP_FOG = Object.freeze({
+  ...DEFAULT_CHURCH_FOG, enabled: true, intensity: 0.14, color: "#354151",
+  height: 3.5, coverage: 32, windSpeed: 0.28, windDirection: 24, turbulence: 0.52
+});
+const MEDIEVAL_VILLAGE_FOG = Object.freeze({
+  ...DEFAULT_CHURCH_FOG, enabled: true, intensity: 0.16, color: "#7f8583",
+  height: 2.4, coverage: 48, windSpeed: 0.38, windDirection: 35, turbulence: 0.55
+});
 const ENVIRONMENT_BACKGROUNDS = [
   { id: "solid", name: "Color", image: "" },
   { id: "field", name: "Campo", image: fieldPanorama },
   { id: "clouds", name: "Nubes", image: cloudsPanorama },
-  { id: "factory", name: "Fabrica", image: factoryPanorama }
+  // Preserve the stored ID so existing factory projects open with the new room.
+  { id: "factory", name: "Gamer 90s", image: "", thumbnail: retroGamerPreview }
 ];
 const SKY_BACKGROUNDS = [
   { id: "sky-clouds", name: "Nubes", image: cloudsPanorama, ambient: 1.05, exposure: 1.02, key: 2.1, light: "#e8f2ff", ground: "#8ba0ba", environment: 0.8 },
@@ -624,18 +807,21 @@ const SKY_BACKGROUNDS = [
   { id: "sky-night-swamp", name: "Pantano", image: skyNightSwamp, ambient: 0.55, exposure: 1.38, key: 1.2, light: "#a6c4cd", ground: "#273329", environment: 0.6 },
   { id: "sky-ruined-gothic-church", name: "Iglesia en ruinas", image: skyRuinedGothicChurch, ambient: 0.38, exposure: 1.06, key: 1.2, light: "#9bbcff", ground: "#100d18", environment: 0.72, backgroundIntensity: 0.68, backgroundRotationX: 0 },
   { id: "sky-castle-interior", name: "Interior castillo", image: skyCastleInterior, ambient: 0.56, exposure: 1.08, key: 1.75, light: "#c6d8e8", ground: "#312921", environment: 0.56, backgroundIntensity: 0.88 },
-  { id: "sky-space-ship", name: "Space Ship", image: skySpace, ambient: 0.48, exposure: 1.1, key: 1.45, light: "#e1e3d4", ground: "#252924", environment: 0.52, backgroundIntensity: 0.045 },
+  { id: "sky-space-ship", name: "Space Ship", image: skySpace, ambient: 0.28, exposure: 1.12, key: 0.85, light: "#cbd5df", ground: "#15191d", environment: 0.55, backgroundIntensity: 1.06 },
   { id: "sky-medieval-village", name: "Aldea medieval", image: skyMedievalVillage, ambient: 0.66, exposure: 1.08, key: 1.85, light: "#ffd8a3", ground: "#4a4640", environment: 0.82 },
   { id: "sky-moonlit-peaks", name: "Cumbres luna llena", image: skyMoonlitPeaks, ambient: 0.48, exposure: 1.12, key: 1.85, light: "#a9c8e0", ground: "#17232a", environment: 0.64 },
-  { id: "sky-spiderweb-ruins", name: "Ruinas de telaranas", image: skySpiderwebRuins, ambient: 0.2, exposure: 1.24, key: 1.15, light: "#bed5f2", ground: "#0c1115", environment: 0.88 }
+  { id: "sky-spiderweb-ruins", name: "Ruinas de telaranas", image: skySpiderwebRuins, ambient: 0.2, exposure: 1.24, key: 1.15, light: "#bed5f2", ground: "#0c1115", environment: 0.88 },
+  { id: "sky-biblical-type", name: "Tipografia biblica", image: "", ambient: 0.62, exposure: 1.12, key: 1.45, light: "#ffe8b9", ground: "#294433", environment: 0.55 },
+  { id: "sky-parthenon", name: "Partenon", image: "", thumbnail: parthenonPreview, ambient: 0.98, exposure: 1.06, key: 2.35, light: "#fff4dc", ground: "#9c927a", environment: 0.75 }
 ];
 
 function environmentThumbnail(preset) {
+  if (preset.thumbnail) return preset.thumbnail;
   if (preset.id === "sky-space-ship") return spaceShipPreview;
   if (preset.id === "sky-gothic-church") return skyGothicChurch;
   if (preset.id === "sky-ruined-gothic-church") return skyRuinedGothicChurch;
   if (preset.id === "sky-castle-interior") return skyCastleInterior;
-  const aliases = { field: "field-panorama", clouds: "clouds-panorama", factory: "factory-panorama" };
+  const aliases = { field: "field-panorama", clouds: "clouds-panorama" };
   return ENVIRONMENT_THUMBNAILS[aliases[preset.id] || preset.id] || preset.image;
 }
 const THEMED_SCENES = [
@@ -650,13 +836,15 @@ const THEMED_SCENES = [
   { id: "space-ship", name: "Space Ship", sky: "sky-space-ship", floor: "ship-deck", image: skySpace },
   { id: "medieval-village", name: "Aldea medieval", sky: "sky-medieval-village", floor: "medieval-apocalypse", image: skyMedievalVillage },
   { id: "moonlit-peaks", name: "Cumbres luna llena", sky: "sky-moonlit-peaks", floor: "moonlit-peaks", image: skyMoonlitPeaks },
-  { id: "spiderweb-ruins", name: "Ruinas de telaranas", sky: "sky-spiderweb-ruins", floor: "night-swamp", image: skySpiderwebRuins }
+  { id: "spiderweb-ruins", name: "Ruinas de telaranas", sky: "sky-spiderweb-ruins", floor: "night-swamp", image: skySpiderwebRuins },
+  { id: "biblical-typography", name: "Tipografia biblica", sky: "sky-biblical-type", floor: "grass", image: "" },
+  { id: "parthenon", name: "Partenon", sky: "sky-parthenon", floor: "dirt", image: parthenonPreview }
 ];
 const FLOOR_SURFACES = [
   { id: "shadow", name: "Solo sombra", color: "#20242a" },
   { id: "grass", name: "Pasto", color: "#4f7f32" },
   { id: "metal", name: "Metal", color: "#87929a" },
-  { id: "ship-deck", name: "Cubierta nave", color: "#52636a" },
+  { id: "ship-deck", name: "Cubierta nave", color: "#30363c" },
   { id: "dirt", name: "Tierra", color: "#79543a" },
   { id: "plastic", name: "Plastico", color: "#59636f" },
   { id: "concrete", name: "Cemento", color: "#777a78" },
@@ -708,6 +896,8 @@ const REALISTIC_FLOOR_TEXTURES = {
 };
 const FONT_LOADER = new FontLoader();
 const THREE_FONTS = {
+  kalam: { name: "Kalam", font: FONT_LOADER.parse(kalamFont) },
+  "kalam-bold": { name: "Kalam Bold", font: FONT_LOADER.parse(kalamBoldFont) },
   helvetiker: { name: "Helvetiker", font: FONT_LOADER.parse(helvetikerFont) },
   "helvetiker-bold": { name: "Helvetiker Bold", font: FONT_LOADER.parse(helvetikerBoldFont) },
   optimer: { name: "Optimer", font: FONT_LOADER.parse(optimerFont) },
@@ -787,7 +977,7 @@ function createFloorMaterial(surface, color) {
   const settings = {
     grass: { color, roughness: 1, metalness: 0 },
     metal: { color, roughness: 0.28, metalness: 0.9 },
-    "ship-deck": { color, roughness: 0.42, metalness: 0.7 },
+    "ship-deck": { color, roughness: 0.3, metalness: 0.88 },
     dirt: { color, roughness: 1, metalness: 0 },
     concrete: { color, roughness: 0.88, metalness: 0 },
     tiles: { color, roughness: 0.24, metalness: 0.05 },
@@ -926,7 +1116,38 @@ function createFloorMaterial(surface, color) {
   if (surface === "plastic") return new THREE.MeshStandardMaterial({ ...settings, map: null, bumpMap: map, bumpScale: 0.018 });
   const relief = ["grass", "dirt", "metal", "concrete", "tiles"].includes(surface);
   const bumpScale = { grass: 0.035, dirt: 0.06, metal: 0.012, concrete: 0.035, tiles: 0.025 }[surface] || 0;
-  return new THREE.MeshStandardMaterial({ ...settings, map, bumpMap: relief ? map : null, bumpScale });
+  const material = new THREE.MeshStandardMaterial({ ...settings, map, bumpMap: relief ? map : null, bumpScale });
+  if (surface === "grass") {
+    const stage = {
+      uTypographyGrass: { value: 0 },
+      uTypographyGroundColor: { value: new Color("#345b36") },
+      uTypographyBackground: { value: new Color("#05070a") }
+    };
+    material.userData.typographyGrass = stage;
+    material.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, stage);
+      shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nvarying float vTypographyGroundDistance;")
+        .replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvTypographyGroundDistance = distance((modelMatrix * vec4(transformed, 1.0)).xz, cameraPosition.xz);");
+      shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `
+        #include <common>
+        uniform float uTypographyGrass;
+        uniform vec3 uTypographyGroundColor;
+        uniform vec3 uTypographyBackground;
+        varying float vTypographyGroundDistance;
+      `).replace("#include <opaque_fragment>", `
+        float grassGroundBlend = smoothstep(10.0, 38.0, vTypographyGroundDistance) * uTypographyGrass;
+        float grassGroundDetail = 0.88 + min(dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722)) * 2.0, 0.24);
+        outgoingLight = mix(outgoingLight, uTypographyGroundColor * grassGroundDetail, grassGroundBlend);
+        #include <opaque_fragment>
+      `).replace("#include <colorspace_fragment>", `
+        #include <colorspace_fragment>
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, linearToOutputTexel(vec4(uTypographyBackground, 1.0)).rgb,
+          smoothstep(24.0, 110.0, vTypographyGroundDistance) * uTypographyGrass);
+      `);
+    };
+    material.customProgramCacheKey = () => "grass-typography-ground-v1";
+  }
+  return material;
 }
 
 
@@ -946,35 +1167,23 @@ function createProceduralGrass(maxBlades = 1800000, fieldSize = 120, distantFiel
   const shades = new Float32Array(maxBlades);
   let seed = 7411;
   const random = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
-  const distantRatio = 0.28;
-  const distantInnerHalfSize = fieldSize * 0.38;
-  const gridSize = Math.ceil(Math.sqrt(maxBlades));
-  const cells = new Uint32Array(maxBlades);
-  for (let index = 0; index < maxBlades; index += 1) cells[index] = index;
-  for (let index = maxBlades - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(random() * (index + 1));
-    const cell = cells[index];
-    cells[index] = cells[swapIndex];
-    cells[swapIndex] = cell;
-  }
+  const denseHalfSize = fieldSize * 0.38;
+  const densityFalloff = 24;
   for (let index = 0; index < maxBlades; index += 1) {
-    const cell = cells[index];
-    const column = cell % gridSize;
-    const row = Math.floor(cell / gridSize);
-    const distant = random() < distantRatio;
-    let offsetX = ((column + random()) / gridSize - 0.5) * fieldSize;
-    let offsetZ = ((row + random()) / gridSize - 0.5) * fieldSize;
-    if (distant) {
-      do {
-        offsetX = (random() - 0.5) * distantFieldSize;
-        offsetZ = (random() - 0.5) * distantFieldSize;
-      } while (Math.abs(offsetX) <= distantInnerHalfSize && Math.abs(offsetZ) <= distantInnerHalfSize);
-    }
+    let offsetX;
+    let offsetZ;
+    let distanceFromCenter;
+    do {
+      offsetX = (random() - 0.5) * distantFieldSize;
+      offsetZ = (random() - 0.5) * distantFieldSize;
+      distanceFromCenter = Math.max(Math.abs(offsetX), Math.abs(offsetZ));
+    } while (random() > Math.exp(-Math.max(0, distanceFromCenter - denseHalfSize) / densityFalloff));
+    const distantBlend = Math.min(1, Math.max(0, (distanceFromCenter - denseHalfSize) / 50));
     offsets[index * 3] = offsetX;
     offsets[index * 3 + 1] = random() * 0.018;
     offsets[index * 3 + 2] = offsetZ;
-    scales[index * 2] = (distant ? 0.022 : 0.014) + random() * (distant ? 0.02 : 0.016);
-    scales[index * 2 + 1] = (distant ? 0.95 : 0.7) + random() * (distant ? 0.55 : 0.62);
+    scales[index * 2] = 0.014 + distantBlend * 0.008 + random() * (0.016 + distantBlend * 0.004);
+    scales[index * 2 + 1] = 0.7 + distantBlend * 0.25 + random() * (0.62 - distantBlend * 0.07);
     rotations[index] = random() * Math.PI;
     phases[index] = random() * Math.PI * 2;
     shades[index] = random();
@@ -1000,6 +1209,8 @@ function createProceduralGrass(maxBlades = 1800000, fieldSize = 120, distantFiel
       uTipColor: { value: new Color("#638746") },
       uLightColor: { value: new Color("#fff3d4") },
       uAmbient: { value: 0.72 },
+      uTypographyGrass: { value: 0 },
+      uTypographyBackground: { value: new Color("#05070a") },
       uInteractor: { value: new Vector3(10000, 0, 10000) },
       uFadeStart: { value: distantFieldSize * 0.4 },
       uFadeEnd: { value: distantFieldSize * 0.58 }
@@ -1058,6 +1269,8 @@ function createProceduralGrass(maxBlades = 1800000, fieldSize = 120, distantFiel
       uniform vec3 uTipColor;
       uniform vec3 uLightColor;
       uniform float uAmbient;
+      uniform float uTypographyGrass;
+      uniform vec3 uTypographyBackground;
       uniform float uFadeStart;
       uniform float uFadeEnd;
       varying float vHeight;
@@ -1073,6 +1286,8 @@ function createProceduralGrass(maxBlades = 1800000, fieldSize = 120, distantFiel
         gl_FragColor = vec4(color, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, linearToOutputTexel(vec4(uTypographyBackground, 1.0)).rgb,
+          smoothstep(24.0, 110.0, vDistance) * uTypographyGrass);
       }
     `
   });
@@ -1358,7 +1573,6 @@ function createSceneEffectSystem() {
   fireLights[0].position.set(-2.6, 1.2, 1.5);
   fireLights[1].position.set(2.7, 1, -1.8);
   fireLights.forEach((light) => { light.visible = false; group.add(light); });
-  const lavaJets = createLavaJetSystem();
   const lavaGas = createLavaGasSystem();
   const lavaFootsteps = createLavaFootstepSystem();
   const lavaAtmosphere = createLavaAtmosphereSystem();
@@ -1369,218 +1583,8 @@ function createSceneEffectSystem() {
   const churchFog = createChurchFog();
   const rain = createRealisticRain();
   const storm = createRealisticStorm();
-  group.add(lavaJets.group, lavaGas.points, lavaFootsteps.group, lavaAtmosphere.group, magic, churchLighting, apocalypseLighting, apocalypseFires, churchFog, rain, storm);
-  return { group, systems, fireLights, lavaJets, lavaGas, lavaFootsteps, lavaAtmosphere, magic, churchLighting, apocalypseLighting, apocalypseFires, churchFog, rain, storm };
-}
-
-function createLavaJetSystem(count = 24) {
-  const group = new THREE.Group();
-  group.name = "Chorros de lava";
-  group.visible = false;
-  const material = new THREE.MeshStandardMaterial({
-    color: 0x7d210d,
-    emissive: 0xff3809,
-    emissiveIntensity: 0.44,
-    roughness: 0.9,
-    metalness: 0,
-    side: THREE.DoubleSide
-  });
-  material.onBeforeCompile = (shader) => {
-    shader.uniforms.uJetTime = { value: 0 };
-    shader.vertexShader = shader.vertexShader.replace("#include <common>", `
-      #include <common>
-      varying vec3 vJetWorld;
-    `).replace("#include <begin_vertex>", `
-      #include <begin_vertex>
-      vJetWorld = (modelMatrix * instanceMatrix * vec4(position, 1.0)).xyz;
-    `);
-    shader.fragmentShader = shader.fragmentShader.replace("#include <common>", `
-      #include <common>
-      uniform float uJetTime;
-      varying vec3 vJetWorld;
-    `).replace("#include <color_fragment>", `
-      #include <color_fragment>
-      float flow = sin(vJetWorld.x * 7.0 + vJetWorld.y * 5.2 - uJetTime * 2.4) *
-        sin(vJetWorld.z * 6.3 - vJetWorld.y * 3.8 + uJetTime * 1.2);
-      float crust = sin(vJetWorld.x * 11.0 + vJetWorld.z * 9.0 +
-        sin(vJetWorld.y * 4.1) * 1.7);
-      float heat = smoothstep(-0.55, 0.65, flow * 0.72 + crust * 0.28);
-      diffuseColor.rgb *= mix(vec3(0.56, 0.4, 0.31), vec3(0.92, 0.74, 0.52), heat);
-    `).replace("#include <emissivemap_fragment>", `
-      #include <emissivemap_fragment>
-      totalEmissiveRadiance *= 0.22 + heat * 0.52;
-    `);
-    material.userData.jetShader = shader;
-  };
-  material.customProgramCacheKey = () => "flowing-lava-jets-v2";
-  const splashMaterial = new THREE.MeshBasicMaterial({
-    color: 0xb9330b, transparent: true, opacity: 0.42,
-    depthWrite: false, side: THREE.DoubleSide
-  });
-  const dropsPerJet = 7;
-  const impactDropsPerJet = 10;
-  const streamsPerJet = 3;
-  const stemGeometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 10, 18);
-  const stemPositions = stemGeometry.attributes.position;
-  for (let vertex = 0; vertex < stemPositions.count; vertex += 1) {
-    const x = stemPositions.getX(vertex);
-    const y = stemPositions.getY(vertex);
-    const z = stemPositions.getZ(vertex);
-    const progress = y + 0.5;
-    const ripple = 0.77 + Math.sin(progress * 15.2) * 0.13 +
-      Math.sin(progress * 31.4 + Math.atan2(z, x) * 2.0) * 0.09;
-    stemPositions.setXYZ(vertex,
-      x * ripple + Math.sin(progress * 5.7) * progress * 0.15,
-      y,
-      z * ripple + Math.cos(progress * 6.2) * progress * 0.13);
-  }
-  stemPositions.needsUpdate = true;
-  stemGeometry.computeVertexNormals();
-  const stems = new THREE.InstancedMesh(stemGeometry, material, count * streamsPerJet);
-  const heads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.2, 11, 8), material, count);
-  const drops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.13, 9, 7), material, count * dropsPerJet);
-  const impactDrops = new THREE.InstancedMesh(new THREE.SphereGeometry(0.075, 7, 5), material, count * impactDropsPerJet);
-  const splashes = new THREE.InstancedMesh(new THREE.RingGeometry(0.34, 0.62, 18), splashMaterial, count);
-  stems.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  heads.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  drops.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  impactDrops.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  splashes.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  stems.frustumCulled = false;
-  heads.frustumCulled = false;
-  drops.frustumCulled = false;
-  impactDrops.frustumCulled = false;
-  splashes.frustumCulled = false;
-  stems.castShadow = false;
-  heads.castShadow = false;
-  drops.castShadow = true;
-  group.add(stems, heads, drops, impactDrops, splashes);
-  let seed = 4831;
-  const random = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
-  const jets = Array.from({ length: count }, (_, index) => {
-    const angle = random() * Math.PI * 2;
-    const distance = index < 7 ? 5 + random() * 13 : 18 + random() * 48;
-    return {
-      x: Math.cos(angle) * distance,
-      z: Math.sin(angle) * distance,
-      phase: random(),
-      rate: 0.75 + random() * 0.55,
-      height: 1.2 + random() * 1.65,
-      width: 0.7 + random() * 0.7,
-      rotation: random() * Math.PI * 2,
-      driftX: (random() - 0.5) * 1.5,
-      driftZ: (random() - 0.5) * 1.5,
-      streamTiltX: (random() - 0.5) * 0.65,
-      streamTiltZ: (random() - 0.5) * 0.65
-    };
-  });
-  return { group, stems, heads, drops, impactDrops, splashes, material, splashMaterial, jets, streamsPerJet, dropsPerJet, impactDropsPerJet, matrixHelper: new THREE.Object3D() };
-}
-
-function animateLavaJets(system, enabled, time, settings = DEFAULT_LAVA_SETTINGS) {
-  if (!system) return;
-  const visibleCount = THREE.MathUtils.clamp(Math.round(settings.jetCount ?? DEFAULT_LAVA_SETTINGS.jetCount), 0, system.jets.length);
-  const active = enabled && settings.enabled !== false && visibleCount > 0;
-  system.group.visible = active;
-  if (!active) return;
-  system.stems.count = visibleCount * system.streamsPerJet;
-  system.heads.count = visibleCount;
-  system.drops.count = visibleCount * system.dropsPerJet;
-  system.impactDrops.count = visibleCount * system.impactDropsPerJet;
-  system.splashes.count = visibleCount;
-  const seconds = time * 0.001;
-  if (system.material.userData.jetShader) system.material.userData.jetShader.uniforms.uJetTime.value = seconds;
-  const interval = THREE.MathUtils.clamp(Number(settings.interval) || DEFAULT_LAVA_SETTINGS.interval, 2, 14);
-  const heightScale = THREE.MathUtils.clamp(Number(settings.height) || DEFAULT_LAVA_SETTINGS.height, 0.4, 1.8);
-  const helper = system.matrixHelper;
-  system.jets.slice(0, visibleCount).forEach((jet, index) => {
-    const cycle = (seconds / interval * jet.rate + jet.phase) % 1;
-    const jetProgress = cycle / 0.42;
-    const active = jetProgress >= 0 && jetProgress <= 1;
-    const growth = active ? Math.min(1, jetProgress / 0.24) : 0;
-    const release = active ? 1 - Math.max(0, (jetProgress - 0.7) / 0.3) : 0;
-    const envelope = growth * release;
-    const height = Math.max(0.001, envelope * jet.height * heightScale);
-    const streamActive = active && envelope > 0.02;
-    for (let strand = 0; strand < system.streamsPerJet; strand += 1) {
-      const angle = jet.rotation + strand * 2.399;
-      const strandHeight = height * (strand === 0 ? 1 : 0.68 + strand * 0.07);
-      const spread = strand === 0 ? 0 : jet.width * 0.17;
-      const sway = Math.sin(seconds * 5.2 + index * 1.7 + strand * 2.4) * 0.07;
-      helper.position.set(jet.x + Math.cos(angle) * spread +
-        jet.streamTiltX * strandHeight * 0.23 + sway,
-        streamActive ? 0.04 + strandHeight * 0.5 : -10,
-        jet.z + Math.sin(angle) * spread +
-        jet.streamTiltZ * strandHeight * 0.23 - sway * 0.5);
-      const width = strand === 0 ? 0.48 : 0.26;
-      const pulse = 0.93 + Math.sin(seconds * 9 + index * 1.7 + strand) * 0.07;
-      helper.scale.set(streamActive ? jet.width * width * pulse : 0.001,
-        streamActive ? strandHeight : 0.001,
-        streamActive ? jet.width * width * pulse : 0.001);
-      helper.rotation.set(jet.streamTiltZ * 0.2,
-        angle, -jet.streamTiltX * 0.2);
-      helper.updateMatrix();
-      system.stems.setMatrixAt(index * system.streamsPerJet + strand, helper.matrix);
-    }
-
-    helper.position.set(
-      jet.x + jet.streamTiltX * 0.48 * height,
-      streamActive ? 0.04 + height : -10,
-      jet.z + jet.streamTiltZ * 0.48 * height
-    );
-    const headScale = streamActive ? jet.width * (0.13 + Math.sin(seconds * 8.3 + index) * 0.025) : 0.001;
-    helper.scale.set(headScale, headScale * 1.25, headScale);
-    helper.rotation.set(0, jet.rotation, 0);
-    helper.updateMatrix();
-    system.heads.setMatrixAt(index, helper.matrix);
-    const splashScale = active ? (0.35 + Math.sin(Math.min(jetProgress * 1.7, 1) * Math.PI) * 0.9) * jet.width : 0.001;
-    helper.position.set(jet.x, 0.035, jet.z);
-    helper.scale.set(splashScale, splashScale, splashScale);
-    helper.rotation.set(Math.PI / 2, 0, jet.rotation);
-    helper.updateMatrix();
-    system.splashes.setMatrixAt(index, helper.matrix);
-    for (let dropIndex = 0; dropIndex < system.dropsPerJet; dropIndex += 1) {
-      const instanceIndex = index * system.dropsPerJet + dropIndex;
-      const dropProgress = (cycle - 0.075 - dropIndex * 0.018) / 0.48;
-      const dropActive = dropProgress >= 0 && dropProgress <= 1;
-      const arc = dropActive ? Math.sin(dropProgress * Math.PI) : 0;
-      const dropAngle = jet.rotation + dropIndex * 2.399;
-      const spread = 0.32 + (dropIndex % 3) * 0.18;
-      helper.position.set(
-        jet.x + (jet.driftX * 0.38 + Math.cos(dropAngle) * spread) * dropProgress,
-        0.12 + arc * jet.height * heightScale * (0.7 + (dropIndex % 4) * 0.055),
-        jet.z + (jet.driftZ * 0.38 + Math.sin(dropAngle) * spread) * dropProgress
-      );
-      const dropScale = dropActive ? (0.16 + arc * 0.2 + (dropIndex % 2) * 0.035) * jet.width : 0.001;
-      helper.scale.set(dropScale, dropScale * (1.45 + arc * 0.45), dropScale);
-      helper.rotation.set(0, dropAngle, Math.cos(dropAngle) * 0.16);
-      helper.updateMatrix();
-      system.drops.setMatrixAt(instanceIndex, helper.matrix);
-    }
-    for (let dropIndex = 0; dropIndex < system.impactDropsPerJet; dropIndex += 1) {
-      const instanceIndex = index * system.impactDropsPerJet + dropIndex;
-      const impactProgress = (cycle - 0.29 - dropIndex * 0.0025) / 0.13;
-      const impactActive = impactProgress >= 0 && impactProgress <= 1;
-      const angle = jet.rotation + dropIndex * 2.399 + Math.sin(index * 7.13) * 0.4;
-      const radius = impactProgress * (0.55 + (dropIndex % 4) * 0.18) * jet.width;
-      const lift = impactActive ? Math.sin(impactProgress * Math.PI) * (0.24 + (dropIndex % 3) * 0.13) : 0;
-      helper.position.set(
-        jet.x + Math.cos(angle) * radius,
-        impactActive ? 0.07 + lift : -10,
-        jet.z + Math.sin(angle) * radius
-      );
-      const impactScale = impactActive ? (0.42 + (dropIndex % 3) * 0.12) * (1 - impactProgress * 0.35) * jet.width : 0.001;
-      helper.scale.set(impactScale, impactScale * 1.45, impactScale);
-      helper.rotation.set(0, angle, Math.cos(angle) * 0.35);
-      helper.updateMatrix();
-      system.impactDrops.setMatrixAt(instanceIndex, helper.matrix);
-    }
-  });
-  system.stems.instanceMatrix.needsUpdate = true;
-  system.heads.instanceMatrix.needsUpdate = true;
-  system.drops.instanceMatrix.needsUpdate = true;
-  system.impactDrops.instanceMatrix.needsUpdate = true;
-  system.splashes.instanceMatrix.needsUpdate = true;
+  group.add(lavaGas.points, lavaFootsteps.group, lavaAtmosphere.group, magic, churchLighting, apocalypseLighting, apocalypseFires, churchFog, rain, storm);
+  return { group, systems, fireLights, lavaGas, lavaFootsteps, lavaAtmosphere, magic, churchLighting, apocalypseLighting, apocalypseFires, churchFog, rain, storm };
 }
 
 function createLavaGasSystem(maxVents = 24, particlesPerVent = 58) {
@@ -2363,6 +2367,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const churchLightingSettings = sceneEffects.churchLighting || DEFAULT_CHURCH_LIGHTING;
   const cemeteryLightingSettings = sceneEffects.cemeteryLighting || DEFAULT_CEMETERY_LIGHTING;
   const castleLightingSettings = sceneEffects.castleLighting || DEFAULT_CASTLE_LIGHTING;
+  const gamerLightingSettings = normalizeRetroGamerLighting(sceneEffects.gamerLighting);
+  const parthenonLightingSettings = normalizeParthenonLighting(sceneEffects.parthenonLighting);
   const gothicLightingSettings = sceneEffects.gothicLighting || DEFAULT_GOTHIC_LIGHTING;
   const spaceSettings = sceneEffects.space || DEFAULT_SPACE_SETTINGS;
   const fogSettings = normalizeChurchFog(sceneEffects.fog);
@@ -2391,9 +2397,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const [textDraft, setTextDraft] = useState("Studio");
   const [extrudeDepth, setExtrudeDepth] = useState(0.35);
   const [textFont, setTextFont] = useState("helvetiker");
+  const [biblicalTypography, setBiblicalTypography] = useState(DEFAULT_BIBLICAL_TYPOGRAPHY);
+  const [selectedBiblicalVerse, setSelectedBiblicalVerse] = useState(0);
+  const biblicalVerseIndex = Math.min(selectedBiblicalVerse, biblicalTypography.verses.length - 1);
+  const biblicalMuralRows = biblicalTypography.muralRows ?? DEFAULT_BIBLICAL_TYPOGRAPHY.muralRows;
   const [animationDuration, setAnimationDuration] = useState(5);
   const [animationTime, setAnimationTime] = useState(0);
   const [animationPlaying, setAnimationPlaying] = useState(false);
+  const [sceneAnimationsPlaying, setSceneAnimationsPlaying] = useState(true);
   const [animationTracks, setAnimationTracks] = useState({});
   const [animationFps, setAnimationFps] = useState(30);
   const [animationExporting, setAnimationExporting] = useState(false);
@@ -2443,6 +2454,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const [performanceMode, setPerformanceMode] = useState(() => localStorage.getItem("neon:three-quality") || "auto");
   const [performanceStats, setPerformanceStats] = useState({ fps: 0, triangles: 0, geometries: 0, textures: 0 });
   const [modelLoading, setModelLoading] = useState("");
+  const typographyBackdropActive = objects.some((object) => object.assetId === TYPOGRAPHY_BACKDROP_PRESET.id)
+    || modelLoading === TYPOGRAPHY_BACKDROP_PRESET.name;
   const [rigStage, setRigStage] = useState("");
   const [soundtrack, setSoundtrack] = useState(null);
   const [poseBone, setPoseBone] = useState("LeftArm");
@@ -2457,7 +2470,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setPerformanceReduced(reduced);
     const runtime = runtimeRef.current;
     if (!runtime) return;
-    runtime.renderer.setPixelRatio(reduced ? 1 : Math.min(window.devicePixelRatio, 2));
+    if (!cleanRenderRef.current) runtime.renderer.setPixelRatio(reduced ? 1 : Math.min(window.devicePixelRatio, 2));
     runtime.renderer.shadowMap.enabled = true;
     runtime.renderer.shadowMap.needsUpdate = true;
   }, [performanceMode]);
@@ -2535,6 +2548,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       id: object.userData.editorId,
       name: object.name,
       type: object.userData.editorType || "model",
+      assetId: object.userData.bundledStaticModel || "",
       visible: object.visible,
       locked: Boolean(object.userData.locked),
       category,
@@ -2665,8 +2679,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         effectsVisible: runtime.sceneEffectSystem.group.visible,
         spaceVisible: runtime.spaceScene.visible,
         spaceShipVisible: runtime.spaceShipSet.visible,
+        retroGamerRoomVisible: runtime.retroGamerRoom.visible,
+        parthenonVisible: runtime.parthenonSet.visible,
         spacePanoramaVisible: runtime.spacePanorama.visible,
         cloudsPanoramaVisible: runtime.cloudsPanoramaBackdrop.visible,
+        fieldPanoramaVisible: runtime.fieldPanoramaBackdrop.visible,
         medievalVillagePanoramaVisible: runtime.medievalVillagePanorama.visible,
         spiderwebRuinsPanoramaVisible: runtime.spiderwebRuinsPanorama.visible
       };
@@ -2677,8 +2694,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.sceneEffectSystem.group.visible = false;
       runtime.spaceScene.visible = false;
       runtime.spaceShipSet.visible = false;
+      runtime.retroGamerRoom.visible = false;
+      runtime.parthenonSet.visible = false;
       runtime.spacePanorama.visible = false;
       runtime.cloudsPanoramaBackdrop.visible = false;
+      runtime.fieldPanoramaBackdrop.visible = false;
       runtime.medievalVillagePanorama.visible = false;
       runtime.spiderwebRuinsPanorama.visible = false;
       setEnvironmentIsolated(true);
@@ -2693,8 +2713,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     runtime.sceneEffectSystem.group.visible = saved.effectsVisible;
     runtime.spaceScene.visible = saved.spaceVisible;
     runtime.spaceShipSet.visible = saved.spaceShipVisible;
+    runtime.retroGamerRoom.visible = saved.retroGamerRoomVisible;
+    runtime.parthenonSet.visible = saved.parthenonVisible;
     runtime.spacePanorama.visible = saved.spacePanoramaVisible;
     runtime.cloudsPanoramaBackdrop.visible = saved.cloudsPanoramaVisible;
+    runtime.fieldPanoramaBackdrop.visible = saved.fieldPanoramaVisible;
     runtime.medievalVillagePanorama.visible = saved.medievalVillagePanoramaVisible;
     runtime.spiderwebRuinsPanorama.visible = saved.spiderwebRuinsPanoramaVisible;
     environmentIsolationRef.current = null;
@@ -2918,23 +2941,28 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       modelAnimation: object.userData.modelAnimation ? { ...object.userData.modelAnimation } : null,
       locomotion: object.userData.locomotion ? { ...object.userData.locomotion } : null,
       maskPulse: object.userData.maskPulse ? { ...object.userData.maskPulse, position: [...object.userData.maskPulse.position] } : null,
-      tvScreen: object.userData.tvScreen ? { scale: [...object.userData.tvScreen.scale], offset: [...object.userData.tvScreen.offset] } : null
+      neonSpeech: object.userData.neonSpeech ? { ...object.userData.neonSpeech } : null,
+      tvScreen: object.userData.tvScreen ? { ...object.userData.tvScreen, scale: [...object.userData.tvScreen.scale], offset: [...object.userData.tvScreen.offset] } : null
     });
   }
 
   function registerModelAnimations(object, clips = object?.animations || []) {
     const runtime = runtimeRef.current;
-    if (!runtime || !object?.userData?.editorId || !clips.length) return;
-    if (object.userData.bundledModel === "neonBoy-walking-alta" && object.userData.locomotion) {
-      object.userData.locomotion.gaitUnitsPerSecond ||= HD_WALK_GAIT_UNITS_PER_SECOND;
+    if (!runtime || !object?.userData?.editorId) return;
+    const sourceClips = isDragonModel(object) ? createDragonAnimationClips(object) : createSeatedAnimationClips(object, clips);
+    if (!sourceClips.length) return;
+    const gaitUnitsPerSecond = HD_WALK_GAIT_BY_MODEL[object.userData.bundledModel];
+    if (gaitUnitsPerSecond && object.userData.locomotion) {
+      object.userData.locomotion.gaitUnitsPerSecond ||= gaitUnitsPerSecond;
     }
-    const preparedClips = prepareModelAnimationClips(object, clips);
+    const preparedClips = prepareModelAnimationClips(object, sourceClips);
     if (!preparedClips.length) return;
     runtime.mixers.get(object.userData.editorId)?.mixer.stopAllAction();
     const mixer = new THREE.AnimationMixer(object);
     const actions = new Map(preparedClips.map((clip) => [clip.name || "Animacion", mixer.clipAction(clip)]));
     const saved = object.userData.modelAnimation || {};
-    const activeName = actions.has(saved.clip) ? saved.clip : actions.keys().next().value;
+    const defaultClip = object.userData.bundledModel === "dragon-flying" ? DRAGON_FLYING_CLIP : DRAGON_BREATHING_CLIP;
+    const activeName = actions.has(saved.clip) ? saved.clip : isDragonModel(object) ? defaultClip : actions.keys().next().value;
     const active = actions.get(activeName);
     const playing = saved.playing !== false;
     const speed = saved.speed ?? 1;
@@ -2943,6 +2971,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     mixer.timeScale = speed;
     object.animations = preparedClips;
     object.userData.modelAnimation = { clip: activeName, clips: [...actions.keys()], playing, speed };
+    if (isDragonModel(object)) ensureDragonFire(object);
     runtime.mixers.set(object.userData.editorId, { mixer, actions, active, object, performanceVisible: true });
   }
 
@@ -3046,6 +3075,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       skyMotionEnabled,
       skyMotionSpeed,
       sceneEffects,
+      ...(environmentBackground === "sky-space-ship" ? { shipFogVersion: 1 } : {}),
       gridVisible,
       ambientIntensity,
       exposure,
@@ -3054,6 +3084,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       floorColorVersion: 1,
       floorSurface,
       grassSettings,
+      biblicalTypography,
       lavaSettings,
       realisticSky,
       renderResolution,
@@ -3081,6 +3112,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       animationDuration,
       animationTracks,
       animationLoop,
+      sceneAnimationsPlaying,
       cameraShake,
       cameraFollow,
       slowMotion,
@@ -3107,6 +3139,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   function loadSceneState(state) {
     const runtime = runtimeRef.current;
     if (!runtime || !state) return;
+    const previewPlaying = state.sceneAnimationsPlaying !== false;
+    scenePlaybackRef.current.paused = !previewPlaying;
+    scenePlaybackRef.current.elapsed = 0;
+    setSceneAnimationsPlaying(previewPlaying);
     selectObject(null);
     runtime.mixers.forEach(({ mixer }) => mixer.stopAllAction());
     runtime.mixers.clear();
@@ -3127,6 +3163,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     });
     loaded.children.slice().forEach((child) => {
       runtime.content.add(child);
+      ensureAngelAura(child);
+      ensureRetroTvScreen(child);
       registerModelAnimations(child);
     });
     runtime.camera.position.fromArray(state.camera?.position || [7, 5, 8]);
@@ -3140,7 +3178,22 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const loadedOrbit = new THREE.Spherical().setFromVector3(runtime.camera.position.clone().sub(runtime.orbit.target));
     cameraOrbitRef.current = { lastTheta: loadedOrbit.theta, theta: loadedOrbit.theta };
     setBackground(state.background || DEFAULT_BACKGROUND);
+    setBiblicalTypography(normalizeBiblicalTypography(state.biblicalTypography));
     const legacyShip = state.environmentBackground === "sky-castle-courtyard";
+    const savedFog = state.sceneEffects?.fog;
+    const upgradeShipFog = state.environmentBackground === "sky-space-ship"
+      && state.floorSurface === "ship-deck" && !state.shipFogVersion
+      && (!savedFog || (savedFog.enabled === false
+        && savedFog.intensity === DEFAULT_CHURCH_FOG.intensity
+        && savedFog.color === DEFAULT_CHURCH_FOG.color));
+    const upgradeVillageFog = state.environmentBackground === "sky-medieval-village"
+      && savedFog?.intensity === 0.22 && savedFog?.color === "#7f8583"
+      && (savedFog.height ?? DEFAULT_CHURCH_FOG.height) === DEFAULT_CHURCH_FOG.height
+      && (savedFog.coverage ?? DEFAULT_CHURCH_FOG.coverage) === DEFAULT_CHURCH_FOG.coverage
+      && (savedFog.windEnabled ?? DEFAULT_CHURCH_FOG.windEnabled) === DEFAULT_CHURCH_FOG.windEnabled
+      && (savedFog.windSpeed ?? DEFAULT_CHURCH_FOG.windSpeed) === DEFAULT_CHURCH_FOG.windSpeed
+      && (savedFog.windDirection ?? DEFAULT_CHURCH_FOG.windDirection) === DEFAULT_CHURCH_FOG.windDirection
+      && (savedFog.turbulence ?? DEFAULT_CHURCH_FOG.turbulence) === DEFAULT_CHURCH_FOG.turbulence;
     setEnvironmentBackground(legacyShip ? "sky-space-ship" : state.environmentBackground || "solid");
     setSkyMotionEnabled(state.skyMotionEnabled !== false);
     setSkyMotionSpeed(state.skyMotionSpeed ?? 0.35);
@@ -3161,8 +3214,11 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         : key === "gothicLighting" ? normalizeGothicLighting(state.sceneEffects?.gothicLighting || {
           enabled: state.environmentBackground === "sky-gothic-church"
         })
+        : key === "gamerLighting" ? normalizeRetroGamerLighting(state.sceneEffects?.gamerLighting)
+        : key === "parthenonLighting" ? normalizeParthenonLighting(state.sceneEffects?.parthenonLighting)
         : key === "space" ? normalizeSpaceSettings(state.sceneEffects?.space)
-        : key === "fog" ? normalizeChurchFog(legacyShip
+        : key === "fog" ? normalizeChurchFog(upgradeShipFog ? SPACE_SHIP_FOG
+          : upgradeVillageFog ? { ...MEDIEVAL_VILLAGE_FOG, enabled: savedFog.enabled } : legacyShip
           && state.sceneEffects?.fog?.intensity === 0.12 && state.sceneEffects?.fog?.color === "#9aa69e"
           ? DEFAULT_SCENE_EFFECTS.fog
           : state.environmentBackground === "sky-gothic-church"
@@ -3215,7 +3271,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         };
     grassSettingsRef.current = restoredGrass;
     setGrassSettings(restoredGrass);
-    const restoredLava = { ...DEFAULT_LAVA_SETTINGS, ...(state.lavaSettings || {}) };
+    const savedLava = state.lavaSettings || {};
+    const restoredLava = Object.fromEntries(
+      Object.entries(DEFAULT_LAVA_SETTINGS).map(([key, value]) => [key, savedLava[key] ?? value])
+    );
     lavaSettingsRef.current = restoredLava;
     setLavaSettings(restoredLava);
     const savedSky = state.realisticSky || {};
@@ -3267,6 +3326,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setMode(state.editor?.mode || "translate");
     const restoredSelection = findEditorObject(state.editor?.selectedId);
     selectObject(restoredSelection || null);
+    setSceneAnimationPlayback(previewPlaying);
   }
 
   async function loadAutosaveState(state) {
@@ -3278,6 +3338,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       if (item.json) {
         const restored = new THREE.ObjectLoader().parse(item.json);
         runtime.content.add(restored);
+        ensureAngelAura(restored);
         registerModelAnimations(restored);
         continue;
       }
@@ -3297,7 +3358,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       object.animations = gltf.animations;
       ensureNeonMaskPulse(object);
       ensureDemonEyePulse(object);
-      ensureAngelHalo(object);
+      ensureAngelAura(object);
       ensureRetroTvScreen(object);
       runtime.content.add(object);
       registerModelAnimations(object, gltf.animations);
@@ -3319,6 +3380,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     refreshObjects();
     const restoredSelection = findEditorObject(state.editor?.selectedId);
     selectObject(restoredSelection || null);
+    setSceneAnimationPlayback(!scenePlaybackRef.current.paused);
   }
 
   function undo() {
@@ -3440,6 +3502,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const grass = createProceduralGrass();
     grass.visible = false;
     scene.add(grass);
+    const biblicalScene = createBiblicalTypographyScene(DEFAULT_BIBLICAL_TYPOGRAPHY, THREE_FONTS);
+    scene.add(biblicalScene);
     const realisticSkyDome = createRealisticSkyDome();
     realisticSkyDome.visible = false;
     scene.add(realisticSkyDome);
@@ -3447,8 +3511,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     scene.add(sceneEffectSystem.group);
     const spaceScene = createSpaceScene();
     scene.add(spaceScene);
-    const spaceShipSet = createSpaceShipSet();
+    const spaceShipSet = createSpaceShipSet(environmentTexture);
     scene.add(spaceShipSet);
+    const retroGamerRoom = createRetroGamerRoom();
+    scene.add(retroGamerRoom);
+    const parthenonSet = createParthenonSet();
+    scene.add(parthenonSet);
     const spacePanorama = createPanoramaBackdrop({
       name: "Panorama nitido espacial", horizontalRepeat: 3.8, horizontalOffset: -0.68, horizontalMirror: true,
       horizonCompression: 1.5, verticalScale: 1.55
@@ -3524,6 +3592,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       horizonCompression: 1.7, verticalScale: 1.3
     });
     scene.add(cloudsPanoramaBackdrop);
+    const fieldPanoramaBackdrop = createFieldPanorama();
+    scene.add(fieldPanoramaBackdrop);
     const medievalVillagePanorama = createPanoramaBackdrop({
       name: "Panorama nitido de aldea medieval", horizontalRepeat: 4.3,
       horizontalOffset: -1.65, horizontalMirror: true,
@@ -3605,25 +3675,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
-    let shipPointerStart = null;
-    let shipHover = null;
-    const canvasCursor = renderer.domElement.style.cursor;
-    const canvasTitle = renderer.domElement.title;
-    const setShipHover = (hit) => {
-      const id = hit?.object.userData.shipInteraction || null;
-      if (id === shipHover) return;
-      shipHover = id;
-      spaceShipSet.userData.hover(id);
-      renderer.domElement.style.cursor = id ? "pointer" : canvasCursor;
-      const names = { anatomy: "anatomia", orbit: "orbitas", navigation: "navegacion" };
-      renderer.domElement.title = id ? "Cambiar holograma: " + names[id] : canvasTitle;
-    };
-    const visibleShipHit = (contentHits) => {
-      const hit = spaceShipSet.userData.pick(raycaster);
-      if (!hit) return null;
-      const foreground = (contentHits || raycaster.intersectObjects(content.children, true))[0];
-      return foreground && foreground.distance < hit.distance ? null : hit;
-    };
     const brushCursor = new THREE.Mesh(
       new THREE.SphereGeometry(1, 24, 16),
       new THREE.MeshBasicMaterial({ color: 0xd86cff, wireframe: true, transparent: true, opacity: 0.72, depthTest: false })
@@ -3664,13 +3715,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setPointerRay(event);
       const markers = [...(runtimeRef.current?.lightMarkers?.values() || [])];
       const hits = raycaster.intersectObjects([...content.children, ...markers], true);
-      const shipHit = event.button === 0 && !event.shiftKey && !transform.axis ? visibleShipHit(hits) : null;
-      if (shipHit) {
-        shipPointerStart = { id: shipHit.object.userData.shipInteraction, pointerId: event.pointerId,
-          x: event.clientX, y: event.clientY };
-        return;
-      }
-      shipPointerStart = null;
       let object = hits[0]?.object || null;
       let marker = object;
       while (marker && !marker.userData?.editorLightId && marker.parent) marker = marker.parent;
@@ -3681,22 +3725,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       selectObject(object?.userData?.editorId ? object : null, event.shiftKey);
     };
     const onPointerMove = (event) => {
-      if (shipPointerStart && Math.hypot(event.clientX - shipPointerStart.x, event.clientY - shipPointerStart.y) > 5) {
-        shipPointerStart = null;
-      }
       const navigationStart = cameraNavigationRef.current;
       if (navigationStart?.canvas && !transform.dragging && Math.hypot(event.clientX - navigationStart.x, event.clientY - navigationStart.y) > 5) {
         releaseCameraForManualNavigation();
         cameraNavigationRef.current = null;
       }
-      if (modeRef.current !== "sculpt") {
-        if (!event.buttons && !transform.dragging && !transform.axis) {
-          setPointerRay(event);
-          setShipHover(visibleShipHit());
-        } else setShipHover(null);
-        return;
-      }
-      setShipHover(null);
+      if (modeRef.current !== "sculpt") return;
       const hit = sculptHit(event);
       brushCursor.visible = Boolean(hit);
       if (!hit) return;
@@ -3706,17 +3740,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     };
     const onPointerUp = (event) => {
       if (cameraNavigationRef.current?.canvas) cameraNavigationRef.current = null;
-      const shipStart = shipPointerStart;
-      shipPointerStart = null;
-      if (shipStart && event.type === "pointerup" && event.pointerId === shipStart.pointerId
-        && !transform.dragging && Math.hypot(event.clientX - shipStart.x, event.clientY - shipStart.y) <= 5) {
-        setPointerRay(event);
-        const hit = visibleShipHit();
-        if (hit?.object.userData.shipInteraction === shipStart.id) {
-          const message = spaceShipSet.userData.activate(shipStart.id);
-          if (message) setStatus(message);
-        }
-      }
       if (!sculptingRef.current) return;
       sculptingRef.current = false;
       orbit.enabled = true;
@@ -3731,8 +3754,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setStatus("Trazo de escultura aplicado");
     };
     const onPointerLeave = () => {
-      shipPointerStart = null;
-      setShipHover(null);
       if (cameraNavigationRef.current?.canvas) cameraNavigationRef.current = null;
       if (!sculptingRef.current) brushCursor.visible = false;
     };
@@ -3744,6 +3765,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     renderer.domElement.addEventListener("pointerleave", onPointerLeave);
 
     const resize = () => {
+      if (cleanRenderRef.current) return;
       const width = Math.max(host.clientWidth, 1);
       const height = Math.max(host.clientHeight, 1);
       renderer.setSize(width, height, false);
@@ -3754,11 +3776,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     observer.observe(host);
     resize();
 
-    const runtime = { scene, camera, renderer, content, ambient, floor, grass, realisticSkyDome, churchPanorama, infernalPanorama, apocalypsePanorama, medievalPanorama, cemeteryPanorama, moonlitPanorama, castlePanorama, gothicPanorama, swampPanorama, spacePanorama, cloudsPanoramaBackdrop, medievalVillagePanorama, spiderwebRuinsPanorama, castleInterior, gothicInterior, swampSet, medievalSet, moonlitPeaksSet, spaceScene, spaceShipSet, grid, keyLight, cemeteryFill, cemeteryMoonLights, orbit, transform, transformHelper, brushCursor, sceneEffectSystem, ruinedChurchDebris, apocalypseDebris, cemeteryDetails, cemeteryBats, swampBats, lightHelper: null, lightMarkers: new Map(), mixers: new Map(), poseApplications: new Map(), poseBoneCache: new WeakMap(), poseRotationCache: new WeakMap(), backgroundTexture: null, baseEnvironment: environmentTexture };
+    const runtime = { scene, camera, renderer, content, ambient, floor, grass, biblicalScene, realisticSkyDome, churchPanorama, infernalPanorama, apocalypsePanorama, medievalPanorama, cemeteryPanorama, moonlitPanorama, castlePanorama, gothicPanorama, swampPanorama, spacePanorama, cloudsPanoramaBackdrop, fieldPanoramaBackdrop, medievalVillagePanorama, spiderwebRuinsPanorama, castleInterior, gothicInterior, swampSet, medievalSet, moonlitPeaksSet, spaceScene, spaceShipSet, parthenonSet, grid, keyLight, cemeteryFill, cemeteryMoonLights, orbit, transform, transformHelper, brushCursor, sceneEffectSystem, ruinedChurchDebris, apocalypseDebris, cemeteryDetails, cemeteryBats, swampBats, lightHelper: null, lightMarkers: new Map(), mixers: new Map(), poseApplications: new Map(), poseBoneCache: new WeakMap(), poseRotationCache: new WeakMap(), backgroundTexture: null, baseEnvironment: environmentTexture };
+    runtime.retroGamerRoom = retroGamerRoom;
     runtimeRef.current = runtime;
     sceneEffectSystem.churchLighting.userData.bind(scene, { ambient, keyLight, ruins: ruinedChurchDebris, panorama: churchPanorama });
     const cemeteryLighting = createCemeteryLighting(scene, { ambient, keyLight, fill: cemeteryFill, moonLights: cemeteryMoonLights, panorama: cemeteryPanorama });
     castleInterior.userData.bind(scene, { ambient, keyLight, panorama: castlePanorama });
+    const detachGamerLighting = bindRetroGamerLighting(scene, retroGamerRoom, { ambient, keyLight });
+    const detachParthenonLighting = bindParthenonLighting(scene, parthenonSet, { ambient, keyLight, floor });
     let frame = 0;
     let renderCount = 0;
     let previousRenderTime = 0;
@@ -3799,7 +3824,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           textures: renderer.info.memory.textures
         });
         const mode = performanceModeRef.current;
-        const shouldReduce = mode === "performance" || (mode === "auto" && (performanceSample.reduced ? fps < 52 : fps < 34));
+        const shouldReduce = !cleanRenderRef.current && (mode === "performance" || (mode === "auto" && (performanceSample.reduced ? fps < 52 : fps < 34)));
         if (shouldReduce !== performanceSample.reduced) {
           performanceSample.reduced = shouldReduce;
           renderer.shadowMap.enabled = true;
@@ -3810,7 +3835,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         performanceSample.frames = 0;
       }
       const timelineTime = animationTimeRef.current;
-      const sceneMotionFactor = freezeMotionFactorAt(timelineTime, freezeMotionRef.current);
+      const sceneMotionFactor = animationPlayingRef.current ? freezeMotionFactorAt(timelineTime, freezeMotionRef.current) : 1;
       const sceneDelta = scenePlaybackRef.current.paused ? 0 : delta * sceneMotionFactor;
       scenePlaybackRef.current.elapsed += sceneDelta * 1000;
       const sceneTime = scenePlaybackRef.current.elapsed;
@@ -3818,9 +3843,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       ruinedChurchDebris.visible = Boolean(runtime.floor.visible && runtime.floor.userData.surface === "ruined-gothic-church");
       apocalypseDebris.visible = Boolean(runtime.floor.visible && runtime.floor.userData.surface === "apocalypse");
       const sceneSky = skyMotionRef.current.preset;
+      retroGamerRoom.userData.animate(sceneTime, Boolean(sceneSky === "factory" && runtime.floor.visible
+        && !environmentIsolationRef.current), camera, sceneEffectsRef.current.gamerLighting);
+      parthenonSet.userData.animate(Boolean(sceneSky === "sky-parthenon" && runtime.floor.visible
+        && !environmentIsolationRef.current), sceneEffectsRef.current.parthenonLighting, sceneTime);
+      biblicalScene.visible = sceneSky === "sky-biblical-type" && !environmentIsolationRef.current;
+      if (biblicalScene.visible) animateBiblicalTypographyScene(biblicalScene, sceneTime * 0.001);
       spaceShipSet.userData.animate(sceneTime, Boolean(runtime.floor.visible && runtime.floor.userData.surface === "ship-deck"
         && sceneSky === "sky-space-ship" && !environmentIsolationRef.current), performanceSampleRef.current.reduced);
-      if (!spaceShipSet.visible && shipHover) setShipHover(null);
       medievalSet.userData.animate(sceneTime, Boolean(runtime.floor.visible && runtime.floor.userData.surface === "medieval-apocalypse"
         && (sceneSky === "sky-medieval-apocalypse" || sceneSky === "sky-medieval-village")),
       sceneSky === "sky-medieval-village" ? "village" : "battle");
@@ -3845,7 +3875,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.poseApplications.forEach(({ bone, rotation }) => bone.quaternion.multiply(poseInverseRotation.copy(rotation).invert()));
       runtime.poseApplications.clear();
       const slow = slowMotionRef.current;
-      const slowActive = slow.enabled && animationTimeRef.current >= slow.start && animationTimeRef.current <= slow.end;
+      const slowActive = animationPlayingRef.current && slow.enabled && animationTimeRef.current >= slow.start && animationTimeRef.current <= slow.end;
       const motionDelta = sceneDelta * (slowActive ? slow.speed : 1);
       const reducedPreview = performanceSampleRef.current.reduced;
       const locomotionPreviewActive = !scenePlaybackRef.current.paused && content.children.some((object) => object.userData?.locomotion?.enabled && object.userData?.modelAnimation?.playing);
@@ -3854,11 +3884,17 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           entry.object.getWorldPosition(performanceObjectPosition);
           const distance = performanceObjectPosition.distanceTo(camera.position);
           performanceObjectPosition.project(camera);
-          entry.performanceVisible = entry.object === selectedRef.current || entry.object.userData?.locomotion?.enabled || (distance < 45
+          entry.performanceVisible = entry.object === selectedRef.current || entry.object.userData?.locomotion?.enabled || isDragonModel(entry.object) || (distance < 45
             && performanceObjectPosition.z > -1.2 && performanceObjectPosition.z < 1.2
             && Math.abs(performanceObjectPosition.x) < 1.35 && Math.abs(performanceObjectPosition.y) < 1.35);
         }
         if (!reducedPreview || entry.performanceVisible) entry.mixer.update(motionDelta);
+      });
+      content.children.forEach((object) => {
+        if (isDragonModel(object)) {
+          updateDragonFlight(object, motionDelta);
+          updateDragonFire(object, motionDelta);
+        }
       });
       content.children.forEach((object) => {
         const locomotion = object.userData?.locomotion;
@@ -3916,11 +3952,13 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         object.position.y += nextSink - currentSink;
         locomotion.lavaSinkOffset = Math.abs(nextSink) < 0.0001 ? 0 : nextSink;
       });
+      const speechTime = animationPlayingRef.current ? timelineTime : sceneTime * 0.001 % Math.max(1, animationDurationRef.current);
       content.children.forEach((object) => {
         ensureNeonMaskPulse(object);
         ensureDemonEyePulse(object);
         const pulse = object.userData?.maskPulse;
         const faceMaterials = NEON_FACE_MATERIALS.get(object);
+        applyNeonboySpeechAt(object, speechTime);
         if (!pulse) return;
         const phase = sceneTime / 1000 * (pulse.speed || 3.2);
         const wave = Math.sin(phase * Math.PI * 2);
@@ -3953,6 +3991,9 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
             child.intensity = (pulse.intensity || 5.5) * amount;
           }
         });
+      });
+      content.children.forEach((object) => {
+        if (object.userData?.bundledModel === "angel") animateAngelAura(object, sceneTime, sceneSky !== "sky-biblical-type");
       });
       content.children.forEach((character) => {
         Object.entries(character.userData?.poseOffsets || {}).forEach(([boneName, values]) => {
@@ -3991,7 +4032,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         const values = poseGizmo.character.userData?.poseOffsets?.[poseGizmo.bone.name] || [0, 0, 0];
         poseGizmo.baseOffset.setFromEuler(new THREE.Euler(...values, "XYZ"));
       }
-      const churchFogActive = CHURCH_FOG_BACKGROUNDS.has(skyMotionRef.current.preset);
+      const biblicalAtmosphere = biblicalScene.visible && biblicalScene.userData.settings.atmosphere;
+      const churchFogActive = CHURCH_FOG_BACKGROUNDS.has(skyMotionRef.current.preset) || biblicalAtmosphere;
       animateSceneEffects(scene, sceneEffectSystem, sceneEffectsRef.current, sceneDelta, sceneTime, performanceSampleRef.current.reduced ? 0.35 : 1, churchFogActive);
       spaceScene.userData.animate(sceneEffectsRef.current.space, sceneTime,
         skyMotionRef.current.preset === "sky-space" && !environmentIsolationRef.current,
@@ -4016,7 +4058,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         sceneEffectsRef.current.apocalypseFires, sceneTime,
         floor.visible && floor.userData.surface === "apocalypse"
       );
-      sceneEffectSystem.churchFog.userData.animate(sceneEffectsRef.current.fog, sceneTime, churchFogActive,
+      sceneEffectSystem.churchFog.userData.animate(biblicalAtmosphere ? biblicalScene.userData.fog : sceneEffectsRef.current.fog, sceneTime, churchFogActive,
         performanceSampleRef.current.reduced ? 0.35 : 1, floor.visible);
       sceneEffectSystem.rain.userData.animate(sceneEffectsRef.current.rain, sceneTime, performanceSampleRef.current.reduced ? 0.55 : 1, {
         visible: floor.visible, y: floor.position.y, surface: floor.userData.surface,
@@ -4027,7 +4069,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       sceneEffectSystem.magic.userData.animate(sceneEffectsRef.current.magic, sceneTime, camera, floor.visible);
       sceneEffectSystem.churchLighting.userData.animate(sceneEffectsRef.current.churchLighting, sceneTime,
         skyMotionRef.current.preset === "sky-ruined-gothic-church", floor.visible);
-      animateLavaJets(sceneEffectSystem.lavaJets, infernalFloorActive, sceneTime, lavaSettingsRef.current);
       animateLavaGas(sceneEffectSystem.lavaGas, infernalFloorActive, sceneTime, lavaSettingsRef.current, performanceSampleRef.current.reduced ? 0.55 : 1);
       animateLavaFootsteps(sceneEffectSystem.lavaFootsteps, infernalFloorActive, sceneTime);
       animateLavaAtmosphere(sceneEffectSystem.lavaAtmosphere, infernalFloorActive, sceneTime, orbit.target, camera, scene, sceneEffectsRef.current, content, performanceSampleRef.current.reduced ? 0.58 : 1);
@@ -4096,6 +4137,18 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         activeGrass.material.uniforms.uWindSpeed.value = settings.windSpeed;
         activeGrass.material.uniforms.uLightColor.value.copy(keyLight.color).lerp(ambient.color, 0.35);
         activeGrass.material.uniforms.uAmbient.value = THREE.MathUtils.clamp(0.58 + ambient.intensity * 0.22, 0.58, 1.25);
+        const grassUniforms = activeGrass.material.uniforms;
+        const typographyGrass = sceneSky === "sky-biblical-type" ? 1 : 0;
+        grassUniforms.uTypographyGrass.value = typographyGrass;
+        if (scene.background?.isColor) grassUniforms.uTypographyBackground.value.copy(scene.background);
+        const groundUniforms = activeFloor?.material.userData.typographyGrass;
+        if (groundUniforms) {
+          groundUniforms.uTypographyGrass.value = typographyGrass;
+          groundUniforms.uTypographyBackground.value.copy(grassUniforms.uTypographyBackground.value);
+          groundUniforms.uTypographyGroundColor.value.copy(grassUniforms.uBaseColor.value)
+            .lerp(grassUniforms.uTipColor.value, 0.42).multiply(grassUniforms.uLightColor.value)
+            .multiplyScalar(grassUniforms.uAmbient.value * 0.96);
+        }
         const grassInteractor = activeGrass.material.uniforms.uInteractor.value;
         if (selectedRef.current && !selectedRef.current.isLight) selectedRef.current.getWorldPosition(grassInteractor);
         else grassInteractor.set(10000, 0, 10000);
@@ -4237,7 +4290,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       renderer.domElement.removeEventListener("pointerup", onPointerUp);
       renderer.domElement.removeEventListener("pointercancel", onPointerUp);
       renderer.domElement.removeEventListener("pointerleave", onPointerLeave);
-      setShipHover(null);
       brushCursor.geometry.dispose();
       brushCursor.material.dispose();
       transform.dispose();
@@ -4257,8 +4309,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       });
       sceneEffectSystem.magic.userData.dispose();
       sceneEffectSystem.apocalypseFires.userData.dispose();
+      detachParthenonLighting();
+      detachGamerLighting();
       cemeteryLighting.dispose();
       castleInterior.userData.dispose();
+      retroGamerRoom.userData.dispose();
+      parthenonSet.userData.dispose();
       gothicInterior.userData.dispose();
       swampSet.userData.dispose();
       medievalSet.userData.dispose();
@@ -4266,13 +4322,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       sceneEffectSystem.churchFog.userData.dispose();
       sceneEffectSystem.rain.userData.dispose();
       sceneEffectSystem.storm.userData.dispose();
-      sceneEffectSystem.lavaJets.stems.geometry.dispose();
-      sceneEffectSystem.lavaJets.heads.geometry.dispose();
-      sceneEffectSystem.lavaJets.drops.geometry.dispose();
-      sceneEffectSystem.lavaJets.impactDrops.geometry.dispose();
-      sceneEffectSystem.lavaJets.splashes.geometry.dispose();
-      sceneEffectSystem.lavaJets.splashMaterial.dispose();
-      sceneEffectSystem.lavaJets.material.dispose();
       sceneEffectSystem.lavaGas.points.geometry.dispose();
       sceneEffectSystem.lavaGas.points.material.map?.dispose?.();
       sceneEffectSystem.lavaGas.points.material.dispose();
@@ -4298,8 +4347,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       scene.remove(spaceScene);
       spaceShipSet.userData.dispose();
       scene.remove(spaceShipSet);
+      scene.remove(parthenonSet);
       scene.remove(spacePanorama);
       scene.remove(cloudsPanoramaBackdrop);
+      scene.remove(fieldPanoramaBackdrop);
       scene.remove(medievalVillagePanorama);
       scene.remove(spiderwebRuinsPanorama);
       ruinedChurchDebris.userData.dispose?.();
@@ -4330,6 +4381,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       floor.material.dispose();
       grass.geometry.dispose();
       grass.material.dispose();
+      disposeBiblicalTypographyScene(biblicalScene);
       realisticSkyDome.geometry.dispose();
       realisticSkyDome.material.dispose();
       churchPanorama.userData.dispose();
@@ -4343,6 +4395,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       swampPanorama.userData.dispose();
       spacePanorama.userData.dispose();
       cloudsPanoramaBackdrop.userData.dispose();
+      fieldPanoramaBackdrop.userData.dispose();
       medievalVillagePanorama.userData.dispose();
       spiderwebRuinsPanorama.userData.dispose();
       environmentTexture.dispose();
@@ -4403,6 +4456,13 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   }, [grassSettings]);
 
   useEffect(() => {
+    const scene = runtimeRef.current?.biblicalScene;
+    if (!scene) return;
+    const timeout = setTimeout(() => updateBiblicalTypographyScene(scene, biblicalTypography), 160);
+    return () => clearTimeout(timeout);
+  }, [biblicalTypography]);
+
+  useEffect(() => {
     lavaSettingsRef.current = lavaSettings;
   }, [lavaSettings]);
 
@@ -4441,6 +4501,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     runtime.swampPanorama.userData.setTexture(null);
     runtime.spacePanorama.userData.setTexture(null);
     runtime.cloudsPanoramaBackdrop.userData.setTexture(null);
+    runtime.fieldPanoramaBackdrop.userData.setTexture(null);
     runtime.medievalVillagePanorama.userData.setTexture(null);
     runtime.spiderwebRuinsPanorama.userData.setTexture(null);
     runtime.scene.backgroundBlurriness = 0;
@@ -4448,7 +4509,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     runtime.backgroundTexture = null;
     const preset = [...ENVIRONMENT_BACKGROUNDS, ...SKY_BACKGROUNDS].find((item) => item.id === environmentBackground);
     if (!preset?.image) {
-      runtime.scene.background = new Color(background);
+      runtime.scene.background = new Color(environmentBackground === "factory" ? "#15191d" : background);
+      if (environmentBackground === "factory") runtime.scene.environmentIntensity = 0.45;
+      if (environmentBackground === "sky-biblical-type") {
+        const lighting = BIBLICAL_LIGHTING.find((entry) => entry.id === runtime.biblicalScene.userData.settings.lighting) || BIBLICAL_LIGHTING[0];
+        runtime.scene.environmentIntensity = lighting.environment;
+      }
       runtime.scene.backgroundIntensity = 1;
       runtime.scene.backgroundRotation.x = 0;
       runtime.scene.environmentRotation.x = 0;
@@ -4482,6 +4548,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         texture.generateMipmaps = false;
       }
       texture.needsUpdate = true;
+      if (preset.id === "field") configureFieldPanoramaTexture(texture, runtime.renderer.capabilities.getMaxAnisotropy());
       runtime.backgroundTexture = texture;
       runtime.scene.background = texture;
       runtime.scene.backgroundIntensity = preset.backgroundIntensity ?? 1;
@@ -4489,7 +4556,16 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.scene.environment = preset.id === "sky-space-ship" ? runtime.baseEnvironment : texture;
       runtime.scene.environmentIntensity = preset.environment ?? 0.65;
       runtime.scene.environmentRotation.x = preset.backgroundRotationX ?? 0;
-      if (isSpacePanorama) {
+      if (preset.id === "field") {
+        runtime.fieldPanoramaBackdrop.userData.setTexture(texture, preset.backgroundIntensity ?? 1);
+        runtime.scene.background = new Color("#809bac");
+      } else if (isSpacePanorama) {
+        const panorama = runtime.spacePanorama.material.uniforms;
+        const shipProjection = preset.id === "sky-space-ship";
+        panorama.detailStrength.value = 0.7;
+        panorama.horizontalRepeat.value = shipProjection ? 2 : 3.8;
+        panorama.horizonCompression.value = shipProjection ? 1 : 1.5;
+        panorama.verticalScale.value = shipProjection ? 2 : 1.55;
         runtime.spacePanorama.userData.setTexture(texture, preset.backgroundIntensity ?? 1);
         runtime.scene.background = new Color("#03070d");
       } else if (preset.id === "clouds" || preset.id === "sky-clouds") {
@@ -4562,6 +4638,20 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   }, [exposure]);
 
   useEffect(() => {
+    const runtime = runtimeRef.current;
+    if (!runtime || environmentBackground !== "sky-biblical-type") return;
+    const lighting = BIBLICAL_LIGHTING.find((entry) => entry.id === biblicalTypography.lighting) || BIBLICAL_LIGHTING[0];
+    setAmbientIntensity(lighting.ambient);
+    setExposure(lighting.exposure);
+    runtime.keyLight.intensity = lighting.key;
+    runtime.keyLight.color.set(lighting.light);
+    runtime.keyLight.position.set(5, 8, 4);
+    runtime.ambient.color.set(lighting.light);
+    runtime.ambient.groundColor.set(lighting.ground);
+    runtime.scene.environmentIntensity = lighting.environment;
+  }, [environmentBackground, biblicalTypography.lighting]);
+
+  useEffect(() => {
     if (runtimeRef.current) runtimeRef.current.floor.visible = floorVisible;
   }, [floorVisible]);
 
@@ -4615,6 +4705,9 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         runtimeRef.current.ruinedChurchDebris.userData.setTint(material.color);
       }
       else if (floorSurface === "infernal") material.color.copy(infernalFloorTint(floorColor));
+      else if (floorSurface === "grass" && environmentBackground === "field") {
+        material.color.copy(new Color(floorColor).lerp(new Color("#d0dfb8"), 0.5));
+      }
       else material.color.set(floorColor);
     }
     if (floorSurface === "grass") {
@@ -4625,7 +4718,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         uniforms.uTipColor.value.copy(tint).lerp(new Color("#c7d89b"), 0.34);
       }
     }
-  }, [floorColor, floorSurface]);
+  }, [environmentBackground, floorColor, floorSurface]);
 
   function applyAnimationAt(time, syncUi = true) {
     const runtime = runtimeRef.current;
@@ -4765,35 +4858,28 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     }
   }
 
-  function setGlobalPlayback(playing) {
-    if (playing && animationTimeRef.current >= animationDuration - 0.001) seekAnimation(0);
+  function setSceneAnimationPlayback(playing) {
     scenePlaybackRef.current.paused = !playing;
-    animationPlayingRef.current = playing;
-    setAnimationPlaying(playing);
+    setSceneAnimationsPlaying(playing);
     runtimeRef.current?.content.children.forEach((object) => {
       const video = TV_VIDEO_ELEMENTS.get(object);
       if (!video) return;
-      if (playing) {
-        if (video.duration) video.currentTime = animationTimeRef.current % video.duration;
-        video.play().catch(() => {});
-      } else video.pause();
+      if (playing) video.play().catch(() => {});
+      else video.pause();
     });
   }
 
+  function setGlobalPlayback(playing) {
+    if (playing && animationTimeRef.current >= animationDuration - 0.001) seekAnimation(0);
+    animationPlayingRef.current = playing;
+    setAnimationPlaying(playing);
+  }
+
   function stopGlobalPlayback() {
-    scenePlaybackRef.current.paused = true;
-    scenePlaybackRef.current.elapsed = 0;
     animationPlayingRef.current = false;
     setAnimationPlaying(false);
     seekAnimation(0);
-    runtimeRef.current?.mixers?.forEach(({ mixer }) => mixer.setTime(0));
-    runtimeRef.current?.content.children.forEach((object) => {
-      const video = TV_VIDEO_ELEMENTS.get(object);
-      if (!video) return;
-      video.pause();
-      video.currentTime = 0;
-    });
-    setStatus("Todas las animaciones detenidas");
+    setStatus("Secuencia detenida");
   }
 
   async function importSoundtrack(file) {
@@ -4930,7 +5016,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         setAnimationTime(next);
       }
       if (!shouldLoop && next >= animationDuration) {
-        scenePlaybackRef.current.paused = true;
         animationPlayingRef.current = false;
         setAnimationPlaying(false);
         return;
@@ -5003,7 +5088,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       window.removeEventListener("studio:workspace-save", save);
       window.removeEventListener("studio:workspace-load", load);
     };
-  }, [background, environmentBackground, skyMotionEnabled, skyMotionSpeed, sceneEffects, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, grassSettings, lavaSettings, realisticSky, renderResolution, transparentPng, animationDuration, animationTracks, animationLoop, cameraShake, cameraFollow, cinematicCamera, directorPreset, slowMotion, freezeMotion, activeLightingRig, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, selectedId]);
+  }, [background, environmentBackground, skyMotionEnabled, skyMotionSpeed, sceneEffects, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, grassSettings, biblicalTypography, lavaSettings, realisticSky, renderResolution, transparentPng, animationDuration, animationTracks, animationLoop, sceneAnimationsPlaying, cameraShake, cameraFollow, cinematicCamera, directorPreset, slowMotion, freezeMotion, activeLightingRig, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, selectedId]);
 
   useEffect(() => {
     if (!active || autosaveReadyRef.current || !runtimeRef.current) return;
@@ -5067,7 +5152,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       }
     }, 6000);
     return () => clearTimeout(timer);
-  }, [active, autosaveRevision, objects, selection, background, environmentBackground, skyMotionEnabled, skyMotionSpeed, sceneEffects, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, grassSettings, lavaSettings, realisticSky, renderResolution, transparentPng, animationDuration, animationTracks, animationLoop, cameraShake, cameraFollow, cinematicCamera, directorPreset, slowMotion, freezeMotion, activeLightingRig, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, poseVersion, viewportRecording, animationExporting]);
+  }, [active, autosaveRevision, objects, selection, background, environmentBackground, skyMotionEnabled, skyMotionSpeed, sceneEffects, gridVisible, ambientIntensity, exposure, floorVisible, floorColor, floorSurface, grassSettings, biblicalTypography, lavaSettings, realisticSky, renderResolution, transparentPng, animationDuration, animationTracks, animationLoop, sceneAnimationsPlaying, cameraShake, cameraFollow, cinematicCamera, directorPreset, slowMotion, freezeMotion, activeLightingRig, mode, propertyTab, deformAmount, sculptBrush, sculptRadius, sculptStrength, poseVersion, viewportRecording, animationExporting]);
 
   useEffect(() => {
     if (openProjectSignal) setStatus("Selecciona un proyecto desde Inicio");
@@ -5389,18 +5474,15 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         }
       },
       factory: {
-        floor: "concrete", ambient: 0.62, exposure: 1.08, key: 2.15, light: "#dbe8f0", ground: "#343b40",
-        effects: {
-          fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.09, color: "#707b82" },
-          particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.2, color: "#a9a49a" }
-        }
+        floor: "plastic", ambient: 0.65, exposure: 1.12, key: 1.6, light: "#f4e5ce", ground: "#454f52", effects: {}
       }
     };
     const environment = environments[preset.id];
     if (!environment) return;
     pushHistory();
     setEnvironmentBackground(preset.id);
-    if (preset.id === "clouds") setRealisticSky((current) => ({ ...current, enabled: false }));
+    if (preset.id === "factory") setGridVisible(false);
+    if (preset.id === "field" || preset.id === "clouds") setRealisticSky((current) => ({ ...current, enabled: false }));
     setFloorSurface(environment.floor);
     setFloorColor(defaultFloorColor(environment.floor));
     setFloorVisible(true);
@@ -5488,14 +5570,62 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const skyPreset = SKY_BACKGROUNDS.find((preset) => preset.id === scenePreset.sky);
     if (!skyPreset || !runtimeRef.current) return;
     pushHistory();
-    if (["ruined-gothic-church", "gothic-church", "castle-interior", "space-ship"].includes(scenePreset.id) && activeLightingRig) clearLightingRig({ recordHistory: false });
+    if (scenePreset.id === "biblical-typography") {
+      const runtime = runtimeRef.current;
+      const lighting = BIBLICAL_LIGHTING.find((entry) => entry.id === biblicalTypography.lighting) || BIBLICAL_LIGHTING[0];
+      if (activeLightingRig) clearLightingRig({ recordHistory: false });
+      releaseCameraForManualNavigation();
+      setEnvironmentBackground(skyPreset.id);
+      setBackground("#050505");
+      setFloorSurface("grass");
+      setFloorColor("#345b36");
+      setFloorVisible(true);
+      setGrassSettings((current) => ({ ...current, enabled: true, density: 0.55, height: 0.42, windStrength: 0.38 }));
+      setSceneEffects(structuredClone(DEFAULT_SCENE_EFFECTS));
+      setRealisticSky((current) => ({ ...current, enabled: false }));
+      setSkyMotionEnabled(false);
+      setGridVisible(false);
+      setAmbientIntensity(lighting.ambient);
+      setExposure(lighting.exposure);
+      runtime.keyLight.intensity = lighting.key;
+      runtime.keyLight.color.set(lighting.light);
+      runtime.keyLight.position.set(5, 8, 4);
+      runtime.ambient.color.set(lighting.light);
+      runtime.ambient.groundColor.set(lighting.ground);
+      runtime.scene.environmentIntensity = lighting.environment;
+      const framing = biblicalCameraFraming(biblicalTypography.layout, runtime.camera.aspect, runtime.camera.fov);
+      runtime.camera.position.fromArray(framing.position);
+      runtime.orbit.target.fromArray(framing.target);
+      runtime.orbit.update();
+      scenePlaybackRef.current.elapsed = 0;
+      setSelectedBiblicalVerse(0);
+      setStatus("Escenario Tipografia biblica aplicado");
+      return;
+    }
+    if (["ruined-gothic-church", "gothic-church", "castle-interior", "space-ship", "parthenon"].includes(scenePreset.id) && activeLightingRig) clearLightingRig({ recordHistory: false });
     setEnvironmentBackground(skyPreset.id);
-    if (scenePreset.id === "medieval-village") setRealisticSky((current) => ({ ...current, enabled: false }));
+    if (scenePreset.id === "medieval-village" || scenePreset.id === "parthenon") setRealisticSky((current) => ({ ...current, enabled: false }));
     setFloorSurface(scenePreset.floor);
     setFloorColor(defaultFloorColor(scenePreset.floor));
     setFloorVisible(true);
-    if (scenePreset.id === "moonlit-peaks" || scenePreset.id === "space-ship") setGridVisible(false);
-    setSkyMotionEnabled(true);
+    if (["moonlit-peaks", "space-ship", "parthenon"].includes(scenePreset.id)) setGridVisible(false);
+    if (scenePreset.id === "space-ship") {
+      releaseCameraForManualNavigation();
+      runtimeRef.current.camera.position.set(0, 3.2, 17.5);
+      runtimeRef.current.orbit.target.set(0, 4, -12);
+      runtimeRef.current.orbit.update();
+    }
+    if (scenePreset.id === "parthenon") {
+      releaseCameraForManualNavigation();
+      const portrait = runtimeRef.current.camera.aspect < 0.85;
+      runtimeRef.current.camera.position.set(portrait ? 2.5 : 5, portrait ? 5 : 3.6, portrait ? 52 : 18.5);
+      runtimeRef.current.orbit.target.set(0, 4, -16.5);
+      runtimeRef.current.orbit.update();
+      runtimeRef.current.scene.environment = runtimeRef.current.baseEnvironment;
+      runtimeRef.current.scene.environmentIntensity = skyPreset.environment;
+      setFloorColor("#c3b496");
+    }
+    setSkyMotionEnabled(scenePreset.id !== "parthenon");
     setAmbientIntensity(skyPreset.ambient);
     setExposure(skyPreset.exposure);
     runtimeRef.current.keyLight.intensity = skyPreset.key;
@@ -5553,11 +5683,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     },
     "space-ship": {
       ...structuredClone(DEFAULT_SCENE_EFFECTS),
+      fog: { ...SPACE_SHIP_FOG },
       particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: false, intensity: 0.06, color: "#8ce5e2" },
     },
     "medieval-village": {
       ...structuredClone(DEFAULT_SCENE_EFFECTS),
-      fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.22, color: "#7f8583" },
+      fog: { ...MEDIEVAL_VILLAGE_FOG },
       rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: true, intensity: 0.38, directionX: 0.16, directionZ: 0.04, color: "#b9d7e4" },
       particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.12, color: "#d5bf96" },
     },
@@ -5572,6 +5703,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.5, color: "#647180" },
       particles: { ...DEFAULT_SCENE_EFFECTS.particles, enabled: true, intensity: 0.58, color: "#d9e8f2" },
       storm: { ...DEFAULT_SCENE_EFFECTS.storm, enabled: true, intensity: 0.22 },
+    },
+    parthenon: {
+      ...structuredClone(DEFAULT_SCENE_EFFECTS),
+      parthenonLighting: { ...DEFAULT_PARTHENON_LIGHTING }
     },
   };
 
@@ -6211,7 +6346,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
 
   function releaseCameraForManualNavigation() {
     const runtime = runtimeRef.current;
-    scenePlaybackRef.current.paused = true;
+    animationPlayingRef.current = false;
     setAnimationPlaying(false);
     if (cameraShotRef.current?.frame) cancelAnimationFrame(cameraShotRef.current.frame);
     cameraShotRef.current = null;
@@ -6371,7 +6506,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const previousPixelRatio = runtime.renderer.getPixelRatio();
     const previousShadowState = runtime.renderer.shadowMap.enabled;
     const previousReducedState = performanceSampleRef.current.reduced;
-    const previousAspect = runtime.camera.aspect;
     const previousBackground = runtime.scene.background;
     const floorWasVisible = runtime.floor.visible;
     const ruinsWereVisible = runtime.ruinedChurchDebris.visible;
@@ -6384,6 +6518,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const swampSetWasVisible = runtime.swampSet.visible;
     const castleInteriorWasVisible = runtime.castleInterior.visible;
     const spaceShipWasVisible = runtime.spaceShipSet.visible;
+    const retroGamerRoomWasVisible = runtime.retroGamerRoom.visible;
+    const parthenonWasVisible = runtime.parthenonSet.visible;
     const gothicInteriorWasVisible = runtime.gothicInterior.visible;
     const skyWasVisible = runtime.realisticSkyDome.visible;
     const churchPanoramaWasVisible = runtime.churchPanorama.visible;
@@ -6397,6 +6533,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const swampPanoramaWasVisible = runtime.swampPanorama.visible;
     const spacePanoramaWasVisible = runtime.spacePanorama.visible;
     const cloudsPanoramaWasVisible = runtime.cloudsPanoramaBackdrop.visible;
+    const fieldPanoramaWasVisible = runtime.fieldPanoramaBackdrop.visible;
     const medievalVillagePanoramaWasVisible = runtime.medievalVillagePanorama.visible;
     const spiderwebRuinsPanoramaWasVisible = runtime.spiderwebRuinsPanorama.visible;
     const apocalypseFiresWereVisible = runtime.sceneEffectSystem.apocalypseFires.visible;
@@ -6443,6 +6580,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.swampSet.visible = false;
       runtime.castleInterior.visible = false;
       runtime.spaceShipSet.visible = false;
+      runtime.retroGamerRoom.visible = false;
+      runtime.parthenonSet.visible = false;
       runtime.gothicInterior.visible = false;
       runtime.realisticSkyDome.visible = false;
       runtime.churchPanorama.visible = false;
@@ -6456,6 +6595,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.swampPanorama.visible = false;
       runtime.spacePanorama.visible = false;
       runtime.cloudsPanoramaBackdrop.visible = false;
+      runtime.fieldPanoramaBackdrop.visible = false;
       runtime.medievalVillagePanorama.visible = false;
       runtime.spiderwebRuinsPanorama.visible = false;
       runtime.sceneEffectSystem.apocalypseFires.visible = false;
@@ -6470,8 +6610,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.renderer.shadowMap.enabled = previousShadowState;
       runtime.renderer.shadowMap.needsUpdate = true;
       performanceSampleRef.current.reduced = previousReducedState;
-      runtime.renderer.setSize(previousSize.x, previousSize.y, false);
-      runtime.camera.aspect = previousAspect;
+      setPerformanceReduced(previousReducedState);
+      const host = hostRef.current;
+      const viewportWidth = host ? Math.max(host.clientWidth, 1) : previousSize.x;
+      const viewportHeight = host ? Math.max(host.clientHeight, 1) : previousSize.y;
+      runtime.renderer.setSize(viewportWidth, viewportHeight, false);
+      runtime.camera.aspect = viewportWidth / viewportHeight;
       runtime.camera.updateProjectionMatrix();
       runtime.scene.background = previousBackground;
       runtime.floor.visible = floorWasVisible;
@@ -6485,6 +6629,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.swampSet.visible = swampSetWasVisible;
       runtime.castleInterior.visible = castleInteriorWasVisible;
       runtime.spaceShipSet.visible = spaceShipWasVisible;
+      runtime.retroGamerRoom.visible = retroGamerRoomWasVisible;
+      runtime.parthenonSet.visible = parthenonWasVisible;
       runtime.gothicInterior.visible = gothicInteriorWasVisible;
       runtime.realisticSkyDome.visible = skyWasVisible;
       runtime.churchPanorama.visible = churchPanoramaWasVisible;
@@ -6498,6 +6644,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtime.swampPanorama.visible = swampPanoramaWasVisible;
       runtime.spacePanorama.visible = spacePanoramaWasVisible;
       runtime.cloudsPanoramaBackdrop.visible = cloudsPanoramaWasVisible;
+      runtime.fieldPanoramaBackdrop.visible = fieldPanoramaWasVisible;
       runtime.medievalVillagePanorama.visible = medievalVillagePanoramaWasVisible;
       runtime.spiderwebRuinsPanorama.visible = spiderwebRuinsPanoramaWasVisible;
       runtime.sceneEffectSystem.apocalypseFires.visible = apocalypseFiresWereVisible;
@@ -6594,7 +6741,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       });
       recorder.start(250);
       exportAudioSource?.start(0);
-      scenePlaybackRef.current.paused = false;
       animationPlayingRef.current = true;
 
       if (typeof videoTrack?.requestFrame === "function") {
@@ -6605,6 +6751,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           const frameTime = Math.min(frameIndex / animationFps, exportDuration);
           animationTimeRef.current = frameTime;
           applyAnimationAt(frameTime, false);
+          runtime.content.children.forEach((object) => applyNeonboySpeechAt(object, frameTime));
           runtime.renderer.render(runtime.scene, runtime.camera);
           videoTrack.requestFrame();
 
@@ -6619,7 +6766,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         setGlobalPlayback(false);
       }
 
-      scenePlaybackRef.current.paused = true;
       animationPlayingRef.current = false;
       recorder.stop();
       await stopped;
@@ -6679,6 +6825,9 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     duplicate.name = `${source.name} copia`;
     duplicate.position.x += 1.25;
     runtime.content.add(duplicate);
+    ensureNeonMaskPulse(duplicate);
+    const duplicateVideo = ensureRetroTvScreen(duplicate);
+    if (duplicateVideo && !scenePlaybackRef.current.paused) duplicateVideo.play().catch(() => {});
     if (animationTracks[source.userData.editorId]) {
       setAnimationTracks((current) => ({
         ...current,
@@ -6739,8 +6888,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         pasted.animations = animations;
         ensureNeonMaskPulse(pasted);
         ensureDemonEyePulse(pasted);
-        ensureAngelHalo(pasted);
         ensureRetroTvScreen(pasted);
+        if (!scenePlaybackRef.current.paused) TV_VIDEO_ELEMENTS.get(pasted)?.play().catch(() => {});
         for (const attachment of descriptor.attachments || []) {
           const attachmentPreset = STATIC_MODELS.find((entry) => entry.id === attachment.assetId);
           const bone = pasted.getObjectByName(attachment.userData?.attachmentBone);
@@ -6766,6 +6915,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
           if (item === pasted || item.userData?.editorId) item.userData = { ...item.userData, editorId: makeId() };
         });
       }
+      ensureAngelAura(pasted);
       pushHistory();
       pasted.name = `${pasted.name || "Objeto"} copia`;
       pasted.position.x += 0.6;
@@ -6957,6 +7107,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     setSceneEffects((current) => ({
       ...current,
       [effect]: effect === "magic" ? normalizeMagicSettings({ ...current.magic, [key]: value })
+        : effect === "gamerLighting" ? normalizeRetroGamerLighting({ ...current.gamerLighting, [key]: value })
+        : effect === "parthenonLighting" ? normalizeParthenonLighting({ ...current.parthenonLighting, [key]: value })
         : effect === "space" ? normalizeSpaceSettings({ ...current.space, [key]: value })
         : effect === "churchLighting" ? normalizeChurchLighting({ ...current.churchLighting, [key]: value })
           : effect === "cemeteryLighting" ? normalizeCemeteryLighting({ ...current.cemeteryLighting, [key]: value })
@@ -7028,14 +7180,14 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         storm: { enabled: false, intensity: 0.6 }
       },
       spaceShip: {
-        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: false },
+        fog: { ...SPACE_SHIP_FOG },
         fire: { enabled: false, intensity: 0.6 },
         rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: false },
         particles: { enabled: true, intensity: 0.06, color: "#8ce5e2" },
         storm: { enabled: false, intensity: 0.6 }
       },
       medievalVillage: {
-        fog: { ...DEFAULT_SCENE_EFFECTS.fog, enabled: true, intensity: 0.22, color: "#7f8583" },
+        fog: { ...MEDIEVAL_VILLAGE_FOG },
         fire: { enabled: false, intensity: 0.6 },
         rain: { ...DEFAULT_SCENE_EFFECTS.rain, enabled: true, intensity: 0.38, directionX: 0.16, directionZ: 0.04, color: "#b9d7e4" },
         particles: { enabled: true, intensity: 0.12, color: "#d5bf96" },
@@ -7079,6 +7231,13 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     syncSelection(object);
   }
 
+  function updateNeonSpeech(patch) {
+    const object = selectedRef.current;
+    if (!object?.userData.neonSpeech) return;
+    object.userData.neonSpeech = normalizeNeonboySpeech({ ...object.userData.neonSpeech, ...patch }, animationDuration);
+    syncSelection(object);
+  }
+
   function updateTvScreen(key, index, value) {
     const object = selectedRef.current;
     const screen = object?.getObjectByName("RetroTvVideoScreen");
@@ -7088,6 +7247,16 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     object.userData.tvScreen = { ...object.userData.tvScreen, [key]: values };
     if (key === "scale") screen.scale.set(values[0], values[1], 1);
     else if (screen.userData.basePosition) screen.position.fromArray(screen.userData.basePosition).add(new Vector3().fromArray(values));
+    syncSelection(object);
+  }
+
+  function updateTvVideo(videoId) {
+    const object = selectedRef.current;
+    if (!object?.userData.tvScreen || !RETRO_TV_VIDEO_BY_ID.has(videoId)) return;
+    pushHistory();
+    object.userData.tvScreen.videoId = videoId;
+    const video = ensureRetroTvScreen(object);
+    if (!scenePlaybackRef.current.paused) video?.play().catch(() => {});
     syncSelection(object);
   }
 
@@ -7715,6 +7884,9 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       const model = gltf.scene;
       model.name = modelPreset.name;
       model.userData = { ...model.userData, editorId: makeId(), editorType: "model", bundledModel: modelPreset.id };
+      if (modelPreset.id === NEONBOY_TALKING_SEATED_ID) {
+        model.userData.neonSpeech = normalizeNeonboySpeech({ enabled: true, start: 0, end: animationDurationRef.current, speed: 3.6, intensity: 0.9 }, animationDurationRef.current);
+      }
       ensureNeonMaskPulse(model);
       ensureDemonEyePulse(model);
       if (modelPreset.locomotion) {
@@ -7745,7 +7917,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       model.position.y -= bounds.min.y;
       runtime.content.add(model);
       placeObjectInFreeSpot(model, runtime.content);
-      ensureAngelHalo(model);
+      if (isDragonModel(model)) initializeDragonFlight(model, modelPreset.id === "dragon-flying");
+      ensureAngelAura(model);
       registerModelAnimations(model, gltf.animations);
       let selectedObject = model;
       const guitarConfig = modelPreset.id === "profe"
@@ -7864,6 +8037,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       }
       refreshObjects();
       selectObject(selectedObject);
+      if (isDragonModel(model)) focusSelected();
       setMode("translate");
       setStatus(modelPreset.id === "Neonboy-playGuitarHD"
         ? "Guitarrista HD agregado con mascara animada y guitarra vinculada a la cintura"
@@ -7881,6 +8055,24 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       modelLoadInFlightRef.current = false;
       setModelLoading("");
     }
+  }
+
+  function toggleTypographyBackdrop() {
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    const existing = runtime.content.children.filter((object) => object.userData?.bundledStaticModel === TYPOGRAPHY_BACKDROP_PRESET.id);
+    if (!existing.length) {
+      addStaticModel(TYPOGRAPHY_BACKDROP_PRESET);
+      return;
+    }
+    pushHistory();
+    existing.forEach((object) => {
+      if (selectedRef.current === object) selectObject(null);
+      runtime.content.remove(object);
+      disposeObject(object);
+    });
+    refreshObjects();
+    setStatus("Fondo tipografico desactivado");
   }
 
   async function addStaticModel(modelPreset) {
@@ -7901,12 +8093,31 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       model.userData = { ...model.userData, editorId: makeId(), editorType: "model", bundledStaticModel: modelPreset.id };
       model.animations = [];
       ensureRetroTvScreen(model);
+      if (!scenePlaybackRef.current.paused) TV_VIDEO_ELEMENTS.get(model)?.play().catch(() => {});
       model.traverse((item) => {
         if (item.isMesh) { item.castShadow = true; item.receiveShadow = true; }
       });
       const bounds = new Box3().setFromObject(model);
       const size = bounds.getSize(new Vector3());
-      model.scale.multiplyScalar(4.8 / Math.max(size.x, size.y, size.z, 1));
+      if (modelPreset.backdrop) {
+        const center = bounds.getCenter(new Vector3());
+        const scale = 26 / Math.max(size.x, size.y, 0.001);
+        model.scale.multiplyScalar(scale);
+        model.position.set(-center.x * scale, 7.5 - center.y * scale, -19 - center.z * scale);
+        model.userData.locked = true;
+        model.traverse((item) => {
+          if (!item.isMesh) return;
+          item.castShadow = false;
+          item.receiveShadow = false;
+          const materials = Array.isArray(item.material) ? item.material : [item.material];
+          materials.forEach((material) => material?.color?.multiplyScalar(0.38));
+        });
+        runtime.content.add(model);
+        refreshObjects();
+        setStatus("Fondo tipografico activado");
+        return;
+      }
+      model.scale.multiplyScalar((modelPreset.size ?? 4.8) / Math.max(size.x, size.y, size.z, 1));
       bounds.setFromObject(model);
       model.position.y -= bounds.min.y;
       runtime.content.add(model);
@@ -7932,6 +8143,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       return;
     }
     let restoreOutput = null;
+    let stream = null;
+    let recorder = null;
     try {
       const [width, height] = renderResolution.split("x").map(Number);
       const pixels = width * height;
@@ -7939,10 +8152,10 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       restoreOutput = prepareRenderOutput({ clean: true });
       const mimeType = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"]
         .find((type) => MediaRecorder.isTypeSupported(type));
-      const stream = canvas.captureStream(30);
+      stream = canvas.captureStream(30);
       const recorderOptions = { videoBitsPerSecond: Math.round(bitrateMbps * 1_000_000) };
       if (mimeType) recorderOptions.mimeType = mimeType;
-      const recorder = new MediaRecorder(stream, recorderOptions);
+      recorder = new MediaRecorder(stream, recorderOptions);
       const chunks = [];
       recorder.ondataavailable = (event) => {
         if (event.data.size) chunks.push(event.data);
@@ -7967,11 +8180,17 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setViewportRecordingBlob(null);
       setViewportRecording(true);
       recorder.start(250);
-      exportAudioSource?.start(0, 0, Math.min(animationDuration, soundtrackBufferRef.current.duration));
       setStatus(`Grabando ${width} x ${height} a ${Math.round(bitrateMbps)} Mbps...`);
     } catch (error) {
       console.error(error);
+      if (recorder && recorder.state !== "inactive") {
+        recorder.onstop = null;
+        recorder.stop();
+      }
+      stream?.getTracks().forEach((track) => track.stop());
       restoreOutput?.();
+      viewportRecordingRef.current = null;
+      setViewportRecording(false);
       setStatus("No se pudo iniciar la grabacion");
     }
   }
@@ -8135,7 +8354,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
               <button onClick={() => addPrimitive("plane")} type="button"><Square size={22} /><span>Plano</span></button>
               <button onClick={() => addPrimitive("torus")} type="button"><CircleDot size={22} /><span>Toroide</span></button>
               <button onClick={() => addPrimitive("capsule")} type="button"><Pill size={22} /><span>Capsula</span></button>
-              {STATIC_MODELS.map((model) => <button disabled={Boolean(modelLoading)} key={model.id} onClick={() => addStaticModel(model)} type="button"><Box size={22} /><span>{model.name}</span></button>)}
+              {STATIC_MODELS.filter((model) => !model.backdrop).map((model) => <button disabled={Boolean(modelLoading)} key={model.id} onClick={() => addStaticModel(model)} type="button"><Box size={22} /><span>{model.name}</span></button>)}
               <button onClick={() => addLight("point")} type="button"><Lightbulb size={22} /><span>Luz puntual</span></button>
               <button onClick={() => addLight("directional")} type="button"><Sun size={22} /><span>Luz solar</span></button>
               <button onClick={() => addLight("spot")} type="button"><Flashlight size={22} /><span>Foco</span></button>
@@ -8145,14 +8364,15 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
             <div className="three-create-text">
               <label><span>Texto 3D</span><input maxLength="42" onChange={(event) => changeTextDraft(event.target.value)} onFocus={pushHistory} value={textDraft} /></label>
               <label><span>Tipografia</span><select onChange={(event) => changeTextFont(event.target.value)} value={textFont}>{Object.entries(THREE_FONTS).map(([id, entry]) => <option key={id} value={id}>{entry.name}</option>)}</select></label>
+              <label className="three-check"><input aria-label="Fondo tipografico" checked={typographyBackdropActive} disabled={Boolean(modelLoading)} onChange={toggleTypographyBackdrop} type="checkbox" /> Fondo tipografico</label>
               <label><span>Profundidad</span><input max="1.5" min="0.05" onChange={(event) => changeTextDepth(event.target.value)} onFocus={pushHistory} step="0.05" type="number" value={extrudeDepth} /></label>
               <button disabled={!textDraft.trim()} onClick={selectedRef.current?.userData.editorType === "text" ? () => updateSelectedText() : addText} type="button"><Type size={16} /> {selectedRef.current?.userData.editorType === "text" ? "Aplicar cambios" : "Agregar texto"}</button>
             </div>
           </> : <div className="three-character-library">
-            {["Neonboy", "Neoncruzader", "Demon", "Zombie", "Reptiliano", "Angel", "Profe", "Cura"].map((character) => <section key={character}>
-              <div className="three-library-section-title"><strong>{character}</strong><span>{CHARACTER_MODELS.filter((model) => model.character === character).length}</span></div>
+            {["Neonboy", "Neoncruzader", "Dragon", "Demon", "Zombie", "Reptiliano", "Angel", "Profe", "Cura", "Satanas"].map((character) => <section key={character}>
+              <div className="three-library-section-title"><strong>{character}</strong><span>{CHARACTER_LIBRARY_MODELS.filter((model) => model.character === character).length}</span></div>
               <div className="three-add-grid">
-                {CHARACTER_MODELS.filter((model) => model.character === character).map((model) => <button disabled={Boolean(modelLoading)} key={model.id} onClick={() => addNeonboy(model)} type="button"><Sparkles size={22} /><span>{model.animation}</span></button>)}
+                {CHARACTER_LIBRARY_MODELS.filter((model) => model.character === character).map((model) => <button disabled={Boolean(modelLoading)} key={model.id} onClick={() => addNeonboy(model)} type="button"><Sparkles size={22} /><span>{model.animation}</span></button>)}
               </div>
             </section>)}
           </div>}
@@ -8341,6 +8561,12 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                 <label className="three-check"><input checked={selection.locked} onChange={() => toggleObjectLock(selectedId)} type="checkbox" />{selection.locked ? <Lock size={16} /> : <Unlock size={16} />} Bloquear transformaciones</label>
                 {!selection.isLight && <button className={selectedRef.current?.userData?.mirrored ? "active" : ""} disabled={selection.locked} onClick={mirrorSelected} type="button"><FlipHorizontal2 size={16} /> {selectedRef.current?.userData?.mirrored ? "Quitar espejo" : "Espejar horizontal"}</button>}
               </fieldset>
+              {selection.tvScreen && (
+                <fieldset className="three-tab-object">
+                  <legend>TV retro</legend>
+                  <label><span>Video</span><select aria-label="Video de la TV retro" onChange={(event) => updateTvVideo(event.target.value)} value={selection.tvScreen.videoId || "video"}>{RETRO_TV_VIDEOS.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></label>
+                </fieldset>
+              )}
               {!selection.isLight && (
                 <fieldset className="three-tab-object">
                   <legend>Vincular a personaje</legend>
@@ -8447,6 +8673,16 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
                       <label><span>Clip</span><select onChange={(event) => selectModelAnimation(event.target.value)} value={selection.modelAnimation.clip}>{selection.modelAnimation.clips.map((clip) => <option key={clip} value={clip}>{clip}</option>)}</select></label>
                       <button className="three-sculpt-toggle" onClick={toggleModelAnimation} type="button">{selection.modelAnimation.playing ? <Pause size={16} /> : <Play size={16} />} {selection.modelAnimation.playing ? "Pausar" : "Reproducir"}</button>
                       <label><span>Velocidad</span><input max="2.5" min="0" onChange={(event) => setModelAnimationSpeed(event.target.value)} step="0.05" type="range" value={selection.modelAnimation.speed} /></label>
+                    </fieldset>
+                  )}
+                  {selection.neonSpeech && (
+                    <fieldset className="three-tab-model">
+                      <legend>Sonrisa al hablar</legend>
+                      <label className="three-check"><input checked={selection.neonSpeech.enabled} onChange={(event) => { pushHistory(); updateNeonSpeech({ enabled: event.target.checked }); }} type="checkbox" /> Gesticular sonrisa</label>
+                      <label><span>Desde (s)</span><input aria-label="Habla: inicio" disabled={!selection.neonSpeech.enabled} max={animationDuration} min="0" onChange={(event) => updateNeonSpeech({ start: Number(event.target.value) })} onFocus={pushHistory} step="0.1" type="number" value={selection.neonSpeech.start} /></label>
+                      <label><span>Hasta (s)</span><input aria-label="Habla: fin" disabled={!selection.neonSpeech.enabled} max={animationDuration} min={selection.neonSpeech.start + 0.1} onChange={(event) => updateNeonSpeech({ end: Number(event.target.value) })} onFocus={pushHistory} step="0.1" type="number" value={selection.neonSpeech.end} /></label>
+                      <label><span>Ritmo ({selection.neonSpeech.speed.toFixed(1)}/s)</span><input aria-label="Habla: ritmo" disabled={!selection.neonSpeech.enabled} max="8" min="0.5" onChange={(event) => updateNeonSpeech({ speed: Number(event.target.value) })} onPointerDown={pushHistory} step="0.1" type="range" value={selection.neonSpeech.speed} /></label>
+                      <label><span>Apertura ({Math.round(selection.neonSpeech.intensity * 100)}%)</span><input aria-label="Habla: apertura" disabled={!selection.neonSpeech.enabled} max="1.5" min="0" onChange={(event) => updateNeonSpeech({ intensity: Number(event.target.value) })} onPointerDown={pushHistory} step="0.05" type="range" value={selection.neonSpeech.intensity} /></label>
                     </fieldset>
                   )}
                   {selection.maskPulse && (
@@ -8649,19 +8885,128 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
               <label className="three-check"><input checked={spaceSettings.lightingEnabled} onChange={(event) => { pushHistory(); updateSceneEffect("space", "lightingEnabled", event.target.checked); }} type="checkbox" /><Lightbulb size={16} /> Luz astral</label>
               <label><span>Fuerza de luz ({spaceSettings.lightIntensity.toFixed(2)})</span><input aria-label="Espacio: Fuerza de luz" disabled={!spaceSettings.lightingEnabled} max="2" min="0" onChange={(event) => updateSceneEffect("space", "lightIntensity", Number(event.target.value))} onPointerDown={pushHistory} step="0.05" type="range" value={spaceSettings.lightIntensity} /></label>
             </div>}
+            {environmentBackground === "factory" && <div className="three-church-lighting-controls">
+              <div className="three-sublegend">Luz del cuarto gamer</div>
+              <div className="three-gamer-periods" role="group" aria-label="Momento del dia del cuarto gamer">
+                {RETRO_GAMER_LIGHTING_MODES.map((mode) => {
+                  const Icon = mode.id === "day" ? Sun : mode.id === "sunset" ? Sunset : Moon;
+                  return <button aria-pressed={gamerLightingSettings.period === mode.id} className={gamerLightingSettings.period === mode.id ? "active" : ""} key={mode.id} onClick={() => {
+                    pushHistory();
+                    updateSceneEffect("gamerLighting", "period", mode.id);
+                  }} type="button"><Icon size={15} /><span>{mode.name}</span></button>;
+                })}
+              </div>
+              <label className="three-check"><input aria-label="Luz del cuarto gamer" checked={gamerLightingSettings.lights} onChange={(event) => {
+                pushHistory();
+                updateSceneEffect("gamerLighting", "lights", event.target.checked);
+              }} type="checkbox" /><Lightbulb size={16} /> Luz del cuarto</label>
+            </div>}
+            {environmentBackground === "sky-parthenon" && <div className="three-church-lighting-controls">
+              <div className="three-sublegend">Hora del Partenon</div>
+              <div className="three-gamer-periods" role="group" aria-label="Momento del dia del Partenon">
+                {PARTHENON_PERIODS.map((mode) => {
+                  const Icon = mode.id === "day" ? Sun : mode.id === "sunset" ? Sunset : Moon;
+                  return <button aria-pressed={parthenonLightingSettings.period === mode.id} className={parthenonLightingSettings.period === mode.id ? "active" : ""} key={mode.id} onClick={() => {
+                    pushHistory();
+                    updateSceneEffect("parthenonLighting", "period", mode.id);
+                  }} type="button"><Icon size={15} /><span>{mode.name}</span></button>;
+                })}
+              </div>
+            </div>}
             <div className="three-background-presets">
-              {ENVIRONMENT_BACKGROUNDS.map((preset) => <button className={environmentBackground === preset.id ? "active" : ""} key={preset.id} onClick={() => applyEnvironmentPreset(preset)} style={preset.image ? { backgroundImage: `url(${environmentThumbnail(preset)})` } : { background: background }} type="button"><span>{preset.name}</span></button>)}
+              {ENVIRONMENT_BACKGROUNDS.map((preset) => <button className={environmentBackground === preset.id ? "active" : ""} key={preset.id} onClick={() => applyEnvironmentPreset(preset)} style={preset.image || preset.thumbnail ? { backgroundImage: `url(${environmentThumbnail(preset)})` } : { background: background }} type="button"><span>{preset.name}</span></button>)}
             </div>
             <div className="three-sublegend">Escenarios animados</div>
             <div className="three-scene-presets">
-              {THEMED_SCENES.map((preset) => <button className={environmentBackground === preset.sky && floorSurface === preset.floor ? "active" : ""} key={preset.id} onClick={() => applyThemedScene(preset)} style={{ backgroundImage: `url(${environmentThumbnail({ id: preset.sky, image: preset.image })})` }} type="button"><span>{preset.name}</span></button>)}
+              {THEMED_SCENES.map((preset) => <button className={environmentBackground === preset.sky && floorSurface === preset.floor ? "active" : ""} data-scene={preset.id} key={preset.id} onClick={() => applyThemedScene(preset)} style={preset.id === "biblical-typography" ? { background: "#06090a" } : { backgroundImage: `url(${environmentThumbnail({ id: preset.sky, image: preset.image })})` }} type="button"><span>{preset.name}</span></button>)}
             </div>
+            {environmentBackground === "sky-biblical-type" && <div className="three-biblical-controls">
+              <div className="three-biblical-text-actions">
+                <div className="three-sublegend">Textos {biblicalTypography.verses.length}/{MAX_BIBLICAL_TEXTS}</div>
+                <button aria-label="Agregar texto al escenario" data-tooltip="Agregar texto" disabled={biblicalTypography.verses.length >= MAX_BIBLICAL_TEXTS} onClick={() => {
+                  pushHistory();
+                  const index = biblicalTypography.verses.length;
+                  setBiblicalTypography((current) => ({ ...current, verses: [...current.verses, { text: "", reference: "", emphasis: "" }] }));
+                  setSelectedBiblicalVerse(index);
+                  scenePlaybackRef.current.elapsed = index * 9000 / biblicalTypography.speed;
+                }} type="button"><Plus size={15} /></button>
+                <button aria-label="Eliminar texto del escenario" data-tooltip="Eliminar texto" disabled={biblicalTypography.verses.length <= 1} onClick={() => {
+                  pushHistory();
+                  const nextIndex = Math.min(biblicalVerseIndex, biblicalTypography.verses.length - 2);
+                  setBiblicalTypography((current) => ({ ...current, verses: current.verses.filter((_, index) => index !== biblicalVerseIndex) }));
+                  setSelectedBiblicalVerse(nextIndex);
+                  scenePlaybackRef.current.elapsed = nextIndex * 9000 / biblicalTypography.speed;
+                }} type="button"><Trash2 size={15} /></button>
+              </div>
+              <div className="three-biblical-verse-tabs" role="tablist" aria-label="Versiculos biblicos">
+                {biblicalTypography.verses.map((verse, index) => <button aria-selected={biblicalVerseIndex === index} className={biblicalVerseIndex === index ? "active" : ""} key={index} onClick={() => {
+                  setSelectedBiblicalVerse(index);
+                  scenePlaybackRef.current.elapsed = index * 9000 / biblicalTypography.speed;
+                }} role="tab" type="button">{String(index + 1).padStart(2, "0")}</button>)}
+              </div>
+              <label className="three-biblical-text"><span>Texto</span><textarea aria-label="Texto del versiculo" maxLength={280} onChange={(event) => {
+                const text = event.target.value;
+                setBiblicalTypography((current) => ({ ...current, verses: current.verses.map((verse, index) => index === biblicalVerseIndex ? { ...verse, text } : verse) }));
+              }} onFocus={pushHistory} rows={4} value={biblicalTypography.verses[biblicalVerseIndex].text} /></label>
+              <label><span>Referencia</span><input aria-label="Referencia biblica" maxLength={48} onChange={(event) => {
+                const reference = event.target.value;
+                setBiblicalTypography((current) => ({ ...current, verses: current.verses.map((verse, index) => index === biblicalVerseIndex ? { ...verse, reference } : verse) }));
+              }} onFocus={pushHistory} type="text" value={biblicalTypography.verses[biblicalVerseIndex].reference} /></label>
+              <label><span>Palabra protagonista</span><input aria-label="Palabra protagonista" maxLength={40} onChange={(event) => {
+                const emphasis = event.target.value;
+                setBiblicalTypography((current) => ({ ...current, verses: current.verses.map((verse, index) => index === biblicalVerseIndex ? { ...verse, emphasis } : verse) }));
+              }} onFocus={pushHistory} type="text" value={biblicalTypography.verses[biblicalVerseIndex].emphasis} /></label>
+              <div className="three-sublegend">Composicion</div>
+              <div className="three-biblical-layouts" role="group" aria-label="Composicion tipografica">
+                {BIBLICAL_LAYOUTS.map((layout) => <button aria-pressed={biblicalTypography.layout === layout.id} className={biblicalTypography.layout === layout.id ? "active" : ""} key={layout.id} onClick={() => {
+                  pushHistory();
+                  setBiblicalTypography((current) => normalizeBiblicalTypography({ ...current, layout: layout.id }));
+                  if (layout.id === "immersive") setBackground("#050505");
+                  if (layout.id !== biblicalTypography.layout && runtimeRef.current) {
+                    releaseCameraForManualNavigation();
+                    const runtime = runtimeRef.current;
+                    const framing = biblicalCameraFraming(layout.id, runtime.camera.aspect, runtime.camera.fov);
+                    runtime.camera.position.fromArray(framing.position);
+                    runtime.orbit.target.fromArray(framing.target);
+                    runtime.orbit.update();
+                  }
+                }} type="button">{layout.name}</button>)}
+              </div>
+              <label><span>Familia</span><select disabled={biblicalTypography.layout === "immersive"} onChange={(event) => {
+                pushHistory();
+                setBiblicalTypography((current) => ({ ...current, font: event.target.value }));
+              }} value={biblicalTypography.font}>{BIBLICAL_FONTS.map((font) => <option key={font.id} value={font.id}>{font.name}</option>)}</select></label>
+              <label className="three-check"><input aria-label="Fondo tipografico biblico" checked={typographyBackdropActive} disabled={Boolean(modelLoading)} onChange={toggleTypographyBackdrop} type="checkbox" /> Fondo tipografico</label>
+              <label><span>Variante</span><select onChange={(event) => {
+                pushHistory();
+                setBiblicalTypography((current) => ({ ...current, variant: event.target.value }));
+              }} value={biblicalTypography.variant}>{BIBLICAL_VARIANTS.map((variant) => <option key={variant.id} value={variant.id}>{variant.name}</option>)}</select></label>
+              {["mural", "immersive"].includes(biblicalTypography.layout) && <label><span>Trama ({biblicalMuralRows * (biblicalTypography.layout === "immersive" ? 6 : 4)} textos)</span><input aria-label="Densidad del mural" max="8" min="3" onChange={(event) => setBiblicalTypography((current) => ({ ...current, muralRows: Number(event.target.value) }))} onPointerDown={pushHistory} step="1" type="range" value={biblicalMuralRows} /></label>}
+              <label><span>Relieve ({biblicalTypography.depth.toFixed(2)})</span><input aria-label="Relieve tipografico" max="0.65" min="0.06" onChange={(event) => setBiblicalTypography((current) => ({ ...current, depth: Number(event.target.value) }))} onPointerDown={pushHistory} step="0.01" type="range" value={biblicalTypography.depth} /></label>
+              <label><span>Velocidad ({biblicalTypography.speed.toFixed(1)}x)</span><input max="1.8" min="0.4" onChange={(event) => setBiblicalTypography((current) => ({ ...current, speed: Number(event.target.value) }))} onPointerDown={pushHistory} step="0.1" type="range" value={biblicalTypography.speed} /></label>
+              <label className="three-color-field"><span>Fondo</span><input aria-label="Fondo biblico" onChange={(event) => setBackground(event.target.value)} onPointerDown={pushHistory} type="color" value={background} /></label>
+              {biblicalTypography.layout !== "immersive" && <>
+                <label className="three-color-field"><span>Texto</span><input aria-label="Color del texto biblico" onChange={(event) => setBiblicalTypography((current) => ({ ...current, ink: event.target.value }))} onPointerDown={pushHistory} type="color" value={biblicalTypography.ink} /></label>
+                <label className="three-color-field"><span>Acento</span><input aria-label="Color de acento biblico" onChange={(event) => setBiblicalTypography((current) => ({ ...current, accent: event.target.value }))} onPointerDown={pushHistory} type="color" value={biblicalTypography.accent} /></label>
+              </>}
+              <div className="three-sublegend">Iluminacion</div>
+              <div className="three-biblical-lighting" role="group" aria-label="Iluminacion tipografica">
+                {BIBLICAL_LIGHTING.map((lighting) => <button aria-pressed={biblicalTypography.lighting === lighting.id} className={biblicalTypography.lighting === lighting.id ? "active" : ""} key={lighting.id} onClick={() => {
+                  pushHistory();
+                  setBiblicalTypography((current) => ({ ...current, lighting: lighting.id, atmosphere: lighting.id === "eerie" }));
+                }} type="button">{lighting.name}</button>)}
+              </div>
+              <label className="three-biblical-atmosphere"><input aria-label="Niebla baja tipografica" checked={biblicalTypography.atmosphere === true} onChange={(event) => {
+                pushHistory();
+                setBiblicalTypography((current) => ({ ...current, atmosphere: event.target.checked }));
+              }} type="checkbox" /><span>Niebla baja</span></label>
+            </div>}
             <div className="three-sublegend">Cielo e iluminacion</div>
             <div className="three-sky-presets">
-              {SKY_BACKGROUNDS.map((preset) => <button className={environmentBackground === preset.id ? "active" : ""} key={preset.id} onClick={() => applySkyPreset(preset)} style={{ backgroundImage: `url(${environmentThumbnail(preset)})` }} type="button"><span>{preset.name}</span></button>)}
+              {SKY_BACKGROUNDS.map((preset) => <button className={environmentBackground === preset.id ? "active" : ""} data-scene={preset.id === "sky-biblical-type" ? "biblical-typography" : preset.id === "sky-parthenon" ? "parthenon" : undefined} key={preset.id} onClick={() => ["sky-biblical-type", "sky-parthenon"].includes(preset.id) ? applyThemedScene(THEMED_SCENES.find((scenePreset) => scenePreset.sky === preset.id)) : applySkyPreset(preset)} style={preset.id === "sky-biblical-type" ? { background: "#06090a" } : { backgroundImage: `url(${environmentThumbnail(preset)})` }} type="button"><span>{preset.name}</span></button>)}
             </div>
-            <label className="three-check"><input checked={skyMotionEnabled} disabled={!environmentBackground.startsWith("sky-")} onChange={(event) => { pushHistory(); setSkyMotionEnabled(event.target.checked); }} type="checkbox" /><Sparkles size={16} /> Animar cielo</label>
-            <label><span>Velocidad cielo</span><input disabled={!environmentBackground.startsWith("sky-") || !skyMotionEnabled} max="1.5" min="0.05" onChange={(event) => setSkyMotionSpeed(Number(event.target.value))} onPointerDown={pushHistory} step="0.05" type="range" value={skyMotionSpeed} /></label>
+            <label className="three-check"><input checked={skyMotionEnabled} disabled={!environmentBackground.startsWith("sky-") || environmentBackground === "sky-parthenon"} onChange={(event) => { pushHistory(); setSkyMotionEnabled(event.target.checked); }} type="checkbox" /><Sparkles size={16} /> Animar cielo</label>
+            <label><span>Velocidad cielo</span><input disabled={!environmentBackground.startsWith("sky-") || environmentBackground === "sky-parthenon" || !skyMotionEnabled} max="1.5" min="0.05" onChange={(event) => setSkyMotionSpeed(Number(event.target.value))} onPointerDown={pushHistory} step="0.05" type="range" value={skyMotionSpeed} /></label>
             <div className="three-sky-realism">
               <div className="three-sublegend">Atmosfera realista</div>
               <label className="three-check"><input checked={realisticSky.enabled} disabled={!REALISTIC_SKY_BACKGROUNDS.has(environmentBackground)} onChange={(event) => { pushHistory(); setRealisticSky((current) => ({ ...current, enabled: event.target.checked })); }} type="checkbox" /><Sun size={16} /> Sol y nubes fisicas</label>
@@ -8686,7 +9031,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
               <button className={activeLightingRig === "fire" ? "active" : ""} onClick={() => applyLightingRig("fire")} type="button"><Flame size={15} /> Fuego</button>
               <button disabled={!activeLightingRig && !(environmentBackground === "sky-ruined-gothic-church" && churchLightingSettings.enabled)} onClick={() => clearLightingRig()} type="button"><Trash2 size={15} /> Quitar luces</button>
             </div>
-            <label className="three-color-field"><span>Fondo</span><input disabled={environmentBackground !== "solid"} onChange={(event) => setBackground(event.target.value)} type="color" value={background} /></label>
+            <label className="three-color-field"><span>Fondo</span><input disabled={environmentBackground !== "solid" && environmentBackground !== "sky-biblical-type"} onChange={(event) => setBackground(event.target.value)} type="color" value={background} /></label>
             <label><span>Exposicion</span><input max="2.5" min="0.25" onChange={(event) => setExposure(Number(event.target.value))} step="0.05" type="range" value={exposure} /></label>
             <label><span>Luz ambiente</span><input max="3" min="0" onChange={(event) => setAmbientIntensity(Number(event.target.value))} step="0.1" type="range" value={ambientIntensity} /></label>
             <div className="three-floor-surfaces">
@@ -8701,11 +9046,6 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
               <label><span>Velocidad del viento</span><input disabled={!grassSettings.enabled || grassSettings.windStrength === 0} max="3" min="0.1" onChange={(event) => setGrassSettings((current) => ({ ...current, windSpeed: Number(event.target.value) }))} onPointerDown={pushHistory} step="0.1" type="range" value={grassSettings.windSpeed} /></label>
             </div>}
             {floorSurface === "infernal" && <div className="three-lava-controls">
-              <div className="three-sublegend">Lava activa</div>
-              <label className="three-check"><input checked={lavaSettings.enabled} onChange={(event) => { pushHistory(); setLavaSettings((current) => ({ ...current, enabled: event.target.checked })); }} type="checkbox" /><Flame size={16} /> Chorros y salpicaduras</label>
-              <label><span>Cantidad ({lavaSettings.jetCount})</span><input disabled={!lavaSettings.enabled} max="24" min="0" onChange={(event) => setLavaSettings((current) => ({ ...current, jetCount: Number(event.target.value) }))} onPointerDown={pushHistory} step="1" type="range" value={lavaSettings.jetCount} /></label>
-              <label><span>Intervalo ({lavaSettings.interval}s)</span><input disabled={!lavaSettings.enabled} max="14" min="2" onChange={(event) => setLavaSettings((current) => ({ ...current, interval: Number(event.target.value) }))} onPointerDown={pushHistory} step="0.5" type="range" value={lavaSettings.interval} /></label>
-              <label><span>Altura ({lavaSettings.height.toFixed(1)}x)</span><input disabled={!lavaSettings.enabled} max="1.8" min="0.4" onChange={(event) => setLavaSettings((current) => ({ ...current, height: Number(event.target.value) }))} onPointerDown={pushHistory} step="0.1" type="range" value={lavaSettings.height} /></label>
               <div className="three-sublegend">Gas volcanico</div>
               <label className="three-check"><input checked={lavaSettings.gasEnabled} onChange={(event) => { pushHistory(); setLavaSettings((current) => ({ ...current, gasEnabled: event.target.checked })); }} type="checkbox" /><CloudFog size={16} /> Chorros de gas</label>
               <label><span>Cantidad ({lavaSettings.gasCount})</span><input disabled={!lavaSettings.gasEnabled} max="24" min="0" onChange={(event) => setLavaSettings((current) => ({ ...current, gasCount: Number(event.target.value) }))} onPointerDown={pushHistory} step="1" type="range" value={lavaSettings.gasCount} /></label>
@@ -8834,6 +9174,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         cinematicSelectionName={CINEMATIC_PRESETS.find((item) => item.id === cinematicCamera.preset)?.name || CINEMATIC_SHOTS.find((item) => item.id === cinematicCamera.shot)?.name || "Plano actual"}
         directorPreset={directorPreset}
         animationLoop={animationLoop}
+        sceneAnimationsPlaying={sceneAnimationsPlaying}
         currentTime={animationTime}
         duration={animationDuration}
         keyframes={animationTracks[selectedId] || []}
@@ -8841,6 +9182,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
         onAddCameraKeyframe={addCameraKeyframe}
         onAudioImport={importSoundtrack}
         onAnimationLoopChange={setAnimationLoop}
+        onSceneAnimationsChange={setSceneAnimationPlayback}
         onAutoDirect={createAutomaticDirection}
         onBeatDirect={createBeatDirection}
         onClear={clearSelectedAnimation}

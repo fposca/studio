@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export const CHURCH_FOG_BACKGROUNDS = new Set(["sky-ruined-gothic-church", "sky-gothic-church", "sky-cemetery", "sky-night-swamp", "sky-medieval-apocalypse", "sky-moonlit-peaks", "sky-space"]);
+export const CHURCH_FOG_BACKGROUNDS = new Set(["sky-ruined-gothic-church", "sky-gothic-church", "sky-cemetery", "sky-night-swamp", "sky-medieval-apocalypse", "sky-medieval-village", "sky-moonlit-peaks", "sky-space", "sky-space-ship"]);
 export const DEFAULT_CHURCH_FOG = Object.freeze({
   enabled: false, intensity: 0.5, color: "#768291", height: 3.8, coverage: 32,
   windEnabled: true, windSpeed: 0.7, windDirection: 35, turbulence: 0.6

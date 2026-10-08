@@ -40,6 +40,18 @@ Los presets mueven la camara al seleccionarlos; la transicion suave se reproduce
 
 Para animar una secuencia manual, coloca la linea de tiempo en 0 s y pulsa **Guardar vista** abajo. Avanza a otro tiempo, elige otro plano y vuelve a pulsar **Guardar vista**. El boton **Play** (triangulo, abajo a la izquierda) reproduce las vistas guardadas; durante la reproduccion cambia a **Pausa**.
 
+## Gamer 90s
+
+El entorno **Fabrica** fue reemplazado por **Gamer 90s**: un cuarto 3D con PC 486, monitor CRT con Guybrush saludando en loop, teclado, disquetes, cama, biblioteca y afiches de Doom, Indiana Jones, Maniac Mansion y Monkey Island. Incluye una TV retro sobre su mueble al pie de la cama; el escritorio queda sin silla para agregar una propia. Se elige en **Escena > Entorno**. Conserva el identificador del entorno anterior para abrir los proyectos guardados.
+
+El mobiliario usa roble con veta y relieve a escala: escritorio con cajones y cantos, biblioteca, cama y placard de dos puertas adelantado junto a la pared izquierda. Las cortinas de tela tejida tienen pliegues 3D, costuras, argollas y barral metalico.
+
+La biblioteca incluye novelas, manuales de PC y guias de juegos con tapas, lomos impresos, cantos de papel y desgaste. Los volumenes tienen distintas medidas, algunos se apilan o inclinan, y el estante superior contiene cajas de juegos y CD-ROM.
+
+La cama tiene un acolchado de Monkey Island con estampado de algodon, relleno acolchado, puntadas, ribetes y caida sobre los laterales y los pies. Incluye una vuelta de tela en la cabecera, colchon tapizado y almohada mullida con costuras.
+
+El frente queda abierto y las superficies de las paredes se ocultan al mirar desde afuera para no tapar a los personajes; los afiches y el placard conservan sus sombras. Las pantallas se pausan junto con las animaciones generales. En **Luz del cuarto gamer** se puede elegir Dia, Atardecer o Noche y encender/apagar la luz interior independientemente; las pantallas siguen encendidas. Estos ajustes se guardan con el proyecto y admiten deshacer.
+
 ## Space Ship
 
 El antiguo escenario **Patio del castillo** ahora es **Space Ship**: una cabina industrial con mamparos y metal desgastado, esclusas, conductos, ventanas al espacio y un centro de computo con terminales, teclados y racks. Los proyectos guardados con el patio se migran al nuevo escenario al abrirlos.

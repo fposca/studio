@@ -1073,6 +1073,30 @@ label {
   white-space: nowrap;
 }
 
+.three-scene-toggle {
+  align-items: center;
+  border: 1px solid #39434d;
+  border-radius: 5px;
+  color: #b8c4cf;
+  cursor: pointer;
+  display: flex;
+  font-size: 10px;
+  gap: 6px;
+  min-height: 27px;
+  padding: 4px 6px;
+  white-space: nowrap;
+}
+
+.three-scene-toggle.active {
+  border-color: #398f7e;
+  color: #ddfff2;
+}
+
+.three-scene-toggle input {
+  accent-color: #40cbaa;
+  margin: 0;
+}
+
 .three-animation-controls {
   align-items: center;
   display: flex;
@@ -2021,6 +2045,14 @@ label {
   width: 100%;
 }
 
+.three-create-text .three-check,
+.three-biblical-controls .three-check {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  font-size: 11px;
+}
+
 .three-create-text button {
   justify-content: center;
 }
@@ -2414,6 +2446,30 @@ label {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.three-gamer-periods {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.three-gamer-periods button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 46px;
+  padding: 5px 2px;
+  font-size: 10px;
+}
+
+.three-gamer-periods button.active {
+  border-color: #49b8a8;
+  background: #23433e;
+}
+
 .three-background-presets {
   display: grid;
   gap: 6px;
@@ -2499,6 +2555,134 @@ label {
   height: 68px;
 }
 
+.three-scene-presets button[data-scene="biblical-typography"],
+.three-sky-presets button[data-scene="biblical-typography"] {
+  position: relative;
+}
+
+.three-scene-presets button[data-scene="biblical-typography"]::before,
+.three-sky-presets button[data-scene="biblical-typography"]::before {
+  color: #d4b878;
+  content: "Aa";
+  font-family: Georgia, serif;
+  font-size: 28px;
+  font-style: italic;
+  left: 50%;
+  line-height: 1;
+  position: absolute;
+  top: 5px;
+  transform: translateX(-50%);
+}
+
+.three-biblical-lighting {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.three-biblical-lighting button {
+  min-width: 0;
+  padding: 7px 3px;
+  font-size: 10px;
+}
+
+.three-biblical-controls label.three-biblical-atmosphere {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.three-biblical-controls .three-biblical-atmosphere input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+}
+
+.three-biblical-controls {
+  border-bottom: 1px solid #303842;
+  border-top: 1px solid #303842;
+  display: grid;
+  gap: 8px;
+  padding: 8px 0 12px;
+}
+
+.three-biblical-controls label {
+  align-items: stretch;
+  gap: 4px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.three-biblical-controls input,
+.three-biblical-controls select,
+.three-biblical-controls textarea {
+  min-width: 0;
+  width: 100%;
+}
+
+.three-biblical-controls textarea {
+  background: #101519;
+  border: 1px solid #424c56;
+  border-radius: 4px;
+  color: #e6e9e9;
+  font: 12px/1.45 Arial, sans-serif;
+  min-height: 82px;
+  padding: 8px;
+  resize: vertical;
+}
+
+.three-biblical-verse-tabs,
+.three-biblical-layouts {
+  display: grid;
+  gap: 5px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.three-biblical-verse-tabs button,
+.three-biblical-lighting button,
+.three-biblical-layouts button {
+  border: 1px solid #424c56;
+  border-radius: 4px;
+  min-height: 29px;
+  min-width: 0;
+  padding: 4px;
+}
+
+.three-biblical-verse-tabs button.active,
+.three-biblical-lighting button.active,
+.three-biblical-layouts button.active {
+  background: #263b35;
+  border-color: #80b79b;
+  color: #e6f2e7;
+}
+
+.three-biblical-layouts button {
+  font-size: 9px;
+  white-space: normal;
+}
+
+.three-biblical-layouts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.three-biblical-text-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px 28px;
+  align-items: center;
+  gap: 4px;
+}
+
+.three-biblical-text-actions .three-sublegend {
+  margin: 0;
+}
+
+.three-biblical-text-actions button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
 .three-floor-surfaces {
   display: grid;
   gap: 5px;
@@ -2576,6 +2760,44 @@ label {
 }
 
 @media (max-width: 720px) {
+  .app-shell,
+  .editor-stack,
+  .editor-pane,
+  .three-editor {
+    grid-template-columns: minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .app-shell .app-header {
+    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .app-header > div:first-child,
+  .header-brand {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .header-brand {
+    white-space: nowrap;
+  }
+
+  .app-shell .header-brand img {
+    flex: 0 0 40px;
+    width: 40px;
+  }
+
+  .header-brand .header-edition {
+    display: none;
+  }
+
+  .app-header > div:first-child > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .three-editor {
     grid-template-rows: 50px auto auto;
     height: max-content;

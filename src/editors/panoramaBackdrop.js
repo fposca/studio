@@ -7,6 +7,7 @@ export function createPanoramaBackdrop({ name, horizontalRepeat = 1, horizontalO
   const material = new THREE.ShaderMaterial({
     uniforms: {
       panorama: { value: null }, zenithTexture: { value: null }, zenithTextureEnabled: { value: 0 },
+      panoramaTexelSize: { value: new THREE.Vector2(1, 1) }, detailStrength: { value: 0 },
       intensity: { value: intensity },
       horizontalRepeat: { value: horizontalRepeat }, horizontalOffset: { value: horizontalOffset },
       horizontalMirror: { value: horizontalMirror ? 1 : 0 },
@@ -27,6 +28,8 @@ export function createPanoramaBackdrop({ name, horizontalRepeat = 1, horizontalO
     `,
     fragmentShader: `
       uniform sampler2D panorama;
+      uniform vec2 panoramaTexelSize;
+      uniform float detailStrength;
       uniform sampler2D zenithTexture;
       uniform float zenithTextureEnabled;
       uniform float intensity;
@@ -50,7 +53,29 @@ export function createPanoramaBackdrop({ name, horizontalRepeat = 1, horizontalO
         vec2 uv = vec2(horizontalMirror > 0.5
           ? 1.0 - abs(mod(horizontalUv, 2.0) - 1.0)
           : fract(horizontalUv), clamp(verticalUv, 0.0, 1.0));
-        vec3 color = texture2D(panorama, uv).rgb * intensity;
+        vec3 color = texture2D(panorama, uv).rgb;
+        if (detailStrength > 0.0) {
+          vec2 x = vec2(panoramaTexelSize.x, 0.0);
+          vec2 y = vec2(0.0, panoramaTexelSize.y);
+          vec3 neighbors = (texture2D(panorama, clamp(uv + x, 0.0, 1.0)).rgb
+            + texture2D(panorama, clamp(uv - x, 0.0, 1.0)).rgb
+            + texture2D(panorama, clamp(uv + y, 0.0, 1.0)).rgb
+            + texture2D(panorama, clamp(uv - y, 0.0, 1.0)).rgb) * 0.25;
+          color = clamp(color + (color - neighbors) * detailStrength, 0.0, 1.0);
+
+          vec2 starGrid = vPanoramaUv * vec2(800.0, 400.0);
+          vec2 cell = floor(starGrid);
+          float seed = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+          if (seed > 0.994) {
+            vec2 starPosition = vec2(
+              fract(sin(dot(cell, vec2(127.1, 311.7))) * 43758.5453),
+              fract(sin(dot(cell, vec2(269.5, 183.3))) * 43758.5453)
+            );
+            float star = 1.0 - smoothstep(0.04, 0.4, length(fract(starGrid) - starPosition));
+            color += mix(vec3(0.38, 0.7, 0.9), vec3(0.95, 0.9, 0.75), seed) * star * 0.46;
+          }
+        }
+        color *= intensity;
         if (seamBlend > 0.0 && horizontalMirror < 0.5) {
           vec3 edgeColor = (texture2D(panorama, vec2(0.001, uv.y)).rgb
             + texture2D(panorama, vec2(0.999, uv.y)).rgb) * intensity * 0.5;
@@ -95,6 +120,8 @@ export function createPanoramaBackdrop({ name, horizontalRepeat = 1, horizontalO
   };
   mesh.userData.setTexture = (texture, brightness = intensity) => {
     material.uniforms.panorama.value = texture;
+    const image = texture?.image;
+    material.uniforms.panoramaTexelSize.value.set(1 / (image?.width || 1), 1 / (image?.height || 1));
     material.uniforms.intensity.value = brightness;
     mesh.visible = Boolean(texture);
   };

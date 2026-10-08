@@ -1,512 +1,336 @@
 import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import brushedMetalUrl from "../assets/environments/brushed-metal-texture.png";
-import wornAlloyUrl from "../assets/environments/ship-worn-alloy-v1.png";
-import { createShipHolograms } from "./shipHolograms.js";
 
-export function buildSpaceShipSet(textureFactories) {
+const ARCH = [
+  [-12.6, 0], [-12.35, 2.8], [-11.6, 5.8], [-9.7, 8.7], [-5.2, 10.4],
+  [0, 10.8], [5.2, 10.4], [9.7, 8.7], [11.6, 5.8], [12.35, 2.8], [12.6, 0]
+];
+const RIB_DEPTHS = [-20.5, -14.4, -8.3, -2.2, 3.9, 10];
+
+function organicShape(width, height) {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, height / 2);
+  shape.bezierCurveTo(width * 0.44, height * 0.5, width * 0.58, height * 0.27, width * 0.44, -height * 0.16);
+  shape.bezierCurveTo(width * 0.32, -height * 0.43, width * 0.18, -height * 0.5, 0, -height / 2);
+  shape.bezierCurveTo(-width * 0.18, -height * 0.5, -width * 0.32, -height * 0.43, -width * 0.44, -height * 0.16);
+  shape.bezierCurveTo(-width * 0.58, height * 0.27, -width * 0.44, height * 0.5, 0, height / 2);
+  return shape;
+}
+
+function vaultGeometry() {
+  const curve = new THREE.CatmullRomCurve3(ARCH.map(([x, y]) => new THREE.Vector3(x, y, 0)));
+  const points = curve.getPoints(80);
+  const positions = [], uvs = [], indices = [];
+  for (let column = 0; column < points.length; column++) {
+    const point = points[column];
+    positions.push(point.x, point.y, -21, point.x, point.y, 11);
+    uvs.push(column / 8, 0, column / 8, 6);
+    if (column < points.length - 1) {
+      const a = column * 2;
+      indices.push(a, a + 2, a + 1, a + 2, a + 3, a + 1);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+export function buildSpaceShipSet(maps = {}, environment = null) {
   const group = new THREE.Group();
   group.name = "Space Ship";
-  group.userData.editorHelper = true;
   group.visible = false;
-  const geometries = new Set();
-  const materials = new Set();
-  const textures = new Set();
+  group.userData.editorHelper = true;
+  const materials = new Set(), geometries = new Set();
+  const textures = new Set(Object.values(maps).filter(Boolean));
   const staticMeshes = [];
   const lights = [];
   const pulses = [];
-  const runners = [];
-  const loader = new THREE.TextureLoader();
-  const texture = (url, repeat) => {
-    const map = loader.load(url);
-    map.colorSpace = THREE.SRGBColorSpace;
-    map.wrapS = map.wrapT = THREE.RepeatWrapping;
-    map.repeat.set(...repeat);
-    map.anisotropy = 8;
-    textures.add(map);
-    return map;
-  };
-  const worn = texture(wornAlloyUrl, [1.5, 1.5]);
-  const brushed = texture(brushedMetalUrl, [2, 2]);
-  const floorRelief = textureFactories.surfaceReliefTexture("floor");
-  textures.add(floorRelief);
-  const material = (settings) => {
-    const result = new THREE.MeshStandardMaterial(settings);
-    materials.add(result);
-    return result;
-  };
-  const hull = material({ map: worn, bumpMap: worn, bumpScale: 0.014,
-    color: 0x89958f, metalness: 0.32, roughness: 0.61 });
-  const steel = material({ map: brushed, bumpMap: brushed, bumpScale: 0.012,
-    color: 0x7c8a8b, metalness: 0.82, roughness: 0.36 });
-  const graphite = material({ map: worn, bumpMap: worn, bumpScale: 0.014,
-    color: 0x485357, metalness: 0.46, roughness: 0.62 });
-  const rubber = material({ color: 0x111719, roughness: 0.91, metalness: 0.05 });
-  const deck = material({ map: brushed, bumpMap: floorRelief, bumpScale: 0.045,
-    color: 0x414c4d, metalness: 0.68, roughness: 0.52 });
-  const ceiling = material({ map: brushed, bumpMap: brushed, bumpScale: 0.013,
-    color: 0x7e8d87, metalness: 0.48, roughness: 0.55 });
-  const enamel = material({ map: worn, color: 0xb3b7ae, bumpMap: worn,
-    bumpScale: 0.012, roughness: 0.57, metalness: 0.18 });
-  const hazard = material({ color: 0xc5a361, roughness: 0.61, metalness: 0.25 });
-  const whiteLight = material({ color: 0x8a8e83, emissive: 0xe1e2c8,
-    emissiveIntensity: 1.6, roughness: 0.45, toneMapped: false });
-  const indicator = new THREE.MeshBasicMaterial({ color: 0xb2dcaa, toneMapped: false });
-  const glass = new THREE.MeshPhysicalMaterial({ color: 0xb7d0ca, roughness: 0.12,
-    clearcoat: 1, metalness: 0, transparent: true, opacity: 0.095, depthWrite: false });
-  materials.add(indicator);
-  materials.add(glass);
-  const mesh = (name, geometry, mat, parent = group, isStatic = true) => {
-    const object = new THREE.Mesh(geometry, mat);
-    object.name = name;
-    object.receiveShadow = !mat.transparent;
-    parent.add(object);
-    geometries.add(geometry);
-    if (isStatic && !mat.transparent) staticMeshes.push(object);
-    return object;
-  };
-  const box = (name, size, position, mat, parent = group, bevel = 0, isStatic = true) => {
-    const geometry = bevel
-      ? new RoundedBoxGeometry(...size, 1, Math.min(bevel, Math.min(...size) * 0.4))
-      : new THREE.BoxGeometry(...size);
-    const object = mesh(name, geometry, mat, parent, isStatic);
-    object.position.set(...position);
-    return object;
-  };
-  const beam = (name, start, end, width, depth, mat, parent = group) => {
-    const a = new THREE.Vector3(...start);
-    const b = new THREE.Vector3(...end);
-    const direction = b.clone().sub(a);
-    const object = box(name, [width, direction.length(), depth], [0, 0, 0], mat, parent, 0.045);
-    object.position.copy(a.add(b).multiplyScalar(0.5));
-    object.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
-    return object;
-  };
-  const pipe = (name, points, radius, mat, parent = group) => {
-    const path = new THREE.CatmullRomCurve3(points.map((point) => new THREE.Vector3(...point)));
-    return mesh(name, new THREE.TubeGeometry(path, Math.max(12, points.length * 6), radius, 8, false), mat, parent);
-  };
-  const cylinder = (name, radius, height, position, mat, parent = group) => {
-    const object = mesh(name, new THREE.CylinderGeometry(radius, radius, height, 24), mat, parent);
-    object.position.set(...position);
-    return object;
-  };
-  const label = (text, width, height, position, parent = group, color = "#c4c9b8") => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 512;
-    canvas.height = 96;
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = color;
-    ctx.font = "bold 38px monospace";
-    ctx.textBaseline = "middle";
-    ctx.fillText(text, 9, 48, 490);
-    const map = new THREE.CanvasTexture(canvas);
-    map.colorSpace = THREE.SRGBColorSpace;
-    textures.add(map);
-    const mat = new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, opacity: 0.8 });
+  const material = (name, settings) => {
+    const mat = new THREE.MeshStandardMaterial(settings);
+    mat.name = name;
     materials.add(mat);
-    const object = mesh(text, new THREE.PlaneGeometry(width, height), mat, parent, false);
-    object.position.set(...position);
-    return object;
+    return mat;
   };
-  const neon = (name, size, position, color, phase, parent = group) => {
-    const mat = material({ color: 0x162422, emissive: color, emissiveIntensity: 1,
-      roughness: 0.35, toneMapped: false });
-    pulses.push({ material: mat, phase });
-    return box(name, size, position, mat, parent, 0.02);
-  };
-  const screenMaterials = new Map();
-  const screen = (kind, width, height, position, parent) => {
-    let mat = screenMaterials.get(kind);
-    if (!mat) {
-      const map = kind === "operations" ? textureFactories.operationsTexture() : textureFactories.screenTexture(kind);
-      textures.add(map);
-      mat = new THREE.MeshBasicMaterial({ map, color: 0xabbcab, toneMapped: false });
-      materials.add(mat);
-      screenMaterials.set(kind, mat);
-    }
-    box("Terminal con carcasa profunda", [width + 0.24, height + 0.23, 0.39],
-      [position[0], position[1], position[2] - 0.2], graphite, parent, 0.09);
-    box("Bisel de pantalla", [width + 0.08, height + 0.07, 0.035],
-      [position[0], position[1], position[2] + 0.004], rubber, parent);
-    const display = mesh("Monitor " + kind, new THREE.PlaneGeometry(width, height), mat, parent);
-    display.position.set(position[0], position[1], position[2] + 0.024);
-    const pane = mesh("Protector de monitor", new THREE.PlaneGeometry(width, height), glass, parent, false);
-    pane.position.set(position[0], position[1], position[2] + 0.032);
-  };
-
-  // Individual panels sit above dark gaskets; repeated detail is batched below.
-  box("Casco inferior", [27, 0.22, 32], [0, -0.16, -5], graphite);
-  const treads = [];
-  for (let row = 0; row < 10; row += 1) {
-    const z = -19.3 + row * 3.05;
-    for (let column = -3; column <= 3; column += 1) {
-      const x = column * 3.68;
-      box("Junta de cubierta", [3.64, 0.035, 3], [x, 0.003, z], rubber);
-      box("Placa de cubierta", [3.52, 0.062, 2.87], [x, 0.039, z], deck, group, 0.02);
-      for (const side of [-1, 1]) {
-        box("Cierre de placa", [0.09, 0.012, 0.13], [x + side * 1.61, 0.077, z - 1.29], steel);
-      }
-      for (let y = -1; y <= 1; y += 1) {
-        for (let xOffset = -2; xOffset <= 2; xOffset += 1) {
-          treads.push([x + xOffset * 0.58, 0.079, z + y * 0.65]);
-        }
-      }
-    }
-  }
-  const treadGeometry = new THREE.BoxGeometry(0.24, 0.012, 0.035);
-  geometries.add(treadGeometry);
-  const treadMesh = new THREE.InstancedMesh(treadGeometry, steel, treads.length);
-  const instance = new THREE.Object3D();
-  treads.forEach((position, index) => {
-    instance.position.set(...position);
-    instance.rotation.y = index % 2 ? 0.55 : -0.55;
-    instance.updateMatrix();
-    treadMesh.setMatrixAt(index, instance.matrix);
+  const metal = (name, color, roughness, metalness = 0.9) => material(name, {
+    color, map: maps.alloy || null, bumpMap: maps.relief || null, bumpScale: 0.024,
+    roughnessMap: maps.relief || null, roughness, metalness
   });
-  treadMesh.name = "Antideslizante de acero";
-  group.add(treadMesh);
-  for (const side of [-1, 1]) {
-    box("Canal electrico de cubierta", [0.16, 0.025, 29.5], [side * 4.35, 0.085, -5], rubber);
-    neon("Guia de cubierta", [0.035, 0.019, 29], [side * 4.35, 0.102, -5], 0x437e72, side + 1);
-    const runner = box("Pulso de cubierta", [0.06, 0.025, 0.72], [side * 4.35, 0.119, -5],
-      indicator, group, 0.01, false);
-    runners.push(runner);
-    for (const z of [-18, -12, -6, 0, 6]) {
-      box("Marca de seguridad", [0.12, 0.012, 0.48], [side * 4.65, 0.086, z], hazard);
-    }
-  }
-
-  for (const side of [-1, 1]) {
-    const wall = new THREE.Group();
-    wall.name = "Mamparo industrial lateral";
-    wall.position.set(side * 13, 0, -5);
-    wall.rotation.y = -side * Math.PI / 2;
-    group.add(wall);
-    box("Zocalo tecnico", [31.8, 0.35, 0.8], [0, 0.2, 0.05], graphite, wall, 0.035);
-    box("Mamparo inferior", [31.8, 2.35, 0.45], [0, 1.5, -0.14], hull, wall, 0.05);
-    box("Mamparo superior", [31.8, 3.3, 0.55], [0, 7.1, -0.18], hull, wall, 0.05);
-    for (const x of [-14.1, -6.8, 0, 6.8, 14.1]) {
-      box("Division de mamparo", [0.7, 6.3, 0.72], [x, 3.8, 0], graphite, wall, 0.075);
-      box("Refuerzo de mamparo", [0.21, 4.9, 0.1], [x, 3.9, 0.41], steel, wall, 0.02);
-    }
-    for (const x of [-10.25, 10.25]) {
-      box("Umbral profundo de ventana", [6.05, 0.3, 0.78], [x, 2.75, 0.16], graphite, wall, 0.04);
-      box("Dintel profundo de ventana", [6.05, 0.3, 0.78], [x, 5.6, 0.16], graphite, wall, 0.04);
-      for (const direction of [-1, 1]) {
-        box("Jamba de ventana", [0.32, 2.85, 0.78], [x + direction * 2.87, 4.18, 0.16], graphite, wall, 0.04);
-        box("Junta de cristal", [0.055, 2.48, 0.06], [x + direction * 2.65, 4.18, 0.57], rubber, wall);
-      }
-      const pane = mesh("Cristal de observacion", new THREE.PlaneGeometry(5.37, 2.48), glass, wall, false);
-      pane.position.set(x, 4.18, -0.13);
-      box("Pasamanos bajo ventana", [5.75, 0.1, 0.18], [x, 2.45, 0.56], steel, wall, 0.025);
-      label("OBSERVATION // " + (side < 0 ? "PORT" : "STBD"), 3.5, 0.25, [x - 0.8, 2.11, 0.15], wall);
-    }
-    box("Panel de sistemas", [6.05, 2.8, 0.52], [3.4, 4.18, 0.05], hull, wall, 0.1);
-    for (const x of [1.3, 3.4, 5.5]) {
-      box("Registro de servicio", [1.75, 1.96, 0.11], [x, 4.25, 0.37], graphite, wall, 0.035);
-      for (let index = 0; index < 6; index += 1) {
-        box("Aleta de registro", [1.5, 0.055, 0.12], [x, 3.63 + index * 0.22, 0.47], steel, wall);
-      }
-    }
-    label("LIFE SUPPORT // 04", 4, 0.32, [1.5, 5.25, 0.39], wall);
-    box("Marco de esclusa", [5.8, 5.6, 0.45], [-3.4, 3.11, 0.18], graphite, wall, 0.18);
-    for (const direction of [-1, 1]) {
-      box("Hoja de esclusa", [2.51, 4.97, 0.2], [-3.4 + direction * 1.29, 3.11, 0.48], enamel, wall, 0.08);
-      box("Refuerzo vertical de esclusa", [0.19, 4.45, 0.065],
-        [-3.4 + direction * 0.28, 3.11, 0.62], steel, wall, 0.02);
-      box("Banda de precaucion", [0.15, 0.62, 0.035],
-        [-3.4 + direction * 2.24, 2.32, 0.63], hazard, wall);
-    }
-    label("AIRLOCK 02", 2.4, 0.28, [-4.6, 5.32, 0.63], wall);
-    neon("Baliza de esclusa", [0.5, 0.06, 0.06], [-3.4, 5.95, 0.49], 0xb6904e, side + 2, wall);
-    for (const z of [-17.8, -10.5, -3.2, 4.1]) {
-      box("Escotilla inferior", [0.06, 0.77, 4.9], [side * 12.69, 1.1, z], graphite, group, 0.02);
-    }
-    const slope = box("Panel oblicuo superior", [4.6, 0.24, 32], [side * 11.13, 7.14, -5], ceiling);
-    slope.rotation.z = -side * 0.7;
-    for (let line = 0; line < 3; line += 1) {
-      pipe("Conducto longitudinal", [
-        [side * (10.2 + line * 0.3), 7.57 - line * 0.16, 10],
-        [side * (10.2 + line * 0.3), 7.57 - line * 0.16, -15],
-        [side * 11.2, 6.8 - line * 0.15, -18.7],
-        [side * 11.2, 2.6, -19.1]
-      ], line === 1 ? 0.105 : 0.063, line === 1 ? rubber : steel);
-    }
-  }
-
-  box("Techo presurizado", [19.5, 0.3, 32], [0, 8.7, -5], graphite);
-  for (const z of [-18, -12, -6, 0, 6]) {
-    for (const side of [-1, 1]) {
-      box("Casete superior biselado", [7.8, 0.17, 5.45], [side * 5.3, 8.49, z], ceiling, group, 0.04);
-      box("Rebaje de ventilacion", [3.8, 0.12, 1.9], [side * 6, 8.33, z], rubber, group, 0.035);
-      for (let index = -4; index <= 4; index += 1) {
-        box("Rejilla de conducto", [3.42, 0.085, 0.09], [side * 6, 8.22, z + index * 0.17], steel);
-      }
-    }
-    box("Carcasa de luz cenital", [1.38, 0.26, 3.2], [0, 8.35, z], graphite, group, 0.05);
-    box("Difusor de luz cenital", [1.03, 0.06, 2.83], [0, 8.18, z], whiteLight, group, 0.025);
-    for (const side of [-1, 1]) {
-      pipe("Jaula de luminaria", [[side * 0.62, 8.22, z - 1.45],
-        [side * 0.62, 8.08, z], [side * 0.62, 8.22, z + 1.45]], 0.027, steel);
-    }
-  }
-  for (const [index, z] of [-19.6, -12.2, -4.8, 2.6, 10].entries()) {
-    for (const side of [-1, 1]) {
-      beam("Costilla vertical", [side * 12.38, 0, z], [side * 12.38, 5.65, z], 0.46, 0.68, graphite);
-      beam("Costilla oblicua", [side * 12.38, 5.55, z], [side * 9.12, 8.22, z], 0.43, 0.68, graphite);
-      neon("Neon de costilla", [0.065, 1.4, 0.07], [side * 12.1, 4.35, z + 0.38],
-        index % 2 ? 0x3acfb1 : 0x56bad8, index * 0.65 + side);
-      box("Anclaje de costilla", [0.83, 0.43, 0.96], [side * 12.35, 0.3, z], steel, group, 0.045);
-    }
-    beam("Travesano estructural", [-9.2, 8.21, z], [9.2, 8.21, z], 0.38, 0.68, graphite);
-    neon("Neon de travesano", [5.4, 0.033, 0.055], [0, 7.99, z + 0.36],
-      index % 2 ? 0x44b89b : 0xc49c55, index * 0.7);
-  }
-  box("Mamparo frontal inferior", [27, 4.25, 0.7], [0, 2.06, -21], hull, group, 0.05);
-  box("Mamparo frontal superior", [27, 2, 0.7], [0, 7.9, -21], hull, group, 0.05);
-  for (const x of [-11.5, -3.85, 3.85, 11.5]) {
-    box("Montante frontal", [0.72, 3.2, 0.8], [x, 5.5, -20.8], graphite, group, 0.05);
-  }
-  for (const x of [-7.65, 0, 7.65]) {
-    for (const y of [4.22, 6.77]) {
-      box("Marco frontal", [7.05, 0.24, 0.7], [x, y, -20.69], graphite, group, 0.035);
-      box("Junta frontal", [6.71, 0.048, 0.1], [x, y + (y < 5 ? 0.16 : -0.16), -20.23], rubber);
-    }
-    const pane = mesh("Cristal frontal blindado", new THREE.PlaneGeometry(6.85, 2.25), glass, group, false);
-    pane.position.set(x, 5.49, -20.95);
-  }
-  // Keep the camera-facing side open so exterior shots can frame the characters.
-  label("DEEP SPACE // COMMAND", 7, 0.39, [-3.5, 7.32, -20.6]);
-  const controlTargets = [];
-  const keyboard = (parent, position, width, id) => {
-    const controls = new THREE.Group();
-    controls.position.set(...position);
-    controls.rotation.x = 0.2;
-    parent.add(controls);
-    box("Bisel de teclado", [width, 0.12, 0.86], [0, 0, 0], steel, controls, 0.03);
-    const deckPanel = box("Botonera interactiva", [width - 0.12, 0.045, 0.74], [0, 0.08, 0],
-      rubber, controls, 0.012, false);
-    deckPanel.userData.shipInteraction = id;
-    controlTargets.push(deckPanel);
-    const keyGeometry = new RoundedBoxGeometry(0.115, 0.045, 0.11, 1, 0.008);
-    geometries.add(keyGeometry);
-    const keyMesh = new THREE.InstancedMesh(keyGeometry, enamel, 40);
-    const transform = new THREE.Object3D();
-    for (let row = 0; row < 4; row += 1) {
-      for (let column = 0; column < 10; column += 1) {
-        transform.position.set((column - 4.5) * 0.15 - 0.14, 0.13, (row - 1.5) * 0.15);
-        transform.updateMatrix();
-        keyMesh.setMatrixAt(row * 10 + column, transform.matrix);
-      }
-    }
-    controls.add(keyMesh);
-    for (let index = 0; index < 3; index += 1) {
-      cylinder("Selector rotativo", 0.071, 0.09, [width / 2 - 0.22, 0.15, -0.25 + index * 0.25], graphite, controls);
-      box("Indicador de selector", [0.017, 0.009, 0.066], [width / 2 - 0.22, 0.2, -0.26 + index * 0.25], hazard, controls);
-    }
-    box("Testigo de teclado", [0.06, 0.025, 0.07], [-width / 2 + 0.17, 0.13, -0.25], indicator, controls);
-  };
-  for (const [id, kind, x, z] of [
-    ["anatomy", "human", -7.4, -7.4], ["orbit", "planet", 7.4, -8.2]
-  ]) {
-    const station = new THREE.Group();
-    station.name = "Estacion " + id;
-    station.position.set(x, 0, z);
-    station.rotation.y = x < 0 ? 0.17 : -0.17;
-    group.add(station);
-    box("Base de estacion cientifica", [3.45, 0.3, 2.9], [0, 0.15, 0.05], graphite, station, 0.07);
-    box("Pedestal de estacion cientifica", [2.72, 1.02, 2.1], [0, 0.74, -0.11], enamel, station, 0.09);
-    box("Cubierta de control", [3.6, 0.22, 1.86], [0, 1.29, 0.52], graphite, station, 0.06);
-    for (let index = -4; index <= 4; index += 1) {
-      box("Rejilla inferior de consola", [0.105, 0.45, 0.075], [index * 0.22, 0.65, 0.98], rubber, station);
-    }
-    const monitor = new THREE.Group();
-    monitor.rotation.x = -0.13;
-    monitor.position.set(0, 1.89, -0.54);
-    station.add(monitor);
-    screen(kind, 2.65, 1.28, [0, 0, 0], monitor);
-    keyboard(station, [0, 1.37, 0.72], 2.3, id);
-    label(id === "anatomy" ? "BIO / 03" : "ORBIT / 02", 1.17, 0.16, [-0.6, 1.13, 1.51], station);
-    cylinder("Base de proyector", 0.62, 0.13, [0, 2.08, 0], graphite, station);
-    cylinder("Emisor holografico", 0.46, 0.04, [0, 2.17, 0], steel, station);
-    for (const side of [-1, 1]) {
-      pipe("Asidero de consola", [[side * 1.74, 0.91, 1.13], [side * 1.74, 1.44, 1.13],
-        [side * 1.74, 1.5, 0.42]], 0.036, steel, station);
-    }
-  }
-  const command = new THREE.Group();
-  command.name = "Centro de computo de mando";
-  command.position.set(0, 0, -16.8);
-  group.add(command);
-  box("Plinto del centro de computo", [8.8, 0.22, 3.3], [0, 0.1, 0.62], graphite, command, 0.07);
-  box("Bastidor central", [7.8, 1.13, 2.5], [0, 0.72, 0.35], enamel, command, 0.1);
-  for (const x of [-3.1, -1.55, 0, 1.55, 3.1]) {
-    box("Registro frontal de mando", [1.35, 0.77, 0.06], [x, 0.74, 1.64], graphite, command, 0.03);
-    box("Tirador de registro", [0.42, 0.045, 0.095], [x, 1, 1.72], steel, command, 0.014);
-  }
-  box("Mesa de operaciones", [9, 0.27, 2.28], [0, 1.49, 0.98], graphite, command, 0.08);
-  box("Soporte del monitor principal", [4.9, 1.52, 0.7], [0, 2.06, -0.46], hull, command, 0.06);
-  screen("operations", 4.9, 2.27, [0, 3.16, -0.01], command);
-  for (const side of [-1, 1]) {
-    const bank = new THREE.Group();
-    bank.position.set(side * 3.62, 2.52, 0.45);
-    bank.rotation.y = -side * 0.29;
-    command.add(bank);
-    screen(side < 0 ? "human" : "planet", 1.79, 1.33, [0, 0, 0], bank);
-    label(side < 0 ? "REACTOR" : "TELEMETRY", 1.1, 0.13, [-0.55, -0.84, 0.07], bank);
-  }
-  for (const x of [-3, 0, 3]) keyboard(command, [x, 1.66, 1.14], 2.35, "navigation");
-  label("CENTRAL OPERATIONS // 01", 4, 0.23, [-2, 1.25, 2.23], command);
-  cylinder("Proyector tactico central", 0.54, 0.1, [0, 4.47, 0.7], graphite, command);
-  const projectorMat = new THREE.MeshBasicMaterial({ color: 0x70b5a3, transparent: true,
-    opacity: 0.034, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending });
-  materials.add(projectorMat);
-  for (const [x, y, z, radius, height] of [[-7.4, 2.9, -7.4, 0.59, 1.5],
-    [7.4, 3.05, -8.2, 1.1, 1.7], [0, 4.73, -16.1, 0.7, 0.5]]) {
-    const cone = mesh("Volumen de proyeccion", new THREE.ConeGeometry(radius, height, 24, 1, true),
-      projectorMat, group, false);
-    cone.position.set(x, y, z);
-    cone.rotation.z = Math.PI;
-  }
-
-  const rackLedMaterials = [0x86a98c, 0xbfa05c, 0x6d9caa].map((color) => {
-    const mat = material({ color: 0x101514, emissive: color, emissiveIntensity: 0.9, toneMapped: false });
-    pulses.push({ material: mat, phase: pulses.length * 0.7 });
+  const hull = metal("Titanio ennegrecido", 0x42474b, 0.85);
+  const ribs = metal("Costillas de aleacion", 0x53595c, 0.42);
+  const steel = metal("Acero pulido", 0x79818a, 0.32, 0.96);
+  const dark = metal("Cavidades de grafito", 0x11171b, 0.8, 0.62);
+  // An explicit shared PMREM lets the deck use less fill than the surrounding hull.
+  const deck = material("Cubierta de metal gastado", {
+    map: maps.brushed || null, bumpMap: maps.relief || null, bumpScale: 0.055,
+    roughnessMap: maps.relief || null, roughness: 0.85,
+    color: 0x34393e, metalness: 0.94, envMap: environment, envMapIntensity: 0.12
+  });
+  const rubber = material("Juntas negras", { color: 0x06090b, metalness: 0.22, roughness: 0.87 });
+  const amber = [0, 1, 2].map((index) => {
+    const mat = material("Luz ambar " + index, { color: 0x211409, emissive: 0xff9f42,
+      emissiveIntensity: 2.1, toneMapped: false, roughness: 0.28 });
+    pulses.push({ material: mat, phase: index * 1.7 });
     return mat;
   });
-  for (const side of [-1, 1]) {
-    for (const [index, z] of [-12.4, -17.3].entries()) {
-      const rack = new THREE.Group();
-      rack.name = "Rack de computo";
-      rack.position.set(side * 11.64, 0, z);
-      rack.rotation.y = -side * 1.14;
-      group.add(rack);
-      box("Armario de computo", [2.5, 4.7, 1.25], [0, 2.39, 0], graphite, rack, 0.08);
-      for (const direction of [-1, 1]) {
-        box("Bastidor de rack", [0.13, 4.6, 0.18], [direction * 1.15, 2.38, 0.72], steel, rack, 0.025);
+  const mesh = (name, geometry, mat, parent = group) => {
+    const object = new THREE.Mesh(geometry, mat);
+    object.name = name;
+    object.receiveShadow = true;
+    parent.add(object);
+    staticMeshes.push(object);
+    geometries.add(geometry);
+    return object;
+  };
+  const box = (name, size, position, mat, parent = group, bevel = 0.04) => {
+    const geometry = bevel ? new RoundedBoxGeometry(...size, 1, Math.min(bevel, Math.min(...size) * 0.38)) : new THREE.BoxGeometry(...size);
+    const object = mesh(name, geometry, mat, parent);
+    object.position.set(...position);
+    return object;
+  };
+  const tube = (name, points, radius, mat, parent = group) => {
+    const curve = new THREE.CatmullRomCurve3(points.map((point) => new THREE.Vector3(...point)));
+    return mesh(name, new THREE.TubeGeometry(curve, Math.min(112, Math.max(24, points.length * 8)), radius, 10, false), mat, parent);
+  };
+  const torus = (name, radius, thickness, position, mat) => {
+    const object = mesh(name, new THREE.TorusGeometry(radius, thickness, 8, 80), mat);
+    object.rotation.x = Math.PI / 2;
+    object.position.set(...position);
+    return object;
+  };
+  const shell = (width, height, position, parent, horizontal = false) => {
+    const recess = new THREE.Group();
+    recess.name = "Cavidad biomecanica";
+    recess.position.set(...position);
+    if (horizontal) recess.rotation.x = Math.PI / 2;
+    parent.add(recess);
+    mesh("Fondo de cavidad", new THREE.ShapeGeometry(organicShape(width, height), 16), dark, recess).position.z = -0.035;
+    const frame = organicShape(width, height);
+    frame.holes.push(organicShape(width - 0.36, height - 0.42));
+    mesh("Borde organico del casco", new THREE.ExtrudeGeometry(frame, {
+      depth: 0.14, bevelEnabled: true, bevelSize: 0.045, bevelThickness: 0.045, bevelSegments: 2, curveSegments: 16
+    }), ribs, recess);
+    for (const offset of [0.02, 0.15]) {
+      const contour = organicShape(width - offset, height - offset).getPoints(44).map((p) => [p.x, p.y, 0.18 - offset * 0.5]);
+      tube("Nervadura de borde", contour, offset === 0.02 ? 0.045 : 0.024, steel, recess);
+    }
+    for (let index = 0; index < 14; index++) {
+      const y = (index / 13 - 0.5) * height * 0.78;
+      const halfWidth = width * 0.40 * Math.sqrt(1 - (y / (height * 0.5)) ** 2);
+      tube("Lama curva interior", [[-halfWidth, y, 0.06], [0, y - 0.08, -0.025], [halfWidth, y, 0.06]],
+        0.041, index % 3 ? ribs : steel, recess);
+    }
+    return recess;
+  };
+
+  // The vault runs behind the side ribs; the camera-facing end remains completely open.
+  mesh("Boveda continua de la nave", vaultGeometry(), hull);
+  box("Base de cubierta", [27, 0.2, 32], [0, -0.15, -5], dark);
+  const plateShape = new THREE.Shape();
+  const w = 2.05, d = 1.385, r = 0.31;
+  plateShape.moveTo(-w + r, -d);
+  plateShape.lineTo(w - r, -d);
+  plateShape.quadraticCurveTo(w, -d, w, -d + r);
+  plateShape.lineTo(w, d - r);
+  plateShape.quadraticCurveTo(w, d, w - r, d);
+  plateShape.lineTo(-w + r, d);
+  plateShape.quadraticCurveTo(-w, d, -w, d - r);
+  plateShape.lineTo(-w, -d + r);
+  plateShape.quadraticCurveTo(-w, -d, -w + r, -d);
+  const plateGeometry = new THREE.ExtrudeGeometry(plateShape, { depth: 0.035, bevelEnabled: true,
+    bevelSize: 0.012, bevelThickness: 0.012, bevelSegments: 1, curveSegments: 6 });
+  plateGeometry.rotateX(-Math.PI / 2);
+  const platePosition = plateGeometry.attributes.position;
+  const plateUv = plateGeometry.attributes.uv;
+  for (let index = 0; index < platePosition.count; index++) plateUv.setXY(index, platePosition.getX(index) / (w * 2) + 0.5, platePosition.getZ(index) / (d * 2) + 0.5);
+  const fasteners = [], grilles = [];
+  for (let row = 0; row < 11; row++) {
+    const z = -19.45 + row * 2.91;
+    for (const x of [-10.65, -6.39, -2.13, 2.13, 6.39, 10.65]) {
+      mesh("Placa de cubierta biselada", plateGeometry.clone(), deck).position.set(x, 0, z);
+      for (const side of [-1, 1]) {
+        box("Canal de junta", [0.055, 0.013, 2.3], [x + side * 1.86, 0.057, z], rubber, group, 0);
+        for (const end of [-1, 1]) fasteners.push([x + side * 1.79, 0.057, z + end * 1.13]);
       }
-      for (let row = 0; row < 7; row += 1) {
-        const y = 0.58 + row * 0.53;
-        box("Modulo de computo", [2.03, 0.45, 0.12], [0, y, 0.66], row % 3 ? graphite : enamel, rack, 0.025);
-        for (let vent = 0; vent < 3; vent += 1) {
-          box("Ranura de rack", [1.18, 0.035, 0.018], [-0.2, y - 0.1 + vent * 0.09, 0.73], rubber, rack);
-        }
-        for (let led = 0; led < 3; led += 1) {
-          box("LED de estado", [0.06, 0.065, 0.035], [0.58 + led * 0.15, y, 0.75], rackLedMaterials[(row + led) % 3], rack);
-        }
-      }
-      screen("operations", 1.9, 0.51, [0, 4.25, 0.7], rack);
-      label("CORE " + (side < 0 ? "A" : "B") + (index + 1), 1.12, 0.15, [-0.56, 4.78, 0.52], rack);
-      pipe("Mazo de datos", [[0.76, 4.65, -0.3], [0.82, 5.2, -0.35],
-        [0.7, 5.65, -0.74], [0.66, 6.5, -0.95]], 0.08, rubber, rack);
     }
   }
-  const holograms = createShipHolograms();
-  group.add(holograms);
-  const interactiveTargets = [...holograms.userData.targets, ...controlTargets];
-  const planetMap = textureFactories.planetTexture();
-  textures.add(planetMap);
-  const planetMaterial = material({ map: planetMap, color: 0x7f999e, roughness: 1,
-    emissive: 0x091c21, emissiveIntensity: 0.2 });
-  const outsidePlanet = mesh("Planeta exterior", new THREE.SphereGeometry(5, 40, 28), planetMaterial, group, false);
-  outsidePlanet.position.set(11, 9.5, -47);
-  const starGeometry = new THREE.BufferGeometry();
-  const positions = new Float32Array(900 * 3);
-  let seed = 74219;
-  const random = () => { seed = seed * 16807 % 2147483647; return (seed - 1) / 2147483646; };
-  for (let index = 0; index < 900; index += 1) {
-    const y = random() * 2 - 1;
-    const angle = random() * Math.PI * 2;
-    const radius = 95 + random() * 45;
-    const ringRadius = Math.sqrt(1 - y * y) * radius;
-    positions.set([Math.cos(angle) * ringRadius, y * radius, Math.sin(angle) * ringRadius - 5], index * 3);
+  plateGeometry.dispose();
+  for (const x of [-8.5, 0, 8.5]) {
+    box("Canal de drenaje", [0.66, 0.02, 31.8], [x, 0.052, -5], rubber, group, 0);
+    for (const side of [-1, 1]) box("Borde de drenaje", [0.04, 0.025, 31.8], [x + side * 0.34, 0.072, -5], steel, group, 0);
+    for (let index = 0; index < 152; index++) grilles.push([x, 0.074, -20.75 + index * 0.208]);
   }
-  starGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometries.add(starGeometry);
-  const starMaterial = new THREE.PointsMaterial({ color: 0xb9cdd5, size: 0.14,
-    transparent: true, opacity: 0.72, depthWrite: false });
-  materials.add(starMaterial);
-  const stars = new THREE.Points(starGeometry, starMaterial);
-  stars.name = "Campo de estrellas exterior";
-  group.add(stars);
-  for (const [position, color, intensity, distance] of [
-    [[0, 7.5, 1], 0xdadccc, 52, 27],
-    [[0, 7.2, -13.5], 0xd9dfd4, 65, 24],
-    [[-7.4, 3.4, -6.4], 0x6ebbaa, 8, 9],
-    [[7.4, 3.6, -7.2], 0x77adcc, 8, 9]
-  ]) {
-    const light = new THREE.PointLight(color, intensity, distance, 2);
+  const instanced = (name, geometry, mat, positions) => {
+    geometries.add(geometry);
+    const object = new THREE.InstancedMesh(geometry, mat, positions.length);
+    object.name = name;
+    const transform = new THREE.Matrix4();
+    positions.forEach((position, index) => { transform.makeTranslation(...position); object.setMatrixAt(index, transform); });
+    object.receiveShadow = true;
+    group.add(object);
+    return object;
+  };
+  instanced("Rejillas de cubierta", new THREE.BoxGeometry(0.57, 0.026, 0.05), steel, grilles);
+  instanced("Pernos de cubierta", new THREE.CylinderGeometry(0.036, 0.036, 0.013, 8), steel, fasteners);
+  const hatch = mesh("Escotilla circular de cubierta", new THREE.CylinderGeometry(3.2, 3.2, 0.042, 80), deck);
+  hatch.position.set(0, 0.06, -7.1);
+  for (const radius of [1.35, 2.65, 3.12]) {
+    torus("Junta circular de escotilla", radius, 0.05, [0, 0.087, -7.1], rubber);
+    torus("Aro mecanico de escotilla", radius + 0.075, 0.021, [0, 0.096, -7.1], steel);
+  }
+  for (let index = 0; index < 16; index++) {
+    const angle = index / 16 * Math.PI * 2;
+    const latch = box("Cierre radial de escotilla", [0.12, 0.022, 0.3], [Math.sin(angle) * 2.88, 0.095, -7.1 + Math.cos(angle) * 2.88], ribs, group, 0.016);
+    latch.rotation.y = angle;
+  }
+
+  for (const [index, z] of RIB_DEPTHS.entries()) {
+    const path = ARCH.map(([x, y]) => [x * 0.965, y * 0.968 + 0.08, z]);
+    tube("Costilla principal de la boveda", path, 0.255, ribs);
+    for (const offset of [-0.34, 0.34]) {
+      tube("Filete pulido de costilla", path.map(([x, y]) => [x * 0.995, y - 0.015, z + offset]), 0.071, steel);
+      tube("Conducto adosado", path.map(([x, y]) => [x * 1.014, y + 0.12, z + offset * 1.6]), 0.098, dark);
+    }
+    for (const side of [-1, 1]) {
+      for (const offset of [-0.26, 0.26]) {
+        tube("Raiz estructural curvada", [[side * 11.22, 0.06, z + offset * 3], [side * 11.82, 0.6, z + offset * 1.8],
+          [side * 11.67, 2.7, z + offset], [side * 10.6, 5.7, z], [side * 8.9, 8.3, z + offset]], 0.20, ribs);
+      }
+      const fixture = new THREE.Group();
+      fixture.position.set(side * 11.75, 1.07, z + 0.02);
+      fixture.rotation.z = -side * 0.32;
+      group.add(fixture);
+      box("Cuna de luminaria", [0.38, 1.28, 0.48], [0, 0, 0], dark, fixture, 0.12);
+      box("Luminaria ambar integrada", [0.094, 0.78, 0.08], [0, 0, 0.28], amber[index % amber.length], fixture, 0.03);
+      tube("Armadura de luminaria", [[-0.14, -0.49, 0.3], [-0.23, 0, 0.3], [-0.14, 0.49, 0.3]], 0.027, steel, fixture);
+      tube("Armadura de luminaria", [[0.14, -0.49, 0.3], [0.23, 0, 0.3], [0.14, 0.49, 0.3]], 0.027, steel, fixture);
+      box("Luz alta de costilla", [0.06, 1.2, 0.065], [side * 11.06, 5.7, z + 0.30], amber[(index + 1) % 3]);
+    }
+  }
+  for (let bay = 0; bay < RIB_DEPTHS.length - 1; bay++) {
+    const z = (RIB_DEPTHS[bay] + RIB_DEPTHS[bay + 1]) / 2;
+    for (const side of [-1, 1]) {
+      const wall = new THREE.Group();
+      wall.position.set(side * 11.95, 3.8, z);
+      wall.rotation.y = -side * Math.PI / 2;
+      wall.rotation.x = -0.08;
+      group.add(wall);
+      shell(5.1, 6.6, [0, 0, 0], wall);
+      const ceiling = shell(6.4, 4.85, [side * 5.35, 9.94, z], group, true);
+      ceiling.rotateY(-side * 0.24);
+      for (let duct = 0; duct < 3; duct++) {
+        tube("Tendones del mamparo", [[side * (11.4 - duct * 0.18), 0.2, z - 2.5],
+          [side * (12.0 - duct * 0.18), 2.1, z - 2.7], [side * (11.4 - duct * 0.18), 5.7, z - 2.4],
+          [side * (8.5 - duct * 0.18), 8.8, z - 2.3], [side * 4, 10.25, z - 2.2]], 0.042, duct % 2 ? steel : dark);
+      }
+    }
+    box("Rebaje de luminaria cenital", [0.62, 0.17, 2.1], [0, 10.2, z], dark);
+    box("Luminaria cenital ambar", [0.10, 0.055, 1.42], [0, 10.09, z], amber[bay % 3]);
+  }
+  for (const x of [-0.48, -0.23, 0.23, 0.48]) {
+    tube("Espina longitudinal del techo", [[x, 10.38, 10.7], [x, 10.33, 0], [x, 10.28, -15], [x * 1.3, 9.5, -20.1]],
+      Math.abs(x) > 0.3 ? 0.13 : 0.054, Math.abs(x) > 0.3 ? ribs : steel);
+  }
+
+  const backShape = new THREE.Shape();
+  new THREE.CatmullRomCurve3(ARCH.map(([x, y]) => new THREE.Vector3(x, y, 0))).getPoints(80).forEach((point, index) => {
+    if (index === 0) backShape.moveTo(point.x, point.y); else backShape.lineTo(point.x, point.y);
+  });
+  backShape.closePath();
+  const back = mesh("Mamparo posterior cerrado", new THREE.ShapeGeometry(backShape), hull);
+  back.position.z = -20.96;
+  for (const side of [-1, 1]) {
+    shell(4.1, 7.2, [side * 8.2, 4.25, -20.75], group);
+    shell(3.5, 5.6, [side * 3.4, 4.8, -20.74], group);
+    for (const offset of [0, 0.22]) {
+      tube("Nervadura ramificada posterior", [[side * (1.8 + offset), 0.07, -20.26], [side * (3.4 + offset), 1.5, -20.22],
+        [side * (5.6 + offset), 4.2, -20.23], [side * (6.1 + offset), 7.2, -20.27], [side * (9.5 + offset), 9.7, -20.3]],
+        offset ? 0.045 : 0.17, offset ? steel : ribs);
+    }
+    tube("Espina del mamparo posterior", [[side * 0.48, 0.04, -20.25], [side * 1.08, 1.6, -20.06],
+      [side * 0.74, 4.6, -20.12], [side * 1.4, 7.4, -20.1], [side * 5.0, 10.18, -20.2]], 0.29, ribs);
+    tube("Borde de espina posterior", [[side * 0.20, 0.08, -19.98], [side * 0.72, 1.6, -19.84],
+      [side * 0.4, 4.6, -19.90], [side * 1.08, 7.4, -19.88], [side * 4.9, 10.16, -19.95]], 0.05, steel);
+    box("Baliza del mamparo posterior", [0.06, 1.4, 0.05], [side * 0.44, 5.6, -19.82], amber[1]);
+  }
+
+  // Area lights make the warm fixtures reflect on the metal instead of acting as flat neon stripes.
+  for (const side of [-1, 1]) for (const z of [-12.5, 3.2]) {
+    const light = new THREE.RectAreaLight(0xffb365, 7, 1.8, 3.8);
+    light.name = "Luz rasante de mamparo";
+    light.position.set(side * 11.0, 2.8, z);
+    light.lookAt(0, 0.6, z - 1);
+    group.add(light);
+    lights.push({ light, intensity: 7, phase: z * 0.2 });
+  }
+  const overhead = new THREE.RectAreaLight(0xd5deeb, 3.2, 1.2, 24);
+  overhead.name = "Reflejo cenital frio";
+  overhead.position.set(0, 9.8, -5);
+  overhead.rotation.x = -Math.PI / 2;
+  group.add(overhead);
+  lights.push({ light: overhead, intensity: 3.2, phase: 0 });
+  for (const [position, intensity, color] of [[[0, 5.6, 7.5], 46, 0xc7d7e9], [[0, 5.7, -17.4], 30, 0xa4bad0]]) {
+    const light = new THREE.PointLight(color, intensity, 30, 2);
     light.position.set(...position);
     group.add(light);
-    lights.push(light);
+    lights.push({ light, intensity, phase: 1.2 });
   }
-  const projectionLights = lights.slice(-2);
 
-  // Batch the static hull by material; moving holograms and controls keep their own meshes.
   group.updateMatrixWorld(true);
   const batches = new Map();
   for (const object of staticMeshes) {
-    const bucket = batches.get(object.material) || [];
     const geometry = object.geometry.index ? object.geometry.toNonIndexed() : object.geometry.clone();
     geometry.applyMatrix4(object.matrixWorld);
-    bucket.push(geometry);
-    batches.set(object.material, bucket);
+    const batch = batches.get(object.material) || [];
+    batch.push(geometry);
+    batches.set(object.material, batch);
     object.removeFromParent();
-    geometries.delete(object.geometry);
     object.geometry.dispose();
+    geometries.delete(object.geometry);
   }
-  const blockers = [];
   for (const [mat, parts] of batches) {
     const geometry = mergeGeometries(parts, false);
     parts.forEach((part) => part.dispose());
-    if (!geometry) throw new Error("No se pudo construir la estructura de Space Ship");
-    geometries.add(geometry);
+    if (!geometry) throw new Error("No se pudo construir el casco biomecanico");
+    geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
+    geometries.add(geometry);
     const object = new THREE.Mesh(geometry, mat);
-    object.name = "Estructura de nave";
+    object.name = "Nave / " + mat.name;
     object.receiveShadow = true;
     group.add(object);
-    blockers.push(object);
   }
+  const shadowMaterial = new THREE.ShadowMaterial({ color: 0x010407, opacity: 0.68, transparent: true, depthWrite: false });
+  const shadowGeometry = new THREE.PlaneGeometry(27, 32);
+  const shadowCatcher = new THREE.Mesh(shadowGeometry, shadowMaterial);
+  shadowCatcher.name = "Sombras sobre cubierta";
+  shadowCatcher.rotation.x = -Math.PI / 2;
+  shadowCatcher.position.set(0, 0.115, -5);
+  shadowCatcher.receiveShadow = true;
+  shadowCatcher.renderOrder = 3;
+  group.add(shadowCatcher);
+  materials.add(shadowMaterial);
+  geometries.add(shadowGeometry);
   let disposed = false;
-  group.userData.holograms = holograms;
-  group.userData.interactiveTargets = interactiveTargets;
-  group.userData.pick = (raycaster) => {
-    if (!group.visible || disposed) return null;
-    group.updateMatrixWorld(true);
-    const hit = raycaster.intersectObjects(interactiveTargets, false)[0];
-    if (!hit) return null;
-    const obstruction = raycaster.intersectObjects(blockers, false)[0];
-    return obstruction && obstruction.distance < hit.distance - 0.08 ? null : hit;
-  };
-  group.userData.hover = (id) => holograms.userData.hover(group.visible ? id : null);
-  group.userData.activate = (id) => group.visible && !disposed ? holograms.userData.activate(id) : null;
-  group.userData.animate = (time, active, reduced = false) => {
+  group.userData.animate = (time, active) => {
     group.visible = Boolean(active && !disposed);
-    holograms.userData.animate(time, group.visible, reduced);
     if (!group.visible) return;
     const seconds = time * 0.001;
-    pulses.forEach(({ material: mat, phase }) => {
-      mat.emissiveIntensity = 0.48 + (Math.sin(seconds * Math.PI / 4 - phase) * 0.5 + 0.5) * 0.76;
-    });
-    runners.forEach((runner, index) => { runner.position.z = -19.2 + ((seconds / 10 + index * 0.5) % 1) * 28.5; });
-    outsidePlanet.rotation.y = seconds * 0.003;
-    projectionLights.forEach((light, index) => {
-      light.intensity = 7.2 + Math.sin(seconds * Math.PI / 3 + index * Math.PI / 2) * 0.8;
-    });
+    pulses.forEach(({ material: mat, phase }) => { mat.emissiveIntensity = 2.0 + Math.sin(seconds * Math.PI / 5 + phase) * 0.10; });
+    lights.forEach(({ light, intensity, phase }) => { light.intensity = intensity * (0.97 + Math.sin(seconds * Math.PI / 5 + phase) * 0.03); });
   };
   group.userData.dispose = () => {
     if (disposed) return;
     disposed = true;
     group.visible = false;
-    holograms.userData.dispose();
     group.traverse((object) => { if (object.isInstancedMesh) object.dispose(); });
     geometries.forEach((geometry) => geometry.dispose());
     materials.forEach((mat) => mat.dispose());
     textures.forEach((map) => map.dispose());
-    lights.forEach((light) => light.dispose());
+    lights.forEach(({ light }) => light.dispose());
   };
   return group;
 }

@@ -1,0 +1,3 @@
+Generated with the built-in imagegen tool.
+
+Use case: historical-scene. Asset type: seamless color texture for a real-time 3D reconstruction of the classical Parthenon exterior. Create a high-definition, square, perfectly tileable flat albedo texture of weathered Pentelic marble: warm ivory and pale honey stone, very subtle gray-gold mineral veining, fine crystalline grain, believable small age stains and weathering, no dramatic black veins. Orthographic flat scan appearance, uniform diffuse illumination, no directional light, no cast shadows, no perspective, no objects, no columns, no architecture, no borders, no text, no watermark. The texture must repeat invisibly on all four edges and retain crisp fine detail when seen up close.
