@@ -1,0 +1,85 @@
+.neon-game { position: relative; width: 100%; height: 100%; min-height: 390px; overflow: hidden; background: #090d0e; color: #f5f8f5; letter-spacing: 0; isolation: isolate; }
+.neon-game:fullscreen { height: 100dvh; }
+.neon-game-canvas { display: block; width: 100%; height: 100%; outline: none; touch-action: none; }
+.neon-game-hud { position: absolute; inset: 22px 24px auto; display: grid; grid-template-columns: minmax(190px, 1fr) auto minmax(190px, 1fr); align-items: start; gap: 24px; pointer-events: none; text-shadow: 0 1px 5px #000; }
+.neon-game-vitals { width: 230px; max-width: 100%; padding: 13px 15px; background: #101718df; border-left: 3px solid #65e6b4; border-radius: 3px; }
+.neon-game-name { display: flex; align-items: center; gap: 9px; font-size: 12px; }
+.neon-game-name > svg { color: #65e6b4; flex-shrink: 0; }
+.neon-game-name > span { margin-left: auto; font-variant-numeric: tabular-nums; }
+.neon-game-name small { color: #bcc7c3; font-size: 10px; }
+.neon-game-health { height: 7px; background: #3f4a46; margin-top: 11px; overflow: hidden; border-radius: 2px; }
+.neon-game-health i { display: block; height: 100%; background: #65e6b4; transition: width 160ms ease; }
+.is-danger .neon-game-health i { background: #ff6a5e; }
+.is-danger .neon-game-vitals { border-left-color: #ff6a5e; }
+.neon-game-objective { display: grid; justify-items: center; gap: 5px; padding: 10px 20px; background: #101718cd; border-top: 2px solid #e4bd66; border-radius: 3px; }
+.neon-game-objective > span:first-child { font-size: 10px; color: #ebdfb9; }
+.neon-game-objective strong { display: flex; align-items: center; gap: 8px; font-size: 25px; font-variant-numeric: tabular-nums; }
+.neon-game-objective strong svg { color: #f1cf6f; }
+.neon-game-objective strong small { font-size: 15px; font-weight: 400; color: #c6cec8; }
+.neon-game-enemies { display: flex; align-items: center; gap: 5px; color: #d0d7d3; font-size: 11px; }
+.neon-game-tools { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; pointer-events: auto; justify-self: end; max-width: 280px; }
+.neon-game button { background: #101718de; border: 1px solid #afc7be55; border-radius: 4px; padding: 8px; min-width: 36px; min-height: 36px; color: #f5f8f5; touch-action: none; }
+.neon-game button:hover { background: #2f4440; border-color: #a4c2b7; }
+.neon-game button:focus-visible { outline: 2px solid #68edbf; outline-offset: 3px; }
+.neon-game button[aria-pressed="true"] { color: #82f1cb; background: #193e35eb; border-color: #63be9e; }
+.neon-game-period { display: flex; margin-right: 5px; }
+.neon-game-period button { border-radius: 0; }
+.neon-game-period button:first-child { border-radius: 4px 0 0 4px; }
+.neon-game-period button:last-child { border-radius: 0 4px 4px 0; }
+.neon-game-bottom { position: absolute; inset: auto 24px 22px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 12px; pointer-events: none; }
+.neon-game-weapons { grid-column: 2; display: flex; gap: 6px; pointer-events: auto; }
+.neon-game-weapons button { position: relative; width: 49px; height: 52px; }
+.neon-game-weapons button.is-locked { color: #a4adab; background: #141a1bd9; cursor: default; }
+.neon-game-lock { position: absolute; bottom: 4px; right: 4px; }
+.neon-game-actions { display: flex; align-items: end; justify-self: end; gap: 9px; pointer-events: auto; }
+.neon-game-actions button { width: 50px; height: 50px; border-radius: 50%; }
+.neon-game-actions .neon-game-primary-action { width: 64px; height: 64px; background: #193e35e8; border-color: #80d6b6; }
+.neon-game-joystick { display: grid; place-items: center; width: 112px; height: 112px; border: 1px solid #e0ede57a; border-radius: 50%; background: #111c2255; pointer-events: auto; touch-action: none; user-select: none; }
+.neon-game-stick { display: block; width: 46px; height: 46px; border-radius: 50%; background: #e0eee099; border: 1px solid #f0fff2aa; pointer-events: none; }
+.neon-game-overlay { position: absolute; inset: 0; display: grid; place-items: center; background: #060b0bc9; backdrop-filter: blur(5px); padding: 18px; z-index: 5; }
+.neon-game-dialog { width: min(350px, 100%); display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 30px; text-align: center; background: #131b1a; border: 1px solid #52685d; border-radius: 6px; }
+.neon-game-dialog h2 { margin: 0; font-size: 23px; line-height: 1.2; }
+.neon-game-dialog p { margin: 0; line-height: 1.5; font-size: 13px; color: #c0ccc5; overflow-wrap: anywhere; }
+.neon-game-dialog > button { width: 100%; padding: 11px; }
+.neon-game-dialog progress { accent-color: #68edbf; width: 100%; height: 8px; }
+.neon-game-dialog > span { font-size: 12px; color: #a8b9b0; }
+.neon-game-results { display: flex; gap: 22px; font-size: 14px; }
+.neon-game-results span { display: flex; align-items: center; gap: 5px; }
+.neon-game-trophy { color: #f1cf6f; }
+.neon-game-loading { display: grid; place-items: center; height: 100%; }
+@media (min-width: 901px) and (pointer: fine) { .neon-game-joystick { visibility: hidden; } }
+@media (max-width: 900px) {
+  .neon-game-hud { inset: 12px 12px auto; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; }
+  .neon-game-vitals { width: 205px; }
+  .neon-game-objective { grid-column: 2; grid-row: 1; padding: 9px 13px; }
+  .neon-game-objective > span:first-child { font-size: 9px; }
+  .neon-game-tools { grid-column: 1 / -1; grid-row: 2; justify-self: start; max-width: none; }
+  .neon-game-bottom { inset: auto 14px 14px; }
+  .neon-game-weapons { gap: 4px; }
+  .neon-game-weapons button { width: 39px; height: 44px; min-width: 0; }
+  .neon-game-actions { gap: 6px; }
+  .neon-game-actions button { width: 43px; height: 43px; min-width: 0; }
+  .neon-game-actions .neon-game-primary-action { width: 55px; height: 55px; }
+}
+@media (max-width: 520px) {
+  .neon-game { min-height: 460px; }
+  .neon-game-hud { inset: 10px 10px auto; gap: 8px; }
+  .neon-game-vitals { width: 174px; padding: 10px; }
+  .neon-game-name { font-size: 10px; gap: 6px; }
+  .neon-game-objective { max-width: 142px; padding: 9px; }
+  .neon-game-objective > span:first-child { text-align: center; line-height: 1.3; }
+  .neon-game-objective strong { font-size: 21px; }
+  .neon-game-tools { gap: 4px; }
+  .neon-game-tools button { min-width: 32px; min-height: 32px; padding: 6px; }
+  .neon-game-bottom { grid-template-columns: 1fr 1fr; gap: 18px; }
+  .neon-game-weapons { grid-column: 1 / -1; grid-row: 1; justify-self: center; }
+  .neon-game-joystick { grid-column: 1; grid-row: 2; width: 100px; height: 100px; }
+  .neon-game-actions { grid-column: 2; grid-row: 2; align-self: center; }
+}
+@media (max-height: 540px) and (min-width: 521px) {
+  .neon-game { min-height: 300px; }
+  .neon-game-hud { inset: 8px 12px auto; grid-template-columns: 1fr auto 1fr; }
+  .neon-game-objective { grid-column: 2; }
+  .neon-game-tools { grid-column: 3; grid-row: 1; justify-self: end; max-width: 145px; }
+  .neon-game-joystick { width: 85px; height: 85px; }
+}

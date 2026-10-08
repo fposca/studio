@@ -8,6 +8,8 @@
   "packageManager": "pnpm@12.4.2",
   "type": "module",
   "scripts": {
+    "test:game": "node --no-opt --test src/game/*.test.js",
+    "test:game:browser": "playwright test --config tests/game.playwright.config.js",
     "dev": "concurrently \"corepack pnpm run server\" \"corepack pnpm run client\"",
     "client": "vite --host 127.0.0.1",
     "server": "node server/index.js",
@@ -17,6 +19,7 @@
     "dist:win": "corepack pnpm run build && node desktop/build-windows.js"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
     "@vitejs/plugin-react": "^5.0.2",
     "concurrently": "^9.2.1",
     "cors": "^2.8.5",
@@ -34,6 +37,7 @@
     "vite": "^7.1.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "electron": "^38.1.2",
     "electron-builder": "^26.0.12",
     "firebase-tools": "^15.30.1"

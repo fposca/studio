@@ -3,5 +3,7 @@ node_modules/
 dist/
 release/
 server/work/
+test-results/
+playwright-report/
 .DS_Store
 *.log

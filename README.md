@@ -58,6 +58,16 @@ El antiguo escenario **Patio del castillo** ahora es **Space Ship**: una cabina 
 
 El neon y los indicadores se animan en loop con el tiempo de la escena. Los hologramas 3D de anatomia, orbitas y navegacion cambian de modo al hacer clic o tocar la proyeccion o su botonera; arrastrar sigue controlando la camara. Volver a aplicar **Space Ship** carga su nueva iluminacion en proyectos anteriores.
 
+## Juego: Neonboy
+
+La pestana **Juego** abre una partida en tercera persona en el exterior del Partenon. Neonboy HD puede caminar, correr, saltar y atacar con punetazos y patadas; vuelve a reposo al soltar el movimiento. El objetivo es juntar las 24 monedas evitando o derrotando a cuatro guardianes. Hay vida, invulnerabilidad breve tras recibir un golpe, victoria, derrota, pausa y reinicio. Las columnas, paredes y escalones tienen colisiones con Rapier.
+
+Controles: **WASD o flechas** para moverse; **Mayus** para correr; **Espacio** para saltar; **J o clic izquierdo** para golpear; **K** para patear; **Q/E o arrastrar con boton derecho** para girar la camara; **rueda** para acercarla; **P/Escape** para pausar. En pantallas tactiles hay joystick, botones de accion y giro de camara arrastrando el escenario. Los botones tienen sus acciones y teclas en el tooltip.
+
+El escenario admite Dia, Atardecer y Noche. Se puede silenciar y usar pantalla completa. Cambiar de pestana cierra la partida y libera sus recursos; las escenas del editor no se modifican. El inventario reserva cuatro tipos: cuerpo a cuerpo, espada, ballesta y hacha. En este MVP solo cuerpo a cuerpo esta habilitado; las otras armas quedan para la siguiente etapa. Las partidas todavia no se guardan.
+
+Verificacion del juego: `pnpm run test:game` y `pnpm run test:game:browser` (requiere Chrome). La prueba de navegador usa un escenario aislado de desarrollo y guarda capturas en `test-results/`. La fisica usa el [controlador de personajes de Rapier](https://rapier.rs/docs/user_guides/javascript/character_controller/).
+
 ## Autenticacion y roles
 
 La web y la aplicacion de escritorio usan Firebase Authentication con email y contrasena. Copia `.env.example` como `.env.local` y completa `VITE_FIREBASE_API_KEY` antes de iniciar o compilar. Por defecto, el desarrollo usa el proyecto Firebase configurado. Para trabajar completamente en local, define `VITE_USE_FIREBASE_EMULATORS=true` y levanta Emulator Suite.

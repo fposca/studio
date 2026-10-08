@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import logo from "./assets/logo.png";
 import { AuthLoading, Dashboard as DashboardView, DesktopAccessDenied, Login as LoginView, ProjectSaveDialog as ProjectSaveDialogView, ViewerDemo } from "./components/AppInterfaces";
 import { useAuth } from "./auth/AuthProvider.jsx";
@@ -33,6 +33,7 @@ import {
   Eye,
   EyeOff,
   Film,
+  Gamepad2,
   FileAudio,
   FileText,
   FlipHorizontal,
@@ -87,6 +88,8 @@ import {
   Unlink2,
   X
 } from "lucide-react";
+
+const NeonGame = lazy(() => import("./game/NeonGame.jsx"));
 
 const API = window.location.port === "5173" ? "http://127.0.0.1:5174" : window.location.origin;
 const IS_DESKTOP_APP = navigator.userAgent.includes("Electron");
@@ -5014,6 +5017,7 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
+    if (tab === "game") { setWizardScreen(""); return; }
     if (!localStorage.getItem(`${WIZARD_SEEN_PREFIX}${tab}`)) {
       setWizardScreen(tab);
     }
@@ -5165,9 +5169,12 @@ export default function App() {
           <button className={tab === "three" ? "active" : ""} onClick={() => setTab("three")}>
             <Box size={17} /> Estudio 3D
           </button>
+          <button className={tab === "game" ? "active" : ""} onClick={() => setTab("game")}>
+            <Gamepad2 size={17} /> Juego
+          </button>
         </nav>
         <div className="header-actions">
-          <button className="icon-button" data-tooltip="Guardar proyecto" onClick={() => setSaveDialogOpen(true)}>
+          <button className="icon-button" disabled={tab === "game"} data-tooltip="Guardar proyecto" onClick={() => setSaveDialogOpen(true)}>
             <Save size={18} />
           </button>
           <button className="icon-button" data-tooltip="Ver proyectos guardados" onClick={() => setTab("home")}>
@@ -5176,6 +5183,7 @@ export default function App() {
           <button
             className="icon-button"
             data-tooltip="Ver wizard"
+            disabled={tab === "game"}
             onClick={() => setWizardScreen(tab)}
           >
             <CircleHelp size={18} />
@@ -5223,6 +5231,11 @@ export default function App() {
             openProjectSignal={openSignals.three}
           />
         </div>
+        {tab === "game" && <div className="editor-pane">
+          <Suspense fallback={<div className="neon-game-loading" role="status"><Loader2 className="spin" size={28} /></div>}>
+            <NeonGame />
+          </Suspense>
+        </div>}
       </div>
       <CustomTooltip />
       {saveDialogOpen && (
