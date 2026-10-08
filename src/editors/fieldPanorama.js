@@ -18,7 +18,7 @@ export function createFieldPanorama() {
     name: "Panorama nitido de campo",
     // The source is a landscape photograph, not a 360-degree equirectangular capture.
     horizontalRepeat: 4, horizontalOffset: 0.5, horizontalMirror: true,
-    horizonCompression: 2.2, verticalScale: 1.6, verticalOffset: -0.12,
+    horizonCompression: 2.2, verticalScale: 2.6, verticalOffset: -0.18,
     zenithCap: 1
   });
   panorama.material.toneMapped = false;
