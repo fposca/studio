@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowUp, Axe, Coins, Crosshair, Footprints, Hand, Heart, Loader2, LockKeyhole, Maximize, Minimize, Moon, Pause, Play, RotateCcw, Skull, Sun, Sunset, Sword, Trophy, Volume2, VolumeX } from "lucide-react";
+import { ArrowRight, ArrowUp, Axe, Coins, Crosshair, Footprints, Hammer, Hand, Heart, Loader2, LockKeyhole, Maximize, Minimize, Moon, Pause, Play, RotateCcw, Skull, Sun, Sunset, Sword, Trophy, Volume2, VolumeX } from "lucide-react";
 import { createNeonGame } from "./createNeonGame.js";
 import { MAX_HEALTH, WEAPONS } from "./gameRules.js";
 import "./neonGame.css";
 
-const WEAPON_ICONS = { unarmed: Hand, sword: Sword, crossbow: Crosshair, axe: Axe };
+const WEAPON_ICONS = { unarmed: Hand, sword: Sword, hammer: Hammer, crossbow: Crosshair, axe: Axe };
 
 function GameButton({ label, children, ...props }) {
   return <button aria-label={label} title={label} type="button" {...props}>{children}</button>;
@@ -39,7 +39,7 @@ export default function NeonGame({ onReady }) {
   const [error, setError] = useState("");
   const [muted, setMuted] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
-  const [state, setState] = useState({ health: MAX_HEALTH, coins: 0, total: 24, enemies: 4, defeated: 0, time: 0, status: "playing", paused: false, period: "day" });
+  const [state, setState] = useState({ health: MAX_HEALTH, coins: 0, total: 24, enemies: 4, defeated: 0, time: 0, status: "playing", paused: false, period: "day", level: 1, levelName: "El Partenon", inventory: ["unarmed"], equipped: "unarmed" });
   useEffect(() => {
     const controller = new AbortController();
     setReady(false);
@@ -67,6 +67,8 @@ export default function NeonGame({ onReady }) {
     return () => document.removeEventListener("fullscreenchange", change);
   }, []);
   const blocked = !ready || Boolean(error) || state.paused || state.status !== "playing";
+  const EquippedIcon = WEAPON_ICONS[state.equipped] || Hand;
+  const equippedWeapon = WEAPONS.find((weapon) => weapon.id === state.equipped);
   function toggleFullscreen() {
     const request = document.fullscreenElement ? document.exitFullscreen?.() : shellRef.current?.requestFullscreen?.();
     request?.catch(() => {});
@@ -76,14 +78,14 @@ export default function NeonGame({ onReady }) {
     event.currentTarget.setPointerCapture(event.pointerId);
     gameRef.current?.hold(kind, true);
   }
-  return <section ref={shellRef} className="neon-game" aria-label="Neonboy: las monedas del Partenon">
+  return <section ref={shellRef} className="neon-game" aria-label={`Neonboy: ${state.levelName}`}>
     <canvas key={attempt} ref={canvasRef} className="neon-game-canvas" tabIndex={0} aria-label="Escenario 3D de Neonboy" />
     <div className={`neon-game-hud${state.health <= 25 ? " is-danger" : ""}`}>
       <div className="neon-game-vitals">
         <div className="neon-game-name"><Heart size={17} fill="currentColor" /><strong>NEONBOY</strong><span>{state.health}<small> / {MAX_HEALTH}</small></span></div>
         <div className="neon-game-health" role="progressbar" aria-label="Vida" aria-valuenow={state.health} aria-valuemin={0} aria-valuemax={MAX_HEALTH}><i style={{ width: `${state.health}%` }} /></div>
       </div>
-      <div className="neon-game-objective"><span>LAS MONEDAS DEL PARTENON</span><strong><Coins size={22} /> {state.coins}<small> / {state.total}</small></strong><span className="neon-game-enemies"><Skull size={13} /> {state.defeated} / {state.enemies}</span></div>
+      <div className="neon-game-objective"><span>NIVEL {state.level} - {state.levelName.toUpperCase()}</span><strong><Coins size={22} /> {state.coins}<small> / {state.total}</small></strong><span className="neon-game-enemies"><Skull size={13} /> {state.defeated} / {state.enemies}</span></div>
       <div className="neon-game-tools">
         <div className="neon-game-period" role="group" aria-label="Hora del dia">
           {[['day', 'Dia', Sun], ['sunset', 'Atardecer', Sunset], ['night', 'Noche', Moon]].map(([id, label, Icon]) => <GameButton key={id} label={label} disabled={!ready || Boolean(error)} aria-pressed={state.period === id} onClick={() => gameRef.current?.setPeriod(id)}><Icon size={17} /></GameButton>)}
@@ -94,21 +96,24 @@ export default function NeonGame({ onReady }) {
         <GameButton label={fullscreen ? "Salir de pantalla completa" : "Pantalla completa"} onClick={toggleFullscreen}>{fullscreen ? <Minimize size={18} /> : <Maximize size={18} />}</GameButton>
       </div>
     </div>
+    {state.pickup && <div className="neon-game-pickup" role="status"><EquippedPickup weapon={state.pickup} /></div>}
     <div className="neon-game-bottom">
       <Joystick disabled={blocked} onMove={(x, z) => gameRef.current?.move(x, z)} />
       <div className="neon-game-weapons" role="group" aria-label="Armas">
-        {WEAPONS.map((weapon) => { const Icon = WEAPON_ICONS[weapon.id]; return <GameButton key={weapon.id}
-          label={weapon.available ? weapon.name : `${weapon.name}: proximamente`} aria-disabled={!weapon.available} aria-pressed={weapon.available}
-          className={!weapon.available ? "is-locked" : "is-equipped"}><Icon size={23} />{!weapon.available && <LockKeyhole className="neon-game-lock" size={10} />}</GameButton>; })}
+        {WEAPONS.map((weapon) => { const Icon = WEAPON_ICONS[weapon.id], owned = state.inventory.includes(weapon.id); return <GameButton key={weapon.id}
+          label={owned ? `${weapon.name} (${weapon.key})` : `${weapon.name}: ${weapon.key ? "sin recoger" : "proximamente"}`}
+          disabled={blocked || !owned} aria-pressed={state.equipped === weapon.id}
+          onClick={() => gameRef.current?.equip(weapon.id)}
+          className={!owned ? "is-locked" : state.equipped === weapon.id ? "is-equipped" : ""}><Icon size={23} />{!owned && <LockKeyhole className="neon-game-lock" size={10} />}</GameButton>; })}
       </div>
       <div className="neon-game-actions">
         <GameButton label="Saltar (Espacio)" disabled={blocked} onClick={() => gameRef.current?.action("jump")}><ArrowUp size={25} /></GameButton>
         <GameButton label="Patada (K)" disabled={blocked} onPointerDown={(event) => hold("kick", event)}
           onPointerUp={() => gameRef.current?.hold("kick", false)} onPointerCancel={() => gameRef.current?.hold("kick", false)} onLostPointerCapture={() => gameRef.current?.hold("kick", false)}
           onClick={(event) => { if (event.detail === 0) gameRef.current?.action("kick"); }}><Footprints size={23} /></GameButton>
-        <GameButton label="Punetazo (J o clic)" className="neon-game-primary-action" disabled={blocked} onPointerDown={(event) => hold("punch", event)}
+        <GameButton label={`${state.equipped === "unarmed" ? "Punetazo" : equippedWeapon.name} (J o clic)`} className="neon-game-primary-action" disabled={blocked} onPointerDown={(event) => hold("punch", event)}
           onPointerUp={() => gameRef.current?.hold("punch", false)} onPointerCancel={() => gameRef.current?.hold("punch", false)} onLostPointerCapture={() => gameRef.current?.hold("punch", false)}
-          onClick={(event) => { if (event.detail === 0) gameRef.current?.action("punch"); }}><Hand size={27} /></GameButton>
+          onClick={(event) => { if (event.detail === 0) gameRef.current?.action("punch"); }}><EquippedIcon size={27} /></GameButton>
       </div>
     </div>
     {(!ready || error) && <div className="neon-game-overlay" role={error ? "alert" : "status"}>
@@ -123,8 +128,14 @@ export default function NeonGame({ onReady }) {
         <h2 id="neon-game-result">{state.status === "won" ? "Tesoro recuperado" : state.status === "lost" ? "Neonboy ha caido" : "En pausa"}</h2>
         <div className="neon-game-results"><span><Coins size={18} /> {state.coins} / {state.total}</span><span><Skull size={18} /> {state.defeated} / {state.enemies}</span><span>{Math.floor(state.time / 60)}:{String(state.time % 60).padStart(2, "0")}</span></div>
         {state.paused && <button autoFocus type="button" onClick={() => { gameRef.current?.setPaused(false); canvasRef.current?.focus(); }}><Play size={17} /> Continuar</button>}
+        {state.nextLevel && <button autoFocus type="button" onClick={() => gameRef.current?.nextLevel()}><ArrowRight size={17} /> Nivel 2: Cementerio</button>}
         <button type="button" onClick={() => gameRef.current?.restart()}><RotateCcw size={17} /> Volver a empezar</button>
       </div>
     </div>}
   </section>;
+}
+
+function EquippedPickup({ weapon }) {
+  const Icon = WEAPON_ICONS[weapon], name = WEAPONS.find((entry) => entry.id === weapon)?.name;
+  return <><Icon size={20} /><span>{name} {weapon === "sword" ? "recogida" : "recogido"}</span></>;
 }

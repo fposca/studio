@@ -4,12 +4,13 @@ export function createGameInput(canvas, onPause, onInteract) {
   const keys = new Set();
   const held = new Set();
   const touch = { x: 0, z: 0 };
-  let jump = false, attack = null, dragging = null, enabled = true;
+  let jump = false, attack = null, equipment = null, dragging = null, enabled = true;
   const orbit = { yaw: 0.15, pitch: 0.26, distance: 7.5 };
   const controller = new AbortController();
   const options = { signal: controller.signal };
   const isField = (target) => /INPUT|TEXTAREA|SELECT/.test(target?.tagName) || target?.isContentEditable;
-  function clear() { keys.clear(); held.clear(); touch.x = touch.z = 0; jump = false; attack = null; dragging = null; }
+  function clear() { keys.clear(); held.clear(); touch.x = touch.z = 0; jump = false; attack = null; equipment = null; dragging = null; }
+  function equip(weapon) { if (enabled) { equipment = weapon; onInteract?.(); } }
   function action(kind) {
     if (!enabled) return;
     onInteract?.();
@@ -23,6 +24,12 @@ export function createGameInput(canvas, onPause, onInteract) {
       return;
     }
     if (!enabled) return;
+    const slot = /^(?:Digit|Numpad)([123])$/.exec(event.code);
+    if (slot) {
+      event.preventDefault();
+      if (!event.repeat) equip(["unarmed", "sword", "hammer"][Number(slot[1]) - 1]);
+      return;
+    }
     if (MOVEMENT_KEYS.has(event.code) || ["Space", "KeyJ", "KeyK"].includes(event.code)) {
       event.preventDefault();
       onInteract?.();
@@ -61,7 +68,7 @@ export function createGameInput(canvas, onPause, onInteract) {
     orbit.distance = Math.max(3.5, Math.min(12, orbit.distance + event.deltaY * 0.006));
   }, { ...options, passive: false });
   return {
-    orbit, touch, action,
+    orbit, touch, action, equip,
     hold(kind, pressed) { if (pressed && enabled) { held.add(kind); action(kind); } else held.delete(kind); },
     clear,
     setEnabled(value) { enabled = value; if (!value) clear(); },
@@ -70,10 +77,11 @@ export function createGameInput(canvas, onPause, onInteract) {
       if (keys.has("KeyE")) orbit.yaw -= dt * 1.8;
       const value = { x: Number(keys.has("KeyD") || keys.has("ArrowRight")) - Number(keys.has("KeyA") || keys.has("ArrowLeft")) + touch.x,
         z: Number(keys.has("KeyS") || keys.has("ArrowDown")) - Number(keys.has("KeyW") || keys.has("ArrowUp")) + touch.z,
-        run: keys.has("ShiftLeft") || keys.has("ShiftRight"), yaw: orbit.yaw, jump,
+        run: keys.has("ShiftLeft") || keys.has("ShiftRight"), yaw: orbit.yaw, jump, equip: equipment,
         attack: attack || (keys.has("KeyK") || held.has("kick") ? "kick" : keys.has("KeyJ") || held.has("punch") ? "punch" : null) };
       jump = false;
       attack = null;
+      equipment = null;
       return value;
     },
     dispose() { controller.abort(); clear(); }

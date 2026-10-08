@@ -5,38 +5,9 @@ import { BOUNDS, FIXED_STEP } from "./gameRules.js";
 import { GameWorld, initializePhysics } from "./gameWorld.js";
 import { createGameCharacter, disposeObjects, loadGameCharacters } from "./gameCharacters.js";
 import { createGameInput } from "./gameInput.js";
-
-function createSound() {
-  let context, muted = false;
-  const unlock = () => {
-    if (muted) return;
-    try {
-      context ||= new (window.AudioContext || window.webkitAudioContext)();
-      if (context.state === "suspended") context.resume().catch(() => {});
-    } catch { /* Audio is optional when the device cannot provide a context. */ }
-  };
-  return {
-    unlock,
-    setMuted(value) { muted = value; },
-    play(kind) {
-      if (muted || context?.state !== "running") return;
-      const tones = { coin: [850, 1400, 0.12], hit: [130, 45, 0.1], defeat: [180, 45, 0.22], jump: [240, 390, 0.11], attack: [190, 65, 0.07] };
-      const tone = tones[kind];
-      if (!tone) return;
-      const oscillator = context.createOscillator(), gain = context.createGain();
-      oscillator.type = kind === "coin" ? "sine" : "triangle";
-      oscillator.frequency.setValueAtTime(tone[0], context.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(tone[1], context.currentTime + tone[2]);
-      gain.gain.setValueAtTime(0.045, context.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + tone[2]);
-      oscillator.connect(gain).connect(context.destination);
-      oscillator.start();
-      oscillator.stop(context.currentTime + tone[2]);
-      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
-    },
-    dispose() { context?.close().catch(() => {}); }
-  };
-}
+import { createGameSound } from "./gameSound.js";
+import { createGameCemetery } from "./gameCemetery.js";
+import { createWeaponPickups } from "./gameWeapons.js";
 
 function createCoins(scene, world) {
   const material = new THREE.MeshStandardMaterial({ color: 0xffcd50, metalness: 0.8, roughness: 0.25, emissive: 0x9c5a09, emissiveIntensity: 0.24 });
@@ -140,9 +111,14 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
     if (failed && !signal.aborted) throw failed.reason;
     return null;
   }
-  let world, renderer, scene, environment, input, observer, raf, stopped = false;
+  let world, renderer, scene, environment, input, observer, raf, levelGroup, scenery, stopped = false;
   const characters = [];
-  const sound = createSound();
+  const sound = createGameSound();
+  function clearLevel() {
+    for (const character of characters.splice(0)) { character.root.removeFromParent(); character.dispose(); }
+    scenery?.userData.dispose?.();
+    if (levelGroup) { levelGroup.removeFromParent(); disposeObjects([levelGroup]); }
+  }
   function dispose() {
     if (stopped) return;
     stopped = true;
@@ -150,7 +126,7 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
     observer?.disconnect();
     input?.dispose();
     sound.dispose();
-    characters.forEach((character) => character.dispose());
+    clearLevel();
     if (scene) disposeObjects([scene]);
     assets.dispose();
     environment?.dispose();
@@ -181,18 +157,10 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
     scene.environmentIntensity = 0.3;
     room.dispose();
     pmrem.dispose();
-    const temple = createParthenonSet();
-    scene.add(temple);
     const ambient = new THREE.HemisphereLight(0xc5dcf4, 0x827563, 1.1);
     scene.add(ambient);
-    createPerimeter(scene);
-    const coins = createCoins(scene, world);
+    let coins = [], animatePickups = () => {};
     const particles = createParticles(scene);
-    for (const actor of world.actors) {
-      const character = createGameCharacter(actor === world.player ? assets.player : assets.enemy, actor !== world.player);
-      scene.add(character.root);
-      characters.push(character);
-    }
     let paused = false, period = "day", previous = 0, accumulator = 0, lastHud = 0;
     let cameraInitialized = false;
     const focus = new THREE.Vector3(), desiredFocus = new THREE.Vector3(), direction = new THREE.Vector3(), desiredCamera = new THREE.Vector3();
@@ -200,6 +168,7 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
     function setPaused(value = !paused) {
       if (world.status !== "playing") return;
       paused = value;
+      sound.setPaused(paused);
       input?.setEnabled(!paused);
       accumulator = 0;
       publish();
@@ -208,16 +177,32 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
     function setPeriod(next) {
       const mode = PARTHENON_PERIODS.find((entry) => entry.id === next) || PARTHENON_PERIODS[0];
       period = mode.id;
-      temple.userData.animate(true, { period }, world.time * 1000);
+      scenery.userData.animate(true, { period }, world.time * 1000);
       ambient.color.set(mode.skyLight);
       ambient.groundColor.set(mode.ground);
       ambient.intensity = period === "night" ? 0.55 : 1.1;
       scene.environmentIntensity = period === "night" ? 0.2 : 0.3;
-      scene.fog = temple.userData.atmosphere;
+      scene.fog = scenery.userData.atmosphere;
       renderer.toneMappingExposure = period === "night" ? 1.35 : 1.1;
       publish();
     }
-    setPeriod("day");
+    function buildLevel() {
+      levelGroup = new THREE.Group();
+      scenery = world.level.id === 2 ? createGameCemetery() : createParthenonSet();
+      levelGroup.add(scenery);
+      scene.add(levelGroup);
+      createPerimeter(levelGroup);
+      coins = createCoins(levelGroup, world);
+      animatePickups = createWeaponPickups(levelGroup, world);
+      for (const actor of world.actors) {
+        const asset = actor === world.player ? assets.player : world.level.id === 2 ? assets.demon : assets.enemy;
+        const character = createGameCharacter(asset, actor !== world.player);
+        scene.add(character.root);
+        characters.push(character);
+      }
+      setPeriod(world.level.id === 2 ? "night" : "day");
+    }
+    buildLevel();
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       const width = Math.max(1, Math.round(rect.width)), height = Math.max(1, Math.round(rect.height));
@@ -254,8 +239,8 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
           }
           const events = world.events.splice(0);
           for (const event of events) {
-            if (event.type !== "attack" || event.actor === "neonboy") sound.play(event.type);
-            if (["coin", "hit", "defeat"].includes(event.type)) particles.emit(event);
+            sound.play(event, world.player, input.orbit.yaw);
+            if (["coin", "pickup", "hit", "defeat"].includes(event.type)) particles.emit(event);
           }
           if (world.status !== "playing") { input.setEnabled(false); publish(); }
         }
@@ -268,7 +253,8 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
           mesh.position.set(coin.x, coin.y + 0.8 + Math.sin(world.time * 2.8 + index) * 0.12, coin.z);
           mesh.rotation.y = world.time * 1.7 + index;
         });
-        temple.userData.animate(true, { period }, world.time * 1000);
+        animatePickups(world.time);
+        scenery.userData.animate(true, { period }, world.time * 1000);
         particles.update(visualDt);
         renderer.render(scene, camera);
         if (timestamp - lastHud > 100) { publish(); lastHud = timestamp; }
@@ -283,23 +269,41 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
     onProgress?.(100);
     publish();
     raf = requestAnimationFrame(frame);
+    function resetView() {
+      input.clear();
+      input.setEnabled(true);
+      Object.assign(input.orbit, { yaw: 0.15, pitch: 0.26, distance: 7.5 });
+      paused = false;
+      sound.setPaused(false);
+      accumulator = 0;
+      cameraInitialized = false;
+      particles.clear();
+      publish();
+      canvas.focus();
+    }
     return {
       setPaused, setPeriod,
       setMuted(value) { sound.setMuted(value); if (!value) sound.unlock(); },
       action(kind) { input.action(kind); canvas.focus(); },
       hold(kind, pressed) { input.hold(kind, pressed); },
       move(x, z) { input.touch.x = x; input.touch.z = z; sound.unlock(); },
+      equip(weapon) { input.equip(weapon); canvas.focus(); },
+      nextLevel() {
+        const options = world.nextLevelOptions();
+        if (!options) return false;
+        try {
+          const next = new GameWorld(options);
+          clearLevel();
+          world.dispose();
+          world = next;
+          buildLevel();
+          resetView();
+          return true;
+        } catch (error) { onError?.(error); dispose(); return false; }
+      },
       restart() {
         world.restart();
-        input.clear();
-        input.setEnabled(true);
-        Object.assign(input.orbit, { yaw: 0.15, pitch: 0.26, distance: 7.5 });
-        paused = false;
-        accumulator = 0;
-        cameraInitialized = false;
-        particles.clear();
-        publish();
-        canvas.focus();
+        resetView();
       },
       dispose,
       ...(import.meta.env.DEV ? { inspect: () => ({ world, scene, renderer, camera, input }) } : {})

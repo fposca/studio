@@ -9,8 +9,9 @@ export const BODY_OFFSET = 0.9;
 export const BOUNDS = Object.freeze({ left: -16.8, right: 16.8, back: -43.5, front: 21 });
 
 export const WEAPONS = Object.freeze([
-  { id: "unarmed", name: "Cuerpo a cuerpo", available: true },
-  { id: "sword", name: "Espada", available: false },
+  { id: "unarmed", name: "Punos", key: "1" },
+  { id: "sword", name: "Espada", key: "2" },
+  { id: "hammer", name: "Martillo", key: "3" },
   { id: "crossbow", name: "Ballesta", available: false },
   { id: "axe", name: "Hacha", available: false }
 ]);
@@ -18,7 +19,10 @@ export const WEAPONS = Object.freeze([
 export const ATTACKS = Object.freeze({
   punch: { duration: 0.48, impact: 0.2, end: 0.33, reach: 1.65, damage: 25, arc: 0.15, knockback: 3.5 },
   kick: { duration: 0.76, impact: 0.34, end: 0.5, reach: 2.15, damage: 40, arc: 0.05, knockback: 5.5 },
-  enemy: { duration: 1.12, impact: 0.67, end: 0.8, reach: 1.65, damage: 12, arc: 0.25, knockback: 2.4 }
+  sword: { duration: 0.64, impact: 0.25, end: 0.39, reach: 2.5, damage: 45, arc: -0.05, knockback: 4.2 },
+  hammer: { duration: 1.02, impact: 0.57, end: 0.72, reach: 2.3, damage: 75, arc: 0.05, knockback: 7 },
+  enemy: { duration: 0.96, impact: 0.51, end: 0.66, reach: 1.8, damage: 12, arc: 0.25, knockback: 3.4 },
+  demon: { duration: 1.12, impact: 0.6, end: 0.76, reach: 2.1, damage: 18, arc: 0.1, knockback: 4.8 }
 });
 
 export const COIN_POSITIONS = Object.freeze([

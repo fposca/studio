@@ -64,7 +64,13 @@ La pestana **Juego** abre una partida en tercera persona en el exterior del Part
 
 Controles: **WASD o flechas** para moverse; **Mayus** para correr; **Espacio** para saltar; **J o clic izquierdo** para golpear; **K** para patear; **Q/E o arrastrar con boton derecho** para girar la camara; **rueda** para acercarla; **P/Escape** para pausar. En pantallas tactiles hay joystick, botones de accion y giro de camara arrastrando el escenario. Los botones tienen sus acciones y teclas en el tooltip.
 
-El escenario admite Dia, Atardecer y Noche. Se puede silenciar y usar pantalla completa. Cambiar de pestana cierra la partida y libera sus recursos; las escenas del editor no se modifican. El inventario reserva cuatro tipos: cuerpo a cuerpo, espada, ballesta y hacha. En este MVP solo cuerpo a cuerpo esta habilitado; las otras armas quedan para la siguiente etapa. Las partidas todavia no se guardan.
+El escenario admite Dia, Atardecer y Noche. Se puede silenciar y usar pantalla completa. Cambiar de pestana cierra la partida y libera sus recursos; las escenas del editor no se modifican. Las partidas todavia no se guardan.
+
+Hay una **espada recogible** en el camino del primer nivel. **1** equipa punos, **2** espada y **3** martillo, siempre que el arma se haya recogido. Tambien se pueden seleccionar desde el inventario tactil. **J/clic** usa el arma equipada; **K** sigue siendo patada. No se cambia de arma en mitad de un golpe. Los punos alternan jab, directo y gancho, con guardia y recuperacion; el salto levanta los brazos. Los enemigos anticipan su ataque y se abalanzan, con una breve recuperacion para poder esquivarlos.
+
+Al reunir las 24 monedas se desbloquea **Nivel 2: Cementerio** en la pantalla de victoria. Tiene 28 monedas, cinco demonios, tumbas con colisiones, una cripta, antorchas y niebla. Se conserva la espada y el arma equipada, y se recupera la vida. En ese nivel aparece el **martillo**, mas lento y potente. Al reintentar se vuelve al comienzo del nivel con las armas que se tenian al entrar; el martillo puede recogerse nuevamente. Ballesta y hacha siguen reservadas para una etapa posterior.
+
+El audio usa efectos sintetizados por capas: metal para monedas, aire para ataques, cuerpo grave para impactos y variaciones para evitar repeticiones identicas. Incluye distancia, paneo, limitacion de volumen y sonidos diferenciados de armas, demonios, recogidas y victoria. No requiere descargar audio externo.
 
 Verificacion del juego: `pnpm run test:game` y `pnpm run test:game:browser` (requiere Chrome). La prueba de navegador usa un escenario aislado de desarrollo y guarda capturas en `test-results/`. La fisica usa el [controlador de personajes de Rapier](https://rapier.rs/docs/user_guides/javascript/character_controller/).
 
