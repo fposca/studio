@@ -1,10 +1,11 @@
 import * as THREE from "three";
 import { createChurchFog } from "../editors/churchFog.js";
-import { GRAVES } from "./gameLevels.js";
+import { createGameFire } from "./gameFire.js";
+import { CEMETERY_CRYPT_WALLS, CEMETERY_TORCHES, GRAVES } from "./gameLevels.js";
 
-export function createGameCemetery() {
+export function createGameCemetery(world) {
   const root = new THREE.Group();
-  root.name = "Nivel 2 - Cementerio";
+  root.name = "Nivel 3 - Cementerio";
   const loader = new THREE.TextureLoader();
   const texture = (url, repeat = 1) => {
     const map = loader.load(url);
@@ -22,7 +23,6 @@ export function createGameCemetery() {
   const bark = new THREE.MeshStandardMaterial({ map: barkMap, bumpMap: barkMap, bumpScale: 0.06, color: 0x697068, roughness: 1 });
   const iron = new THREE.MeshStandardMaterial({ color: 0x303637, metalness: 0.65, roughness: 0.75 });
   const black = new THREE.MeshStandardMaterial({ color: 0x10191a, roughness: 1 });
-  const ember = new THREE.MeshBasicMaterial({ color: 0xffb45d, toneMapped: false });
   const box = new THREE.BoxGeometry(1, 1, 1);
   const mesh = (geometry, material, x, y, z, sx = 1, sy = 1, sz = 1) => {
     const object = new THREE.Mesh(geometry, material);
@@ -57,15 +57,42 @@ export function createGameCemetery() {
   for (const x of [-3.3, 3.3]) mesh(box, stone, x, 2.7, -34.98, 0.5, 5.4, 0.55);
   mesh(box, stone, 0, 6.35, -38.2, 0.28, 1.4, 0.32);
   mesh(box, stone, 0, 6.56, -38.2, 1.0, 0.24, 0.32);
+  // Two walled burial chambers share their dimensions with the physics colliders.
+  for (const [x, y, z, width, height, depth] of CEMETERY_CRYPT_WALLS) {
+    mesh(box, stone, x, y, z, width, height, depth);
+    mesh(box, iron, x, height + 0.08, z, width + 0.06, 0.16, depth + 0.06);
+  }
+  const secretPanels = world.secretDoors.map((door) => {
+    const panel = new THREE.Group();
+    panel.name = `Muro secreto ${door.id}`;
+    panel.position.set(door.x, 0, door.z);
+    root.add(panel);
+    const slab = new THREE.Mesh(box, stone);
+    slab.position.y = door.height / 2;
+    slab.scale.set(door.width, door.height, door.depth);
+    slab.castShadow = slab.receiveShadow = true;
+    panel.add(slab);
+    for (const z of [-1.03, 0, 1.03]) {
+      const crack = new THREE.Mesh(box, black);
+      crack.position.set(-Math.sign(door.x) * (door.width / 2 + 0.012), 1.22, z);
+      crack.scale.set(0.025, 1.35, 0.035);
+      crack.rotation.x = 0.27 * Math.sign(z || 1);
+      panel.add(crack);
+    }
+    return { door, panel };
+  });
+  for (const side of [-1, 1]) {
+    const z = side < 0 ? -16 : -23;
+    mesh(box, stone, side * 15.05, 0.1, z, 2.8, 0.2, 3.8);
+    mesh(box, black, side * 15.1, 0.22, z, 1.9, 0.025, 2.9);
+  }
   const flames = [];
-  for (const z of [6, -12, -28, -34]) for (const x of [-15.6, 15.6]) {
+  CEMETERY_TORCHES.forEach(([x, z], index) => {
     mesh(box, stone, x, 0.8, z, 0.65, 1.6, 0.65);
     mesh(new THREE.CylinderGeometry(0.33, 0.15, 0.2, 12), iron, x, 1.67, z);
-    const flame = mesh(new THREE.ConeGeometry(0.12, 0.44, 7), ember, x, 1.96, z);
-    const light = new THREE.PointLight(0xffad62, 12, 10, 2);
-    light.position.set(x, 2.1, z); root.add(light);
-    flames.push({ flame, light });
-  }
+    mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.04, 12), black, x, 1.79, z);
+    flames.push(createGameFire(root, { x, y: 1.8, z, size: 0.85, intensity: 15, distance: 10, seed: index * 3.1 }));
+  });
   const segment = new THREE.CylinderGeometry(0.1, 0.18, 1, 7);
   const from = new THREE.Vector3(), to = new THREE.Vector3(), direction = new THREE.Vector3();
   function branch(ax, ay, az, bx, by, bz, width) {
@@ -103,10 +130,8 @@ export function createGameCemetery() {
     moon.color.set(period === "sunset" ? 0xffbd83 : night ? 0xd4e3ff : 0xf4f0dc);
     sky.material.color.setScalar(night ? 0.6 : 0.95);
     fog.userData.animate(fogConfig, time, true, 0.6);
-    flames.forEach(({ flame, light }, i) => {
-      const pulse = 1 + Math.sin(time * 0.007 + i * 3) * 0.12;
-      flame.scale.set(1 / pulse, pulse, 1); light.intensity = (night ? 15 : 9) * pulse;
-    });
+    secretPanels.forEach(({ door, panel }) => { panel.visible = !door.broken; });
+    flames.forEach((flame) => { flame.update(time, night ? 1 : 0.6); });
   };
   root.userData.dispose = () => { fog.userData.dispose(); moon.shadow.dispose(); };
   return root;

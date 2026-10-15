@@ -395,6 +395,7 @@ const CHARACTER_ANIMATION_NAMES = {
   "zombieGuitarr": { character: "Zombie", animation: "Tocando guitarra", order: 43 },
   "angel": { character: "Angel", animation: "Base", order: 55 },
   "dragon": { character: "Dragon", animation: "Original", order: 62 },
+  "platon": { character: "Platon", animation: "Respirando y observando", order: 65 },
   "reptiliano-walk": { character: "Reptiliano", animation: "Caminando", order: 50, locomotion: true }
 };
 const isGuitaristModel = (id) => id?.startsWith("neon-guitar") || ["Neonboy-playGuitarHD", "calm-guitar", "neon-rock", "neonrock6", "neonHead", "profe", "demon-rock", "zombieGuitarr"].includes(id);
@@ -2312,6 +2313,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const hostRef = useRef(null);
   const runtimeRef = useRef(null);
   const activeRef = useRef(active);
+  const graphicsSuspendedRef = useRef(false);
   const selectedRef = useRef(null);
   const selectedIdsRef = useRef(new Set());
   const historyRef = useRef({ undo: [], redo: [], restoring: false });
@@ -3417,7 +3419,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       setWebglError("");
     } catch (error) {
       console.error(error);
-      setWebglError("Chrome no pudo iniciar WebGL. Cierra todas las ventanas de Chrome y vuelve a abrir la aplicacion.");
+      setWebglError("Chrome no pudo iniciar WebGL 2. Revisa chrome://settings/system y activa la aceleracion grafica; reinicia Chrome y pulsa Recuperar escena.");
       return undefined;
     }
     renderer.setPixelRatio(performanceModeRef.current === "performance" ? 1 : Math.min(window.devicePixelRatio, 2));
@@ -3430,6 +3432,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
     const handleContextLost = (event) => {
       event.preventDefault();
       contextLost = true;
+      if (graphicsSuspendedRef.current) return;
       setWebglError("La GPU interrumpio el motor 3D. Esperando recuperacion automatica...");
       setStatus("Contexto grafico perdido");
     };
@@ -4407,6 +4410,18 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       runtimeRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const renderer = runtimeRef.current?.renderer;
+    if (!renderer) return;
+    if (!active && !graphicsSuspendedRef.current) {
+      graphicsSuspendedRef.current = true;
+      renderer.forceContextLoss();
+    } else if (active && graphicsSuspendedRef.current) {
+      graphicsSuspendedRef.current = false;
+      renderer.forceContextRestore();
+    }
+  }, [active]);
 
   useEffect(() => {
     const runtime = runtimeRef.current;
@@ -8369,7 +8384,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
               <button disabled={!textDraft.trim()} onClick={selectedRef.current?.userData.editorType === "text" ? () => updateSelectedText() : addText} type="button"><Type size={16} /> {selectedRef.current?.userData.editorType === "text" ? "Aplicar cambios" : "Agregar texto"}</button>
             </div>
           </> : <div className="three-character-library">
-            {["Neonboy", "Neoncruzader", "Dragon", "Demon", "Zombie", "Reptiliano", "Angel", "Profe", "Cura", "Satanas"].map((character) => <section key={character}>
+            {["Neonboy", "Neoncruzader", "Dragon", "Demon", "Zombie", "Reptiliano", "Angel", "Profe", "Cura", "Satanas", "Platon"].map((character) => <section key={character}>
               <div className="three-library-section-title"><strong>{character}</strong><span>{CHARACTER_LIBRARY_MODELS.filter((model) => model.character === character).length}</span></div>
               <div className="three-add-grid">
                 {CHARACTER_LIBRARY_MODELS.filter((model) => model.character === character).map((model) => <button disabled={Boolean(modelLoading)} key={model.id} onClick={() => addNeonboy(model)} type="button"><Sparkles size={22} /><span>{model.animation}</span></button>)}

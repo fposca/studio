@@ -48,10 +48,16 @@ test("grip only curls distal hand vertices, preserves the source and restores it
 
 test("sword has one-handed proportions and a fixed transform relative to the palm", () => {
   const { model, hand, mesh, geometry } = fixture();
-  const sword = createWeaponModel("sword"), grip = createHandGrip(model, hand);
+  const template = new THREE.Group();
+  const source = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.9, 0.12), new THREE.MeshStandardMaterial());
+  template.add(source);
+  const sword = createWeaponModel("sword", template), grip = createHandGrip(model, hand);
   const size = new THREE.Box3().setFromObject(sword).getSize(new THREE.Vector3());
-  assert.ok(size.y > 0.9 && size.y < 1.08, `sword length ${size.y}`);
+  assert.ok(Math.abs(size.y - 1.14) < 0.001, `sword length ${size.y}`);
+  assert.ok(sword.getObjectByProperty("isMesh", true).userData.sharedGameAsset);
   grip.socket.add(sword);
+  const bladeDirection = new THREE.Vector3(0, 1, 0).applyQuaternion(grip.socket.quaternion);
+  assert.ok(bladeDirection.dot(new THREE.Vector3(-1, 0, 0)) > 0.999, "blade exits on the thumb side, not the little finger side");
   const origin = new THREE.Vector3(), local = new THREE.Vector3();
   for (const angle of [0, 0.5, 1.4, -2.2]) {
     hand.rotation.set(angle, angle * 0.3, -angle);
@@ -62,5 +68,19 @@ test("sword has one-handed proportions and a fixed transform relative to the pal
     assert.equal(sword.parent.parent, hand);
   }
   grip.dispose(); mesh.skeleton.dispose(); geometry.dispose(); mesh.material.dispose();
-  sword.traverse((object) => { object.geometry?.dispose(); object.material?.dispose(); });
+  source.geometry.dispose(); source.material.dispose();
+});
+
+test("imported hammer and axe grow at least ten percent without changing their grip", () => {
+  const template = new THREE.Group();
+  const source = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.9, 0.12), new THREE.MeshStandardMaterial());
+  template.add(source);
+  for (const kind of ["hammer", "axe"]) {
+    const weapon = createWeaponModel(kind, template);
+    const bounds = new THREE.Box3().setFromObject(weapon);
+    assert.ok(Math.abs(bounds.getSize(new THREE.Vector3()).y - 1.06) < 0.001);
+    assert.ok(bounds.min.y < -0.24 && bounds.min.y > -0.25, `${kind} grip offset ${bounds.min.y}`);
+    assert.ok(weapon.getObjectByProperty("isMesh", true).userData.sharedGameAsset);
+  }
+  source.geometry.dispose(); source.material.dispose();
 });

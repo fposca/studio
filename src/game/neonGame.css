@@ -1,51 +1,146 @@
 .neon-game { position: relative; width: 100%; height: 100%; min-height: 390px; overflow: hidden; background: #090d0e; color: #f5f8f5; letter-spacing: 0; isolation: isolate; }
 .neon-game:fullscreen { height: 100dvh; }
 .neon-game-canvas { display: block; width: 100%; height: 100%; outline: none; touch-action: none; }
-.neon-game-hud { position: absolute; inset: 22px 24px auto; display: grid; grid-template-columns: minmax(190px, 1fr) auto minmax(190px, 1fr); align-items: start; gap: 24px; pointer-events: none; text-shadow: 0 1px 5px #000; }
-.neon-game-vitals { width: 230px; max-width: 100%; padding: 13px 15px; background: #101718df; border-left: 3px solid #65e6b4; border-radius: 3px; }
-.neon-game-name { display: flex; align-items: center; gap: 9px; font-size: 12px; }
-.neon-game-name > svg { color: #65e6b4; flex-shrink: 0; }
-.neon-game-name > span { margin-left: auto; font-variant-numeric: tabular-nums; }
-.neon-game-name small { color: #bcc7c3; font-size: 10px; }
-.neon-game-health { height: 7px; background: #3f4a46; margin-top: 11px; overflow: hidden; border-radius: 2px; }
-.neon-game-health i { display: block; height: 100%; background: #65e6b4; transition: width 160ms ease; }
-.is-danger .neon-game-health i { background: #ff6a5e; }
-.is-danger .neon-game-vitals { border-left-color: #ff6a5e; }
+.neon-game-title { position: absolute; inset: 0; pointer-events: none; text-align: center; text-shadow: 0 2px 16px #000; }
+.neon-game-title-brand { position: absolute; top: 3%; left: 50%; width: min(420px, 40vw); transform: translateX(-50%); }
+.neon-game-title h1 { margin: 0; line-height: 0; }
+.neon-game-title h1 img { display: block; width: 100%; height: auto; filter: drop-shadow(0 5px 9px #000c); }
+.neon-game-title-brand p { margin: 0; color: #eff5f6; font: italic 300 clamp(14px, 1.6vw, 20px)/1.2 "Helvetica Neue", Arial, sans-serif; letter-spacing: 0.11em; text-shadow: 0 2px 10px #000; }
+.neon-game-title-tools { position: absolute; top: 18px; right: 18px; display: flex; gap: 6px; pointer-events: auto; }
+.neon-game-title-actions { position: absolute; inset: auto 18px 4%; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: auto; }
+.neon-game-level-picker { width: min(440px, 100%); padding: 9px; background: #101718db; border: 1px solid #d0c5b777; border-radius: 5px; text-shadow: none; }
+.neon-game-level-picker > span { display: block; margin: 0 0 7px; color: #f1e8da; font: 600 11px/1.2 "Helvetica Neue", Arial, sans-serif; letter-spacing: 0.13em; text-transform: uppercase; }
+.neon-game-level-picker > div { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.neon-game-level-picker button { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 3px; min-width: 0; min-height: 58px; padding: 6px; line-height: 1.2; }
+.neon-game-level-picker button strong { font: 800 12px/1 "Helvetica Neue", Arial, sans-serif; letter-spacing: 0.08em; }
+.neon-game-level-picker button small { font: 500 11px/1.15 "Helvetica Neue", Arial, sans-serif; overflow-wrap: anywhere; }
+.neon-game-level-picker button[aria-pressed="true"] { background: #e6d5bc; border-color: #171412; box-shadow: inset 0 0 0 2px #171412; }
+.neon-game-title-actions > button { width: min(260px, 100%); display: flex; justify-content: center; align-items: center; gap: 10px; min-height: 42px; }
+.neon-game-title-actions > .neon-game-play { min-height: 54px; color: #171412; background: #d0c5b7; border-color: #e6d5bc; font-size: 20px; font-weight: 750; box-shadow: 0 3px 20px #0005; }
+.neon-game-title-actions > .neon-game-play:hover { background: #e6d5bc; }
+.neon-game-save-meta { font-size: 11px; line-height: 1.4; max-width: 440px; color: #e3e9e5; background: #101718bd; padding: 3px 7px; border-radius: 3px; overflow-wrap: anywhere; }
+.neon-game-notice { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); width: max-content; max-width: calc(100% - 32px); padding: 12px 16px; background: #142520; color: #e5fff2; border: 1px solid #71b396; border-radius: 4px; font-size: 13px; text-align: center; z-index: 7; pointer-events: none; }
+.neon-game-save-actions { display: flex; gap: 8px; width: 100%; }
+.neon-game-save-actions > button { flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.neon-game-hud { z-index: 3; position: absolute; inset: 22px 24px auto; display: grid; grid-template-columns: minmax(190px, 1fr) auto minmax(190px, 1fr); align-items: start; gap: 24px; pointer-events: none; text-shadow: 0 1px 5px #000; }
+.neon-game-vitals { width: 270px; max-width: 100%; padding: 14px 16px; background: linear-gradient(125deg, #24201af5, #100f0ef2); border: 1px solid #d0c5b766; border-left: 4px solid #e6d5bc; border-radius: 4px; box-shadow: 0 5px 22px #0006; transition: border-color 150ms, background 150ms; }
+.neon-game-name { display: flex; align-items: center; gap: 8px; color: #e6d5bc; font: 700 12px/1 Arial, sans-serif; letter-spacing: 0.1em; }
+.neon-game-name > svg { flex-shrink: 0; }
+.neon-game-name > span { margin-left: auto; color: #b9aea0; font-size: 10px; letter-spacing: 0.07em; }
+.neon-game-health-reading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 5px; }
+.neon-game-health-reading > strong { color: #fff5e3; font: 800 38px/1.1 Arial, sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -0.04em; }
+.neon-game-health-reading small { color: #b9aea0; font-size: 15px; font-weight: 400; letter-spacing: 0; }
+.neon-game-health-status { color: #f3a191; font: 700 10px/1.3 Arial, sans-serif; text-align: right; }
+.neon-game-health-damage { color: #ff8c7b; font: 800 22px/1 Arial, sans-serif; animation: neon-health-number 650ms ease-out both; }
+.neon-game-health { position: relative; height: 14px; background: #0a0908; margin-top: 9px; overflow: hidden; border: 1px solid #e6d5bc40; border-radius: 2px; }
+.neon-game-health::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 2px), #100e0b80 calc(10% - 2px), #100e0b80 10%); }
+.neon-game-health i { position: relative; display: block; height: 100%; background: linear-gradient(90deg, #b9a58a, #f3e3c9); transition: width 140ms ease-out; }
+.neon-game-health-loss { position: absolute; inset: 0 auto 0 0; background: #fb796a; animation: neon-health-loss 600ms ease-in both; }
+.is-danger .neon-game-health i { background: linear-gradient(90deg, #9e342d, #ff8370); }
+.is-danger .neon-game-vitals { border-color: #ff8370aa; border-left-color: #ff8370; }
+.is-danger .neon-game-health-reading > strong, .is-danger .neon-game-name { color: #ff9a87; }
+.neon-game-vitals.is-hit { border-color: #ff9a87; background: linear-gradient(125deg, #61221ef5, #1f1010f2); }
+@keyframes neon-health-number { 0% { transform: translateY(4px); opacity: 1; } 70% { opacity: 1; } 100% { transform: translateY(-9px); opacity: 0; } }
+@keyframes neon-health-loss { 0%, 35% { width: var(--health-from); } 100% { width: var(--health-to); } }
+.neon-game-damage, .neon-game-critical { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+.neon-game-damage { background: radial-gradient(ellipse at center, #e016161f 0%, #ae080866 55%, #c20a0ae8 100%); box-shadow: inset 0 0 100px #e51b1b88; animation: neon-damage-flash 650ms ease-out both; }
+.neon-game-critical { background: radial-gradient(ellipse at center, transparent 45%, #930b0b44 100%); }
+.neon-game-canvas.is-hit { animation: neon-damage-shake 380ms ease-out; }
+@keyframes neon-damage-flash { 0% { opacity: 0.9; } 18% { opacity: 0.8; } 100% { opacity: 0; } }
+@keyframes neon-damage-shake {
+  0% { transform: scale(1.025) translate(0, 0); }
+  15% { transform: scale(1.025) translate(-5px, 3px) rotate(-0.25deg); }
+  32% { transform: scale(1.025) translate(4px, -3px) rotate(0.2deg); }
+  50% { transform: scale(1.025) translate(-3px, 2px) rotate(-0.15deg); }
+  72% { transform: scale(1.015) translate(2px, -1px); }
+  100% { transform: scale(1) translate(0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .neon-game-canvas.is-hit { animation: none; }
+  .neon-game-health-damage { animation-name: neon-damage-flash; }
+}
 .neon-game-objective { display: grid; justify-items: center; gap: 5px; padding: 10px 20px; background: #101718cd; border-top: 2px solid #e4bd66; border-radius: 3px; }
 .neon-game-objective > span:first-child { font-size: 10px; color: #ebdfb9; }
 .neon-game-objective strong { display: flex; align-items: center; gap: 8px; font-size: 25px; font-variant-numeric: tabular-nums; }
 .neon-game-objective strong svg { color: #f1cf6f; }
 .neon-game-objective strong small { font-size: 15px; font-weight: 400; color: #c6cec8; }
 .neon-game-enemies { display: flex; align-items: center; gap: 5px; color: #d0d7d3; font-size: 11px; }
+.neon-game-mission { grid-column: 1 / -1; justify-self: center; display: flex; align-items: center; gap: 9px; max-width: 100%; padding: 7px 12px; background: #10211ee8; border-left: 2px solid #d0c5b7; font-size: 12px; }
+.neon-game-mission svg { flex-shrink: 0; color: #d0c5b7; }
+.neon-game-mission span { overflow-wrap: anywhere; }
+.neon-game-mission small { font-size: 10px; color: #c6d4cf; white-space: nowrap; }
+.neon-game-conversation { background: #060b0b88; backdrop-filter: blur(2px); }
+.neon-game-boss-gate { border-left-color: #ddad76; color: #f2e6d0; }
+.neon-game-boss-gate svg { color: #ddad76; }
+.neon-game-conversation { animation: friend-overlay-in 320ms ease-out both; }
+.neon-game-friend-dialog { --friend-accent: #d4b77f; position: relative; overflow: visible; padding-top: 26px; border-color: var(--friend-accent); box-shadow: 0 25px 75px #0009, 0 0 36px #c6a66c22; animation: friend-card-in 500ms cubic-bezier(.2,.8,.2,1) both; }
+.neon-game-lore.neon-game-friend-dialog { border-color: var(--friend-accent); }
+.neon-game-friend-dialog.is-dragon { --friend-accent: #c49bd2; box-shadow: 0 25px 75px #0009, 0 0 38px #b273d433; }
+.neon-game-dialog-avatar { width: 92px; height: 92px; padding: 4px; flex: none; border: 2px solid var(--friend-accent); border-radius: 50%; background: #181c1c; box-shadow: 0 0 0 6px #d1ad6e18, 0 0 28px #dabf842b; animation: friend-avatar-in 650ms cubic-bezier(.2,1.4,.35,1) 120ms both; }
+.neon-game-dialog-avatar img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.neon-game-lore.neon-game-friend-dialog .neon-game-lore-kicker { color: var(--friend-accent); text-transform: uppercase; letter-spacing: .16em; animation: friend-line-in 420ms ease-out 190ms both; }
+.neon-game-friend-dialog h2 { animation: friend-line-in 440ms ease-out 260ms both; }
+.neon-game-friend-dialog p { animation: friend-line-in 460ms ease-out 340ms both; }
+.neon-game-friend-dialog > button { animation: friend-line-in 460ms ease-out 420ms both; }
+.neon-game-friend-dialog.is-dragon > button { background: #ad89b8; border-color: #d0addb; }
+.neon-game-friend-dialog.is-dragon > button:hover { background: #c9a5d4; border-color: #e2c3eb; }
+@keyframes friend-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes friend-card-in { from { opacity: 0; transform: translateY(28px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes friend-avatar-in { from { opacity: 0; transform: translateY(12px) scale(.65) rotate(-12deg); } to { opacity: 1; transform: translateY(0) scale(1) rotate(0); } }
+@keyframes friend-line-in { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .neon-game-conversation, .neon-game-friend-dialog, .neon-game-dialog-avatar,
+  .neon-game-friend-dialog .neon-game-lore-kicker, .neon-game-friend-dialog h2,
+  .neon-game-friend-dialog p, .neon-game-friend-dialog > button { animation: none; }
+}
+
+.neon-game-boss { grid-column: 1 / -1; justify-self: center; width: min(360px, 100%); padding: 9px 12px; background: #211614e8; border-top: 2px solid #e87d55; border-radius: 3px; pointer-events: none; }
+.neon-game-boss > div:first-child { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; }
+.neon-game-boss strong { overflow-wrap: anywhere; }
+.neon-game-boss span { flex-shrink: 0; font-size: 11px; font-variant-numeric: tabular-nums; color: #f6c5ae; }
+.neon-game-boss-health { height: 7px; margin-top: 7px; background: #553631; overflow: hidden; border-radius: 2px; }
+.neon-game-boss-health i { display: block; height: 100%; background: #ef805a; transition: width 160ms ease; }
+.neon-game-boss small { display: block; margin-top: 5px; color: #d7bcb2; font-size: 10px; }
+.neon-game-score { display: flex; align-items: center; gap: 5px; color: #f3d593; font-size: 11px; }
+.neon-game-score span { margin-left: 5px; color: #d0d7d3; }
 .neon-game-tools { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; pointer-events: auto; justify-self: end; max-width: 280px; }
-.neon-game button { background: #101718de; border: 1px solid #afc7be55; border-radius: 4px; padding: 8px; min-width: 36px; min-height: 36px; color: #f5f8f5; touch-action: none; }
-.neon-game button:hover { background: #2f4440; border-color: #a4c2b7; }
-.neon-game button:focus-visible { outline: 2px solid #68edbf; outline-offset: 3px; }
-.neon-game button[aria-pressed="true"] { color: #82f1cb; background: #193e35eb; border-color: #63be9e; }
+.neon-game button { background: #d0c5b7; border: 1px solid #17141299; border-radius: 4px; padding: 8px; min-width: 36px; min-height: 36px; color: #171412; touch-action: none; }
+.neon-game button:hover { background: #e6d5bc; border-color: #171412; }
+.neon-game button:focus-visible { outline: 2px solid #171412; outline-offset: 3px; }
+.neon-game button[aria-pressed="true"] { color: #171412; background: #a79786; border-color: #171412; box-shadow: inset 0 0 0 1px #171412; }
 .neon-game-period { display: flex; margin-right: 5px; }
 .neon-game-period button { border-radius: 0; }
 .neon-game-period button:first-child { border-radius: 4px 0 0 4px; }
 .neon-game-period button:last-child { border-radius: 0 4px 4px 0; }
-.neon-game-bottom { position: absolute; inset: auto 24px 22px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 12px; pointer-events: none; }
+.neon-game-bottom { z-index: 3; position: absolute; inset: auto 24px 22px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 12px; pointer-events: none; }
 .neon-game-weapons { grid-column: 2; display: flex; gap: 6px; pointer-events: auto; }
 .neon-game-weapons button { position: relative; width: 49px; height: 52px; }
-.neon-game-weapons button.is-locked { color: #a4adab; background: #141a1bd9; cursor: default; }
+.neon-game-weapons button.is-locked { color: #51493e; background: #aa9c8a; cursor: default; }
 .neon-game-lock { position: absolute; bottom: 4px; right: 4px; }
 .neon-game-pickup { position: absolute; left: 50%; bottom: 160px; transform: translateX(-50%); display: flex; align-items: center; gap: 9px; padding: 9px 14px; max-width: calc(100% - 30px); background: #101718ed; border-bottom: 2px solid #e4bd66; color: #ffe2a2; font-size: 13px; pointer-events: none; }
-.neon-game button:disabled { cursor: default; }
-.neon-game button:disabled:hover { border-color: #afc7be55; }
+.neon-game button:disabled { cursor: default; opacity: 0.58; }
+.neon-game button:disabled:hover { background: #d0c5b7; border-color: #17141299; }
 .neon-game-actions { display: flex; align-items: end; justify-self: end; gap: 9px; pointer-events: auto; }
 .neon-game-actions button { width: 50px; height: 50px; border-radius: 50%; }
-.neon-game-actions .neon-game-primary-action { width: 64px; height: 64px; background: #193e35e8; border-color: #80d6b6; }
-.neon-game-joystick { display: grid; place-items: center; width: 112px; height: 112px; border: 1px solid #e0ede57a; border-radius: 50%; background: #111c2255; pointer-events: auto; touch-action: none; user-select: none; }
-.neon-game-stick { display: block; width: 46px; height: 46px; border-radius: 50%; background: #e0eee099; border: 1px solid #f0fff2aa; pointer-events: none; }
-.neon-game-overlay { position: absolute; inset: 0; display: grid; place-items: center; background: #060b0bc9; backdrop-filter: blur(5px); padding: 18px; z-index: 5; }
+.neon-game-actions .neon-game-primary-action { width: 64px; height: 64px; background: #e6d5bc; border-color: #171412; }
+.neon-game-joystick { display: grid; place-items: center; width: 112px; height: 112px; border: 1px solid #17141299; border-radius: 50%; background: #d0c5b780; pointer-events: auto; touch-action: none; user-select: none; }
+.neon-game-stick { display: block; width: 46px; height: 46px; border-radius: 50%; background: #e6d5bc; border: 1px solid #171412; pointer-events: none; }
+.neon-game-overlay { position: absolute; inset: 0; display: grid; place-items: center; background: #060b0bc9; backdrop-filter: blur(5px); padding: 18px; z-index: 5; overflow-y: auto; }
 .neon-game-dialog { width: min(350px, 100%); display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 30px; text-align: center; background: #131b1a; border: 1px solid #52685d; border-radius: 6px; }
 .neon-game-dialog h2 { margin: 0; font-size: 23px; line-height: 1.2; }
 .neon-game-dialog p { margin: 0; line-height: 1.5; font-size: 13px; color: #c0ccc5; overflow-wrap: anywhere; }
 .neon-game-dialog > button { width: 100%; padding: 11px; }
-.neon-game-dialog progress { accent-color: #68edbf; width: 100%; height: 8px; }
+.neon-game-dialog progress { accent-color: #a79786; width: 100%; height: 8px; }
 .neon-game-dialog > span { font-size: 12px; color: #a8b9b0; }
+.neon-game-lore { width: min(460px, 100%); gap: 14px; max-height: calc(100dvh - 40px); overflow-y: auto; border-color: #af8d53; background: #171a19; }
+.neon-game-lore .neon-game-lore-kicker { display: flex; align-items: center; gap: 8px; color: #e9c77d; font-size: 11px; font-weight: 700; }
+.neon-game-lore h2 { font-size: 25px; }
+.neon-game-lore p { color: #e0e3dc; font-size: 14px; line-height: 1.6; }
+.neon-game-lore-points { display: flex; align-items: center; gap: 7px; color: #f3d593; font-size: 16px; }
+.neon-game-lore > button { display: flex; justify-content: center; align-items: center; gap: 8px; background: #a4854a; border-color: #d0b36a; color: #101718; font-weight: 700; }
+.neon-game-lore > button:hover { background: #c1a363; border-color: #ebcf89; }
+.neon-game-lore > a { color: #baccc4; font-size: 11px; text-underline-offset: 3px; }
+.neon-game-lore > a:focus-visible { outline: 2px solid #e9c77d; outline-offset: 3px; }
 .neon-game-results { display: flex; gap: 22px; font-size: 14px; }
 .neon-game-results span { display: flex; align-items: center; gap: 5px; }
 .neon-game-trophy { color: #f1cf6f; }
@@ -65,13 +160,23 @@
   .neon-game-actions .neon-game-primary-action { width: 55px; height: 55px; }
 }
 @media (max-width: 520px) {
+  .neon-game-title-brand { top: 7%; width: min(320px, 82vw); }
+  .neon-game-level-picker button { min-height: 53px; }
+  .neon-game-level-picker button small { font-size: 10px; }
+  .neon-game-title-tools { top: 10px; right: 10px; }
   .neon-game-pickup { bottom: 195px; }
   .neon-game { min-height: 460px; }
   .neon-game-hud { inset: 10px 10px auto; gap: 8px; }
   .neon-game-vitals { width: 174px; padding: 10px; }
   .neon-game-name { font-size: 10px; gap: 6px; }
+  .neon-game-name > span { font-size: 8px; }
+  .neon-game-health-reading > strong { font-size: 32px; }
+  .neon-game-health-status { font-size: 9px; }
+  .neon-game-health-reading small { font-size: 12px; }
   .neon-game-objective { max-width: 142px; padding: 9px; }
   .neon-game-objective > span:first-child { text-align: center; line-height: 1.3; }
+  .neon-game-score { flex-wrap: wrap; justify-content: center; }
+  .neon-game-score span { flex-basis: 100%; margin: 0; }
   .neon-game-objective strong { font-size: 21px; }
   .neon-game-tools { gap: 4px; }
   .neon-game-tools button { min-width: 32px; min-height: 32px; padding: 6px; }
@@ -81,9 +186,49 @@
   .neon-game-actions { grid-column: 2; grid-row: 2; align-self: center; }
 }
 @media (max-height: 540px) and (min-width: 521px) {
+  .neon-game-title-brand { top: 12px; left: 7%; width: min(250px, 30vw); transform: none; text-align: left; }
+  .neon-game-title-brand p { font-size: 14px; }
+  .neon-game-title-actions { inset: auto auto 24px 7%; width: 260px; gap: 5px; }
+  .neon-game-title-actions > .neon-game-play { min-height: 42px; }
+  .neon-game-level-picker { width: 260px; padding: 6px; }
+  .neon-game-level-picker > span { margin-bottom: 4px; font-size: 9px; }
+  .neon-game-level-picker button { min-height: 39px; padding: 3px; }
+  .neon-game-level-picker button strong { font-size: 10px; }
+  .neon-game-level-picker button small { font-size: 9px; }
+  .neon-game-title-actions > button { min-height: 36px; padding: 5px; }
+  .neon-game-dialog { padding: 18px; gap: 11px; }
   .neon-game { min-height: 300px; }
   .neon-game-hud { inset: 8px 12px auto; grid-template-columns: 1fr auto 1fr; }
   .neon-game-objective { grid-column: 2; }
   .neon-game-tools { grid-column: 3; grid-row: 1; justify-self: end; max-width: 145px; }
   .neon-game-joystick { width: 85px; height: 85px; }
 }
+
+.neon-game-reticle { position: absolute; left: 50%; top: 48%; transform: translate(-50%, -50%); width: 54px; height: 54px; border: 1.5px solid #f0d09a; border-radius: 50%; box-shadow: 0 0 11px #000, inset 0 0 9px #0009; pointer-events: none; z-index: 2; }
+.neon-game-reticle::before, .neon-game-reticle::after { content: ""; position: absolute; background: #f0d09a; box-shadow: 0 0 4px #000; }
+.neon-game-reticle::before { width: 72px; height: 1px; left: -10px; top: 25px; }
+.neon-game-reticle::after { width: 1px; height: 72px; top: -10px; left: 25px; }
+.neon-game-reticle i { position: absolute; width: 4px; height: 4px; left: 24px; top: 24px; border-radius: 50%; background: #171412; box-shadow: 0 0 0 2px #f0d09a; }
+.neon-game-reticle b { position: absolute; top: 65px; left: 50%; transform: translateX(-50%); white-space: nowrap; color: #f0d09a; font: 700 12px/1 Arial, sans-serif; text-shadow: 0 1px 4px #000; }
+.neon-game-ammo-notice { position: absolute; left: 50%; bottom: 160px; transform: translateX(-50%); padding: 9px 14px; background: #101718ed; color: #f0d09a; border-bottom: 2px solid #e4bd66; font-size: 13px; pointer-events: none; }
+
+.neon-game-reticle.is-first-person { width: 20px; height: 20px; border: 0; box-shadow: none; }
+.neon-game-reticle.is-first-person::before { left: 0; top: 9px; width: 20px; }
+.neon-game-reticle.is-first-person::after { left: 9px; top: 0; height: 20px; }
+.neon-game-reticle.is-first-person i { left: 8px; top: 8px; width: 3px; height: 3px; }
+.neon-game-reticle.is-first-person b { top: 30px; }
+.neon-game-view-hint { position: absolute; bottom: 89px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 4px; text-align: center; color: #e7d5b7; font: 11px/1.3 Arial, sans-serif; pointer-events: none; text-shadow: 0 1px 4px #000; white-space: nowrap; }
+.neon-game-view-hint strong { font-size: 13px; font-weight: 500; letter-spacing: 0.08em; }
+@media (pointer: coarse), (max-width: 600px) { .neon-game-view-hint span { display: none; } }
+
+.neon-game-opening { position: absolute; inset: 0; z-index: 4; pointer-events: none; overflow: hidden; }
+.neon-game-opening::before, .neon-game-opening::after { content: ""; position: absolute; left: 0; right: 0; height: clamp(24px, 7vh, 60px); background: #080708; }
+.neon-game-opening::before { top: 0; }
+.neon-game-opening::after { bottom: 0; }
+.neon-game-opening-fade { position: absolute; inset: 0; z-index: 1; background: #080708; transition: opacity 80ms linear; }
+.neon-game-opening-tools { position: absolute; top: 12px; right: 16px; z-index: 2; pointer-events: auto; }
+.neon-game-opening-tools button { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #a99880; border-radius: 3px; background: #171311d9; color: #e5d5bb; }
+.neon-game-opening-skip { position: absolute; right: 18px; bottom: 14px; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid #9a8a70; border-radius: 3px; color: #e5d5bb; background: #171311e6; font: 12px Arial, sans-serif; cursor: pointer; pointer-events: auto; }
+.neon-game-opening-skip:hover { background: #d0c5b7; color: #15120e; }
+.neon-game-opening-skip:focus-visible, .neon-game-opening-tools button:focus-visible { outline: 2px solid #e7c681; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .neon-game-opening-fade { transition: none; } }

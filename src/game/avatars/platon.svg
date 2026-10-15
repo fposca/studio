@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Platon">
+<defs><radialGradient id="bg"><stop stop-color="#514838"/><stop offset="1" stop-color="#191c1d"/></radialGradient><linearGradient id="stone" x2="1" y2="1"><stop stop-color="#f5e9cc"/><stop offset=".55" stop-color="#c6b391"/><stop offset="1" stop-color="#80755f"/></linearGradient></defs>
+<rect width="128" height="128" fill="url(#bg)"/><circle cx="64" cy="58" r="48" fill="none" stroke="#bda06b" opacity=".45" stroke-width="2"/><path d="M17 126Q20 99 49 94H81Q111 98 114 126Z" fill="url(#stone)" stroke="#f3dfb6" stroke-width="2"/><path d="M32 114Q64 103 96 114M45 99L41 121M83 99L89 121" fill="none" stroke="#796f5e" stroke-width="3"/>
+<path d="M38 47Q35 25 51 20Q75 9 90 30Q99 40 91 57L83 77Q78 89 63 93Q49 88 42 76Z" fill="url(#stone)" stroke="#e8d6af" stroke-width="2"/>
+<path d="M41 54Q44 46 52 48M75 48Q83 44 88 50" fill="none" stroke="#5b5145" stroke-width="4"/><path d="M55 50Q57 54 55 58M77 50Q79 54 77 58" fill="none" stroke="#3b3633" stroke-width="2"/><path d="M65 53L61 67L67 70" fill="none" stroke="#897b67" stroke-width="2.5"/>
+<path d="M47 68Q43 77 50 87Q56 94 64 98Q78 94 84 85Q92 72 82 66Q80 77 72 78L65 74L57 78Q49 77 47 68Z" fill="#d8c7a4" stroke="#9b896d" stroke-width="2"/><path d="M53 84Q63 89 76 83M57 89Q64 94 72 89" fill="none" stroke="#a28d6c" stroke-width="2"/>
+<path d="M37 41Q30 35 37 26Q34 18 44 19Q48 9 56 17Q64 7 72 16Q80 10 85 21Q96 20 96 31Q103 37 94 44Q91 31 81 31Q72 22 61 30Q48 25 37 41Z" fill="#ece0c4" stroke="#a9987b" stroke-width="2"/>
+<path d="M36 38Q28 39 32 50Q25 55 39 63M92 39Q101 42 96 51Q104 58 90 64" fill="none" stroke="#e9ddc0" stroke-width="7" stroke-linecap="round"/></svg>

@@ -4,6 +4,8 @@ async function openGame(page) {
   await page.goto("/tests/fixtures/game.html");
   await page.waitForFunction(() => Boolean(window.game), null, { timeout: 90_000 });
   await expect(page.getByLabel("Cargando partida")).toHaveCount(0);
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await expect(page.locator(".neon-game-level-intro")).toHaveCount(0, { timeout: 10_000 });
 }
 
 async function inspect(page) {
@@ -26,12 +28,14 @@ test("Neonboy moves, idles, jumps, attacks, pauses and restarts in a rendered te
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await openGame(page);
+  await expect(page.getByRole("button", { name: "Ver en primera persona (V)" })).toBeVisible();
+  expect(await page.evaluate(() => window.game.inspect().scene.getObjectByName("Neonboy").visible)).toBe(true);
   await page.waitForTimeout(600);
   const initial = await inspect(page);
   expect(initial.pixelMax - initial.pixelMin).toBeGreaterThan(30);
   expect(initial.loadedMaps).toBeGreaterThan(8);
   expect(initial.triangles).toBeGreaterThan(10_000);
-  await page.screenshot({ path: testInfo.outputPath("desktop-day.png") });
+  await page.screenshot({ path: testInfo.outputPath("desktop-night-default.png") });
   await page.keyboard.down("w");
   await page.waitForFunction(() => window.game.inspect().world.player.z < 9);
   await page.keyboard.up("w");
@@ -50,18 +54,25 @@ test("Neonboy moves, idles, jumps, attacks, pauses and restarts in a rendered te
   await page.waitForFunction(() => window.game.inspect().world.player.attack?.elapsed > 0.3);
   await page.screenshot({ path: testInfo.outputPath("kick.png") });
   await page.keyboard.up("k");
-  await page.getByRole("button", { name: "Pausar (P)", exact: true }).click();
+  await page.keyboard.press("p");
+  await expect(page.getByRole("heading", { name: "En pausa", exact: true })).toBeVisible();
   const paused = await inspect(page);
   await page.keyboard.down("w");
   await page.waitForTimeout(300);
   await page.keyboard.up("w");
   expect((await inspect(page)).z).toBe(paused.z);
   await page.getByRole("button", { name: "Continuar", exact: true }).click();
+  await page.keyboard.press("v");
+  await expect(page.getByRole("button", { name: "Ver en tercera persona (V)" })).toBeVisible();
+  await page.getByRole("button", { name: "Dia", exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath("desktop-day.png") });
   await page.getByRole("button", { name: "Noche", exact: true }).click();
   await page.screenshot({ path: testInfo.outputPath("desktop-night.png") });
   await page.getByRole("button", { name: "Atardecer", exact: true }).click();
   await page.screenshot({ path: testInfo.outputPath("desktop-sunset.png") });
   await page.getByRole("button", { name: "Reiniciar partida", exact: true }).click();
+  await page.getByRole("button", { name: "Confirmar", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Ver en primera persona (V)" })).toBeVisible();
   await expect.poll(async () => (await inspect(page)).coins).toBe(0);
   expect((await inspect(page)).health).toBe(100);
   await page.evaluate(() => window.unmountGame());

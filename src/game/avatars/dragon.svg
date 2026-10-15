@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Dragon aliado">
+<defs><radialGradient id="bg"><stop stop-color="#4b465c"/><stop offset="1" stop-color="#141922"/></radialGradient><linearGradient id="skin" x2="1" y2="1"><stop stop-color="#776d69"/><stop offset=".52" stop-color="#322e36"/><stop offset="1" stop-color="#171c26"/></linearGradient><linearGradient id="horn" x2="1" y2="1"><stop stop-color="#f0dba8"/><stop offset="1" stop-color="#8b7355"/></linearGradient></defs>
+<rect width="128" height="128" fill="url(#bg)"/><circle cx="88" cy="31" r="33" fill="#c7a75e" opacity=".15"/><path d="M-8 105Q22 73 50 85Q64 94 81 86Q99 82 137 111V134H-8Z" fill="#1b2229" stroke="#b5a075" stroke-width="2"/>
+<path d="M14 38Q5 25 5 7Q28 22 35 43M34 25Q33 7 53 -3Q58 15 54 32M55 24Q74 -2 97 2Q82 20 72 37" fill="url(#horn)" stroke="#2a2730" stroke-width="3"/>
+<path d="M31 33Q65 13 89 39L98 64Q110 69 119 78L106 88Q88 90 76 82L63 109Q45 105 34 94L22 74Q18 51 31 33Z" fill="url(#skin)" stroke="#c3ac7f" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M47 35L64 21L70 44M73 36L96 20L92 50M95 52L115 43L104 65" fill="#9b8974" stroke="#292c33" stroke-width="3"/>
+<path d="M43 58Q59 49 74 56L64 65Q51 68 43 58Z" fill="#bc57d2"/><path d="M56 56L67 56L63 61Z" fill="#ffe8ff"/><path d="M83 76Q99 80 113 77" fill="none" stroke="#bb9c72" stroke-width="3"/>
+<path d="M25 72L37 77L30 88M35 84L47 90L44 101M58 93L66 101L71 86" fill="#b4a37f" stroke="#20242b" stroke-width="2"/><circle cx="91" cy="62" r="2" fill="#d5b18a"/>
+<path d="M0 115Q31 104 59 112T128 110" fill="none" stroke="#c2ab73" stroke-width="3" opacity=".65"/></svg>

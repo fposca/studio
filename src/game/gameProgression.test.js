@@ -10,6 +10,7 @@ function setup(t, options) {
   t.after(() => world.dispose());
   world.enemies.forEach((enemy) => { enemy.health = 0; enemy.collider.setEnabled(false); });
   world.step();
+  if (world.dialogue) world.answerDialogue();
   return world;
 }
 function teleport(world, target) {
@@ -37,12 +38,12 @@ test("weapons must be collected and cannot switch during a strike or after defea
   assert.equal(world.equip("unarmed"), false);
   for (let i = 0; i < 48; i++) world.step();
   assert.equal(world.equip("unarmed"), true);
-  assert.equal(world.equip("hammer"), false);
+  assert.equal(world.equip("axe"), false);
   world.status = "lost";
   assert.equal(world.equip("sword"), false);
 });
 
-test("victory unlocks cemetery, keeps the sword and restores health at the checkpoint", (t) => {
+test("victory unlocks the sanctuary, keeps the sword and restores health at the checkpoint", (t) => {
   const world = setup(t);
   assert.equal(world.nextLevelOptions(), null);
   teleport(world, world.pickups[0]); world.equip("sword");
@@ -53,7 +54,7 @@ test("victory unlocks cemetery, keeps the sword and restores health at the check
   assert.equal(next.level.id, 2);
   assert.equal(next.equipped, "sword");
   assert.equal(next.player.health, 100);
-  assert.equal(next.level.enemy, "demon");
+  assert.equal(next.level.enemy, "hoplite");
   assert.equal(next.player.equipped, "sword");
   teleport(next, next.pickups[0]);
   assert.equal(next.equip("hammer"), true);
@@ -64,19 +65,27 @@ test("victory unlocks cemetery, keeps the sword and restores health at the check
   assert.deepEqual([...next.inventory], ["unarmed", "sword"]);
   assert.equal(next.equipped, "sword");
   assert.equal(next.pickups[0].collected, false);
-  assert.ok(next.enemies.every((enemy) => enemy.health === 120 && enemy.species === "demon"));
+  assert.ok(next.enemies.every((enemy) => enemy.health === enemy.maxHealth));
 });
 
-test("a campaign without a sword does not grant it automatically in the cemetery", (t) => {
+test("a campaign without a sword does not grant it automatically in later levels", (t) => {
   const world = setup(t); world.status = "won";
   const next = setup(t, world.nextLevelOptions());
   assert.equal(next.equip("sword"), false);
   assert.equal(next.equipped, "unarmed");
   next.status = "won";
-  assert.equal(next.nextLevelOptions(), null);
+  const cemetery = setup(t, next.nextLevelOptions());
+  assert.equal(cemetery.level.id, 3);
+  assert.equal(cemetery.equip("sword"), false);
+  cemetery.status = "won";
+  const catacombs = setup(t, cemetery.nextLevelOptions());
+  assert.equal(catacombs.level.id, 4);
+  assert.equal(catacombs.equip("sword"), false);
+  catacombs.status = "won";
+  assert.equal(catacombs.nextLevelOptions(), null);
 });
 
-for (const weapon of ["sword", "hammer"]) test(`${weapon} deals its own damage only once per swing`, (t) => {
+for (const weapon of ["sword", "axe", "hammer"]) test(`${weapon} deals its own damage only once per swing`, (t) => {
   const world = setup(t, { inventory: [weapon], equipped: weapon });
   const enemy = world.enemies[0];
   Object.assign(enemy, { x: 0, y: 0, z: 11.25, health: 100, cooldown: 100 });
@@ -90,9 +99,9 @@ for (const weapon of ["sword", "hammer"]) test(`${weapon} deals its own damage o
   assert.equal(world.events.find((event) => event.type === "hit").kind, weapon);
 });
 
-test("all cemetery coins and the hammer are reachable on foot with solid graves and crypt", (t) => {
-  const world = setup(t, { level: 2 });
-  for (const target of [...world.coins.slice(0, 3), world.pickups[0], ...world.coins.slice(3)]) {
+test("ground-level cemetery coins and the axe remain reachable around the graves", (t) => {
+  const world = setup(t, { level: 3 });
+  for (const target of [...world.coins.slice(0, 3), world.pickups[0], ...world.coins.slice(3, 28)]) {
     let attempts = 0;
     while (!target.collected && attempts++ < 1300) {
       const dx = target.x - world.player.x, dz = target.z - world.player.z, d = Math.hypot(dx, dz);
@@ -100,12 +109,71 @@ test("all cemetery coins and the hammer are reachable on foot with solid graves 
     }
     assert.ok(target.collected, `unreachable ${target.id ?? target.weapon} at ${target.x},${target.z} from ${world.player.x},${world.player.z}`);
   }
-  assert.equal(world.status, "won");
-  assert.equal(world.inventory.has("hammer"), true);
+  assert.equal(world.status, "playing");
+  assert.equal(world.inventory.has("axe"), true);
+});
+
+test("cemetery platforms and their coins are reachable with real jumps", (t) => {
+  const world = setup(t, { level: 3 });
+  for (const route of [world.platforms.slice(0, 4), world.platforms.slice(4)]) {
+    const first = route[0];
+    teleport(world, { x: first.x, y: 0, z: first.z + 3 });
+    for (const target of route) {
+      let landed = false;
+      for (let frame = 0; frame < 115; frame++) {
+        const dx = target.x - world.player.x, dz = target.z - world.player.z;
+        const distance = Math.hypot(dx, dz);
+        world.step({ x: distance > 0.15 ? dx / distance : 0, z: distance > 0.15 ? dz / distance : 0,
+          run: true, jump: frame === 0 });
+        if (world.player.grounded && world.player.platformId === target.id && distance < 0.4) { landed = true; break; }
+      }
+      assert.ok(landed, `${target.id} unreachable from ${world.player.x}, ${world.player.y}, ${world.player.z}`);
+    }
+  }
+  assert.equal(world.coins.filter((coin) => coin.platformId && coin.collected).length, 14);
+});
+
+test("the axe breaks cemetery walls and exposes the secret relics", (t) => {
+  const world = setup(t, { level: 3, inventory: ["axe"], equipped: "axe" });
+  const door = world.secretDoors[0];
+  const relic = world.artifacts.find((artifact) => artifact.secret === door.id);
+  assert.equal(world.artifactAvailable(relic), false);
+  teleport(world, { x: door.x + 1.4, y: 0, z: door.z });
+  world.player.yaw = -Math.PI / 2;
+  assert.equal(world.startAttack(world.player, "punch"), true);
+  for (let i = 0; i < 45; i++) world.step();
+  assert.equal(door.broken, true);
+  assert.equal(door.collider.isEnabled(), false);
+  assert.equal(world.artifactAvailable(relic), true);
+  for (let i = 0; i < 110 && !relic.found; i++) world.step({ x: -1 });
+  assert.equal(relic.found, true);
+  assert.ok(world.player.x < door.x);
+  const east = world.secretDoors[1], eastRelic = world.artifacts.find((artifact) => artifact.secret === east.id);
+  teleport(world, { x: east.x - 1.4, y: 0, z: east.z });
+  world.player.attack = null; world.player.cooldown = 0; world.player.yaw = Math.PI / 2;
+  assert.equal(world.startAttack(world.player, "punch"), true);
+  for (let i = 0; i < 45; i++) world.step();
+  assert.equal(east.broken, true);
+  for (let i = 0; i < 110 && !eastRelic.found; i++) world.step({ x: 1 });
+  assert.equal(eastRelic.found, true);
+});
+
+test("zombie boss alternates a sweep and a crushing combo", (t) => {
+  const world = setup(t, { level: 3 }), boss = world.boss;
+  boss.health = boss.maxHealth;
+  boss.active = true; boss.collider.setEnabled(true);
+  teleport(world, { x: boss.x, y: 0, z: boss.z + 2.3 });
+  world.step();
+  assert.equal(boss.attack?.kind, "zombieSweep");
+  assert.ok(ATTACKS.zombieSweep.reach > ATTACKS.zombieCrush.reach);
+  assert.ok(ATTACKS.zombieCrush.damage > ATTACKS.zombieSweep.damage);
+  boss.attack = null; boss.cooldown = 0;
+  world.step();
+  assert.equal(boss.attack?.kind, "zombieCrush");
 });
 
 test("demon attacks have readable windup, a lunge, damage and recovery", (t) => {
-  const world = new GameWorld({ level: 2 }); t.after(() => world.dispose());
+  const world = new GameWorld({ level: 3 }); t.after(() => world.dispose());
   const enemy = world.enemies[0];
   teleport(world, { x: enemy.x, y: 0, z: enemy.z + 1.7 });
   const start = enemy.z;
@@ -118,7 +186,7 @@ test("demon attacks have readable windup, a lunge, damage and recovery", (t) => 
 });
 
 test("sound effects have finite audio, headroom, a soft tail and distinct variations", () => {
-  for (const kind of ["coin", "pickup", "victory", "punch", "kick", "sword", "hammer", "enemy", "demon", "hit", "metal", "heavy", "defeat", "jump", "land"]) {
+  for (const kind of ["thunder", "coin", "pickup", "heal", "victory", "punch", "kick", "sword", "axe", "hammer", "enemy", "demon", "hit", "metal", "heavy", "hurt", "defeat", "jump", "land"]) {
     const samples = synthesizeEffect(kind, 22050, 0);
     assert.ok(samples.every(Number.isFinite), kind);
     assert.ok(samples.some((value) => Math.abs(value) > 0.01), kind);

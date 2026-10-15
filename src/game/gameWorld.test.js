@@ -58,6 +58,21 @@ test("jump leaves the floor, rejects an air jump and lands", (t) => {
   assert.ok(Math.abs(world.player.y) < 0.08);
 });
 
+test("jump reaches a higher arc and stays airborne a little longer", (t) => {
+  const world = setup(t);
+  world.step({ jump: true });
+  let peak = world.player.y;
+  let frames = 1;
+  while (!world.player.grounded && frames < 120) {
+    world.step();
+    peak = Math.max(peak, world.player.y);
+    frames += 1;
+  }
+  assert.ok(peak > 1.5 && peak < 1.9, `jump height: ${peak}`);
+  assert.ok(frames * FIXED_STEP > 0.72 && frames * FIXED_STEP < 0.9, `airtime: ${frames * FIXED_STEP}`);
+  assert.equal(world.player.grounded, true);
+});
+
 test("running is faster than walking and releasing run restores walking then idle", (t) => {
   const world = setup(t);
   advance(world, 0.3, { x: 1 });
@@ -73,6 +88,67 @@ test("running is faster than walking and releasing run restores walking then idl
   assert.equal(world.player.running, false);
   advance(world, 0.2);
   assert.equal(world.player.mode, "idle");
+});
+
+test("historical artifacts award points once and restart with the level", (t) => {
+  const world = setup(t);
+  for (const artifact of world.artifacts) {
+    place(world, world.player, artifact.x, artifact.y, artifact.z);
+    world.step();
+    assert.equal(artifact.found, true);
+    assert.equal(world.events.filter((event) => event.type === "discovery" && event.id === artifact.id).length, 1);
+    world.events.length = 0;
+    world.step();
+    assert.equal(world.events.filter((event) => event.type === "discovery").length, 0);
+  }
+  assert.equal(world.snapshot().score, 250);
+  assert.equal(world.snapshot().discoveries, 2);
+  world.restart();
+  assert.equal(world.snapshot().score, 0);
+  assert.equal(world.snapshot().discoveries, 0);
+});
+
+test("artifact points carry into the cemetery without rediscovering level one", (t) => {
+  const world = new GameWorld({ level: 3, score: 250 });
+  t.after(() => world.dispose());
+  world.enemies.forEach((enemy) => { enemy.health = 0; enemy.collider.setEnabled(false); });
+  const artifact = world.artifacts[0];
+  place(world, world.player, artifact.x, artifact.y, artifact.z);
+  world.step();
+  assert.equal(world.snapshot().score, 350);
+  assert.deepEqual(world.serialize().artifacts, [artifact.id]);
+  world.restart();
+  assert.equal(world.snapshot().score, 250);
+  assert.equal(world.snapshot().discoveries, 0);
+});
+
+test("level one hearts heal 25 percent once, but remain available at full health", (t) => {
+  const world = setup(t);
+  assert.equal(world.hearts.length, 4);
+  const [first, second, third, fourth] = world.hearts;
+  place(world, world.player, first.x, first.y, first.z);
+  world.step();
+  assert.equal(first.collected, false);
+  assert.equal(world.player.health, MAX_HEALTH);
+
+  world.player.health = 40;
+  world.step();
+  assert.equal(world.player.health, 65);
+  assert.equal(first.collected, true);
+  assert.equal(world.events.filter((event) => event.type === "heal").at(-1).amount, 25);
+  world.step();
+  assert.equal(world.player.health, 65);
+
+  world.player.health = 99;
+  place(world, world.player, second.x, second.y, second.z);
+  world.step();
+  assert.equal(world.player.health, MAX_HEALTH);
+  assert.equal(second.collected, true);
+  assert.equal(third.collected, false);
+  assert.equal(fourth.collected, false);
+
+  world.restart();
+  assert.ok(world.hearts.every((heart) => !heart.collected));
 });
 
 test("the controller climbs the temple steps and stops at its wall", (t) => {
@@ -152,7 +228,7 @@ test("death stops simulation; restart restores enemies, coins and health", (t) =
   assert.equal(world.status, "playing");
   assert.equal(world.player.health, MAX_HEALTH);
   assert.equal(world.collected, 0);
-  assert.ok(world.enemies.every((enemy) => enemy.health === 80 && enemy.collider.isEnabled()));
+  assert.ok(world.enemies.every((enemy) => enemy.health === enemy.maxHealth && enemy.collider.isEnabled() === !enemy.boss));
 });
 
 test("collecting all accessible coins wins the round", (t) => {
@@ -165,16 +241,29 @@ test("collecting all accessible coins wins the round", (t) => {
   assert.equal(world.status, "won");
 });
 
-test("the full coin route is reachable by walking around the temple", (t) => {
+test("the ground coin route remains reachable while jumping past the new obstacles", (t) => {
   const world = setup(t);
-  for (const coin of world.coins) {
+  for (const coin of world.coins.filter((entry) => !entry.platformId)) {
+    // Leave the low return platform around its east edge before walking underneath the upper slabs.
+    if (coin.id === 20) {
+      for (const [x, z] of [[16.5, -10], [16.5, -2]]) {
+        for (let frame = 0; frame < 400; frame++) {
+          const dx = x - world.player.x, dz = z - world.player.z, distance = Math.hypot(dx, dz);
+          if (distance < 0.15) break;
+          world.player.invulnerable = 1;
+          world.step({ x: dx / distance, z: dz / distance });
+        }
+      }
+    }
     let attempts = 0;
     while (!coin.collected && attempts++ < 1100) {
       const dx = coin.x - world.player.x, dz = coin.z - world.player.z;
       const distance = Math.hypot(dx, dz);
-      world.step({ x: dx / Math.max(distance, 0.01), z: dz / Math.max(distance, 0.01) });
+      world.player.invulnerable = 1;
+      const obstacleAhead = coin.id === 19 || world.hazards.some((hazard) => Math.hypot(hazard.x - world.player.x, hazard.z - world.player.z) < 3);
+      world.step({ x: dx / Math.max(distance, 0.01), z: dz / Math.max(distance, 0.01), jump: obstacleAhead && world.player.grounded });
     }
     assert.ok(coin.collected, `coin ${coin.id} unreachable from ${world.player.x}, ${world.player.z}`);
   }
-  assert.equal(world.status, "won");
+  assert.equal(world.status, "playing");
 });

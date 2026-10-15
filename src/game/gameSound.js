@@ -1,6 +1,6 @@
-const LENGTHS = { coin: 0.45, pickup: 1.05, victory: 1.8, punch: 0.23, kick: 0.33,
-  sword: 0.4, hammer: 0.55, enemy: 0.5, demon: 0.62, hit: 0.38, metal: 0.48,
-  heavy: 0.6, defeat: 0.66, jump: 0.2, land: 0.26 };
+const LENGTHS = { thunder: 1.35, coin: 0.45, pickup: 1.05, heal: 0.85, victory: 1.8, punch: 0.23, kick: 0.33,
+  sword: 0.4, axe: 0.55, hammer: 0.68, enemy: 0.5, demon: 0.62, hit: 0.38, metal: 0.48,
+  heavy: 0.6, hurt: 0.52, shot: 0.27, empty: 0.1, ammo: 0.45, defeat: 0.66, jump: 0.2, land: 0.26 };
 
 // Short layered Foley: filtered air, a low impact body and damped metallic partials.
 // Buffers are generated once, with deterministic variations instead of repeated beeps.
@@ -10,6 +10,12 @@ export function synthesizeEffect(kind, sampleRate = 44100, variation = 0) {
   const samples = new Float32Array(Math.ceil(sampleRate * length));
   let seed = 173 + variation * 7919, low = 0, body = 0;
   const pitch = 1 + (variation - 1) * 0.045;
+  let voicePhase = 0;
+  const harmonics = Array.from({ length: 18 }, (_, i) => {
+    const n = i + 1, frequency = n * 130;
+    return (0.32 * Math.exp(-(((frequency - 540) / 210) ** 2)) +
+      0.2 * Math.exp(-(((frequency - 1150) / 330) ** 2)) + 0.05) / Math.sqrt(n);
+  });
   const sine = (frequency, t) => Math.sin(2 * Math.PI * frequency * pitch * t);
   for (let i = 0; i < samples.length; i++) {
     const t = i / sampleRate, u = t / length;
@@ -19,12 +25,12 @@ export function synthesizeEffect(kind, sampleRate = 44100, variation = 0) {
     body += (noise - body) * 0.009;
     const air = noise - low, onset = Math.min(1, t / 0.004);
     let sample = 0;
-    if (["coin", "pickup", "victory"].includes(kind)) {
-      const notes = kind === "coin" ? [0] : kind === "pickup" ? [0, 4, 7] : [0, 4, 7, 12];
+    if (["coin", "pickup", "heal", "victory"].includes(kind)) {
+      const notes = kind === "coin" ? [0] : kind === "pickup" ? [0, 4, 7] : kind === "heal" ? [0, 3, 7, 12] : [0, 4, 7, 12];
       notes.forEach((note, index) => {
         const elapsed = t - index * (kind === "victory" ? 0.16 : 0.095);
         if (elapsed < 0) return;
-        const frequency = (kind === "coin" ? 1450 : 620) * 2 ** (note / 12);
+        const frequency = (kind === "coin" ? 1450 : kind === "heal" ? 530 : 620) * 2 ** (note / 12);
         const envelope = Math.min(1, elapsed / 0.002) * Math.exp(-elapsed * (kind === "coin" ? 12 : 5));
         sample += (sine(frequency, elapsed) * 0.25 + sine(frequency * 2.71, elapsed) * 0.12 + sine(frequency * 4.13, elapsed) * 0.05) * envelope;
       });
@@ -36,6 +42,18 @@ export function synthesizeEffect(kind, sampleRate = 44100, variation = 0) {
       if (kind === "metal") sample += (sine(870, t) + sine(2137, t) * 0.45) * Math.exp(-t * 14) * 0.13;
       if (kind === "heavy" || kind === "defeat") sample += sine(46, t) * 0.5 * Math.exp(-t * 8);
       if (kind === "land") sample *= 0.48;
+    } else if (kind === "thunder") {
+      const crack = air * Math.exp(-t * 48) * 0.95;
+      const rumble = (body * 7 + low * 0.9 + sine(37, t) * 0.42 + sine(58, t) * 0.2) * Math.exp(-t * 2.8);
+      sample = crack + rumble * (0.8 + 0.2 * Math.sin(t * 23));
+    } else if (kind === "hurt") {
+      // A short voiced "ugh": falling pitch, vowel formants, breath and a chest impact.
+      voicePhase += 2 * Math.PI * (105 + 55 * Math.exp(-t * 8) + Math.sin(t * 71) * 3) * pitch / sampleRate;
+      let voiced = 0;
+      for (let n = 1; n <= harmonics.length; n++) voiced += Math.sin(voicePhase * n) * harmonics[n - 1];
+      const effort = Math.min(1, t / 0.025) * Math.exp(-t * 5.5) * (0.9 + 0.1 * Math.sin(t * 43));
+      sample = (voiced * 1.5 + low * 0.85 + air * 0.08) * effort;
+      sample += sine(68, t) * 0.24 * Math.exp(-t * 28);
     } else if (kind === "enemy" || kind === "demon") {
       const pitchBase = kind === "demon" ? 63 : 105;
       sample = (sine(pitchBase, t) + sine(pitchBase * 2.03, t) * 0.5 + low * 3) *
@@ -44,13 +62,30 @@ export function synthesizeEffect(kind, sampleRate = 44100, variation = 0) {
       const swell = Math.sin(Math.PI * u) ** 2;
       sample = (air * 0.18 + low * 2.6) * swell;
       if (kind === "sword") sample += sine(530 - 230 * u, t) * 0.07 * swell;
-      if (kind === "hammer") sample += body * 5 * swell;
+      if (kind === "axe") sample += body * 5 * swell;
+      if (kind === "hammer") sample += (body * 6 + sine(155 - 95 * u, t) * 0.45) * swell;
       if (kind === "jump") sample *= 0.4;
     }
     const tail = Math.min(1, (length - t) / 0.04);
     samples[i] = Math.tanh(sample * 1.15) * 0.45 * onset * tail;
   }
   return samples;
+}
+
+export function effectForEvent(event, playerId) {
+  if (["hit", "defeat"].includes(event.type) && event.actor === playerId) return "hurt";
+  if (event.type === "attack" && event.kind === "crossbow") return null;
+  let kind = event.type;
+  if (kind === "attack") kind = event.kind;
+  if (kind === "hammerImpact") kind = "heavy";
+  if (["hoplite", "statue", "medusa", "zombie", "mummy"].includes(kind)) kind = kind === "medusa" ? "demon" : "enemy";
+  if (["zombieSweep", "zombieCrush", "mummyChief"].includes(kind)) kind = "demon";
+  if (kind === "secret") kind = "heavy";
+  if (kind === "crossbow") kind = "shot";
+  if (kind === "ammo") kind = "pickup";
+  if (kind === "boss") kind = "demon";
+  if (kind === "hit") kind = event.kind === "sword" ? "metal" : ["axe", "hammer", "statue", "zombieCrush"].includes(event.kind) ? "heavy" : "hit";
+  return kind;
 }
 
 export function createGameSound() {
@@ -73,16 +108,21 @@ export function createGameSound() {
   const setGain = () => { if (master) master.gain.setTargetAtTime(muted || suspended ? 0 : 0.62, context.currentTime, 0.015); };
   return {
     unlock,
+    get ready() { return context?.state === "running"; },
     setMuted(value) { muted = value; if (value) silence(); setGain(); },
     setPaused(value) { suspended = value; if (value) silence(); setGain(); },
     play(event, player, yaw = 0) {
       if (muted || suspended || context?.state !== "running") return;
       const dx = (event.x ?? player.x) - player.x, dz = (event.z ?? player.z) - player.z;
       const distance = Math.hypot(dx, dz);
-      if (distance > 18 || voices.size >= 16) return;
-      let kind = event.type;
-      if (kind === "attack") kind = event.kind;
-      if (kind === "hit") kind = event.kind === "sword" ? "metal" : event.kind === "hammer" ? "heavy" : "hit";
+      if (distance > 18) return;
+      if (voices.size >= 16) {
+        if (!["hit", "defeat"].includes(event.type) || event.actor !== player.id) return;
+        const oldest = voices.values().next().value;
+        oldest.stop(); voices.delete(oldest);
+      }
+      const kind = effectForEvent(event, player.id);
+      if (!kind) return;
       const variation = Math.floor(Math.random() * 3), key = `${kind}:${variation}`;
       if (!buffers.has(key)) {
         const samples = synthesizeEffect(kind, context.sampleRate, variation);

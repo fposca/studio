@@ -1,5 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import ffmpegPath from "ffmpeg-static";
 import { MeshoptSimplifier } from "three/examples/jsm/libs/meshopt_simplifier.module.js";
 
 const targets = {
@@ -11,7 +13,9 @@ const targets = {
   "trono-satanas": 180_000,
   tipografia: 220_000,
   "fondo-tipografico": 350_000,
-  "sillon-gamer-90": 180_000
+  "sillon-gamer-90": 180_000,
+  vida: 120_000,
+  moneda: 4_000
 };
 const names = process.argv.slice(2);
 if (!names.length || names.some((name) => !(name in targets))) {
@@ -36,7 +40,7 @@ for (const name of names) {
     const accessor = document.accessors[accessorId];
     const view = document.bufferViews[accessor.bufferView];
     if (view.byteStride || accessor.sparse) throw new Error(`${name}: atributo intercalado no admitido`);
-    const offset = binaryStart + view.byteOffset + (accessor.byteOffset || 0);
+    const offset = binaryStart + (view.byteOffset || 0) + (accessor.byteOffset || 0);
     const length = accessor.count * width * componentBytes;
     return { accessor, bytes: source.subarray(offset, offset + length) };
   };
@@ -118,7 +122,16 @@ for (const name of names) {
   for (const image of document.images || []) {
     if (image.bufferView === undefined) throw new Error(`${name}: textura externa no admitida`);
     const view = sourceViews[image.bufferView];
-    image.bufferView = append(source.subarray(binaryStart + view.byteOffset, binaryStart + view.byteOffset + view.byteLength));
+    const offset = binaryStart + (view.byteOffset || 0);
+    let bytes = source.subarray(offset, offset + view.byteLength);
+    if (name === "moneda") {
+      const result = spawnSync(ffmpegPath, ["-loglevel", "error", "-i", "pipe:0", "-vf", "scale=512:512:flags=lanczos",
+        "-q:v", "5", "-frames:v", "1", "-f", "image2pipe", "-vcodec", "mjpeg", "pipe:1"],
+      { input: bytes, maxBuffer: 8 * 1024 * 1024 });
+      if (result.status !== 0 || !result.stdout.length) throw new Error(`${name}: no se pudo reducir la textura: ${result.stderr}`);
+      bytes = result.stdout;
+    }
+    image.bufferView = append(bytes);
   }
   document.bufferViews = rebuiltViews;
   document.buffers[0].byteLength = align4(binaryLength);
@@ -135,7 +148,7 @@ for (const name of names) {
   const binaryHeader = Buffer.alloc(8);
   binaryHeader.writeUInt32LE(paddedBinary.length, 0);
   binaryHeader.write("BIN\0", 4, "ascii");
-  const suffix = ["fondo-tipografico", "sillon-gamer-90"].includes(name) ? "optimized" : "ship-optimized";
+  const suffix = ["fondo-tipografico", "sillon-gamer-90", "vida", "moneda"].includes(name) ? "optimized" : "ship-optimized";
   const outputPath = resolve(`src/assets/neonboy-animaciones/${name}.${suffix}.glb`);
   await writeFile(outputPath, Buffer.concat([header, paddedJson, binaryHeader, paddedBinary]));
   console.log(`${name}: ${indices.length / 3 | 0} -> ${reducedIndices.length / 3 | 0} triangles, ${used.length} vertices, error ${error.toFixed(4)}, ${(header.length + paddedJson.length + binaryHeader.length + paddedBinary.length) / 1048576 | 0} MiB`);

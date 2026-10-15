@@ -49,7 +49,8 @@ export function createHandGrip(model, hand) {
   const socket = new THREE.Group();
   socket.name = "Empunadura derecha";
   socket.position.set(0, 0.11, -0.055);
-  socket.rotation.z = -Math.PI / 2;
+  // The thumb is on the hand's -X side: the blade must exit on that side.
+  socket.rotation.z = Math.PI / 2;
   model.updateMatrixWorld(true);
   const scale = hand.getWorldScale(new THREE.Vector3()).x;
   socket.scale.setScalar(1 / scale);
