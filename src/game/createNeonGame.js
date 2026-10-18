@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { createParthenonSet, PARTHENON_PERIODS } from "../editors/parthenonSet.js";
 import { BOUNDS, FIXED_STEP } from "./gameRules.js";
+import { createGameTempleExtension } from "./gameTempleExtension.js";
 import { GameWorld, initializePhysics } from "./gameWorld.js";
 import { LEVELS } from "./gameLevels.js";
 import { createGameCharacter, createPlato, disposeObjects, loadGameCharacters, loadInteriorCharacters, loadCemeteryCharacters, loadCatacombCharacters } from "./gameCharacters.js";
@@ -18,8 +19,9 @@ import { createHealthPickups } from "./gameHealth.js";
 import { createGameArtifacts } from "./gameArtifacts.js";
 import { createGameChallenges } from "./gameChallenges.js";
 import { createGameTempleSky } from "./gameTempleSky.js";
+import { createGameParticles } from "./gameParticles.js";
+import { createGameChargeAura } from "./gameChargeAura.js";
 import { validateGameSave } from "./gameSave.js";
-import { createGameOpening, OPENING_DURATION } from "./gameOpening.js";
 
 const WEBGL_MESSAGE = "Chrome no pudo iniciar WebGL 2. Revisa chrome://settings/system y activa la aceleracion grafica; reinicia Chrome y pulsa Reintentar. Podes comprobar WebGL 2 en chrome://gpu.";
 
@@ -56,7 +58,7 @@ function createCoins(scene, world, template) {
   });
 }
 
-function createPerimeter(scene) {
+function createPerimeter(scene, bounds = BOUNDS) {
   const map = new THREE.TextureLoader().load(new URL("../assets/environments/parthenon-weathered-stone-v2.png", import.meta.url).href);
   map.colorSpace = THREE.SRGBColorSpace;
   map.wrapS = map.wrapT = THREE.RepeatWrapping;
@@ -65,60 +67,19 @@ function createPerimeter(scene) {
   const material = new THREE.MeshStandardMaterial({ map, color: 0x959184, roughness: 0.96, bumpMap: map, bumpScale: 0.03 });
   const group = new THREE.Group();
   const geometry = new THREE.BoxGeometry(1.95, 0.68, 0.6);
-  for (const x of [BOUNDS.left - 0.3, BOUNDS.right + 0.3]) for (let z = -42.5; z < 21; z += 2) {
+  for (const x of [bounds.left - 0.3, bounds.right + 0.3]) for (let z = bounds.back; z <= bounds.front; z += 2) {
     const block = new THREE.Mesh(geometry, material);
     block.position.set(x, 0.22, z);
     block.rotation.y = Math.PI / 2;
     group.add(block);
   }
-  for (const z of [BOUNDS.back - 0.3, BOUNDS.front + 0.3]) for (let x = -16; x < 17; x += 2) {
+  for (const z of [bounds.back - 0.3, bounds.front + 0.3]) for (let x = bounds.left; x <= bounds.right; x += 2) {
     const block = new THREE.Mesh(geometry, material);
     block.position.set(x, 0.22, z);
     group.add(block);
   }
   group.traverse((object) => { if (object.isMesh) { object.castShadow = true; object.receiveShadow = true; } });
   scene.add(group);
-}
-
-function createParticles(scene) {
-  const count = 160;
-  const positions = new Float32Array(count * 3);
-  positions.fill(-1000);
-  const colors = new Float32Array(count * 3);
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-  const material = new THREE.PointsMaterial({ size: 0.07, vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false });
-  const points = new THREE.Points(geometry, material);
-  points.frustumCulled = false;
-  scene.add(points);
-  const particles = Array.from({ length: count }, () => ({ life: 0, vx: 0, vy: 0, vz: 0 }));
-  let cursor = 0;
-  return {
-    emit(event) {
-      const color = new THREE.Color(event.type === "coin" ? 0xffda5c : event.type === "heal" ? 0xff6f95 : event.type === "hammerImpact" ? 0xe8be8a : 0x78efca);
-      for (let j = 0; j < 12; j += 1) {
-        const i = cursor++ % count;
-        positions.set([event.x, event.y, event.z], i * 3);
-        colors.set([color.r, color.g, color.b], i * 3);
-        Object.assign(particles[i], { life: 0.45, vx: Math.sin(j * 2.4) * 1.8, vy: 1 + (j % 4) * 0.5, vz: Math.cos(j * 2.4) * 1.8 });
-      }
-      geometry.attributes.color.needsUpdate = true;
-    },
-    clear() { particles.forEach((particle) => { particle.life = 0; }); positions.fill(-1000); geometry.attributes.position.needsUpdate = true; },
-    update(dt) {
-      particles.forEach((particle, i) => {
-        if (particle.life <= 0) return;
-        particle.life -= dt;
-        positions[i * 3] += particle.vx * dt;
-        positions[i * 3 + 1] += particle.vy * dt;
-        positions[i * 3 + 2] += particle.vz * dt;
-        particle.vy -= dt * 8;
-        if (particle.life <= 0) positions[i * 3 + 1] = -1000;
-      });
-      geometry.attributes.position.needsUpdate = true;
-    }
-  };
 }
 
 export async function createNeonGame({ canvas, signal, onChange, onProgress, onError }) {
@@ -135,8 +96,8 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
     return null;
   }
   let world, renderer, scene, environment, input, observer, raf, levelGroup, scenery, stopped = false;
-  let interiorAssets = null, cemeteryAssets = null, catacombAssets = null, plato = null, templeSky = null;
-  let firstPersonView, opening;
+  let interiorAssets = null, cemeteryAssets = null, catacombAssets = null, plato = null, templeSky = null, templeExtension = null;
+  let firstPersonView;
   let animatePickups = () => {};
   const characters = [];
   const sound = createGameSound();
@@ -144,7 +105,7 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
     firstPersonView?.dispose(); firstPersonView = null;
     animatePickups?.dispose?.();
     if (plato) { plato.root.removeFromParent(); plato.dispose(); plato = null; }
-    templeSky?.dispose(); templeSky = null;
+    templeSky?.dispose(); templeSky = null; templeExtension = null;
     for (const character of characters.splice(0)) { character.root.removeFromParent(); character.dispose(); }
     scenery?.userData.dispose?.();
     if (levelGroup) { levelGroup.removeFromParent(); disposeObjects([levelGroup]); }
@@ -156,7 +117,6 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
     observer?.disconnect();
     input?.dispose();
     sound.dispose();
-    opening?.dispose(); opening = null;
     clearLevel();
     if (scene) disposeObjects([scene]);
     assets.dispose();
@@ -196,8 +156,9 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
     const ambient = new THREE.HemisphereLight(0xc5dcf4, 0x827563, 1.1);
     scene.add(ambient);
     let coins = [], collectibles, animateAmmo = () => {}, animateArrows = () => {}, animateHearts = () => {}, animateArtifacts = () => {}, animateChallenges = () => {};
-    const particles = createParticles(scene);
-    let phase = "opening", introTime = 0, openingTime = 0;
+    const particles = createGameParticles(scene);
+    const aura = createGameChargeAura(scene);
+    let phase = "opening", introTime = 0, revealGameAfterRender = false;
     let paused = false, discovery = null, loadingLevel = false, loadingName = "", period = "night", previous = 0, accumulator = 0, lastHud = 0;
     const portraitLight = new THREE.PointLight(0xf4f8ff, 22, 9, 2);
     portraitLight.position.set(-1.6, 2.8, 16);
@@ -227,10 +188,9 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
       renderActors.length = world.actors.length;
       previousActors.length = world.actors.length;
     }
-    const publish = () => onChange?.({ ...world.snapshot(), paused, discovery, period, phase, openingTime, soundReady: sound.ready, openingFade: opening?.state?.fade || 0, loadingLevel, loadingName, reticle, damage, firstPerson: input?.orbit.firstPerson ?? false });
+    const publish = () => onChange?.({ ...world.snapshot(), paused, discovery, period, phase: revealGameAfterRender ? "level-intro" : phase, soundReady: sound.ready, loadingLevel, loadingName, reticle, damage, firstPerson: input?.orbit.firstPerson ?? false });
     function finishOpening() {
       if (phase !== "opening" || stopped) return;
-      opening?.dispose(); opening = null;
       phase = "title"; introTime = 0; accumulator = 0;
       sound.setPaused(true);
       setPeriod("night"); updateCamera(0); updateCharacters(0);
@@ -239,12 +199,12 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
     function finishLevelIntro() {
       if (phase !== "level-intro" || loadingLevel || stopped) return;
       phase = "game";
+      revealGameAfterRender = true;
       paused = document.hidden;
       accumulator = 0;
       rememberActorTransforms();
       input.setEnabled(!paused);
       sound.setPaused(paused);
-      publish();
       if (!paused) canvas.focus();
     }
     function setPaused(value = !paused) {
@@ -287,8 +247,11 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
       scenery = world.level.id === 2 ? createGameTempleInterior(world) : world.level.id === 3 ? createGameCemetery(world) : world.level.id === 4 ? createGameCatacombs(world) : createParthenonSet();
       levelGroup.add(scenery);
       scene.add(levelGroup);
-      if (world.level.id === 1) templeSky = createGameTempleSky(levelGroup, world, assets.dragon);
-      if (world.level.id === 1 || world.level.id === 3) createPerimeter(levelGroup);
+      if (world.level.id === 1) {
+        templeSky = createGameTempleSky(levelGroup, world, assets.dragon);
+        templeExtension = createGameTempleExtension(levelGroup);
+      }
+      if (world.level.id === 1 || world.level.id === 3) createPerimeter(levelGroup, world.level.bounds || BOUNDS);
       if (world.level.quest || world.level.advisor) { plato = createPlato(world.level.advisor ? catacombAssets.plato : interiorAssets.plato, world.level.advisor || world.level.quest); levelGroup.add(plato.root); }
       collectibles = new THREE.Group();
       levelGroup.add(collectibles);
@@ -311,7 +274,6 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
     buildLevel();
     rememberActorTransforms();
     interpolateActors(1);
-    opening = await createGameOpening(assets, environment.texture);
     if (signal.aborted) { dispose(); return null; }
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -319,7 +281,6 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
-      opening?.resize(width / height);
     };
     observer = new ResizeObserver(resize);
     observer.observe(canvas);
@@ -361,7 +322,25 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
       else focus.lerp(desiredFocus, 1 - Math.exp(-12 * dt));
       const orbit = input.orbit;
       direction.set(Math.sin(orbit.yaw) * Math.cos(orbit.pitch), Math.sin(orbit.pitch), Math.cos(orbit.yaw) * Math.cos(orbit.pitch));
-      const distance = world.cameraDistance(focus, direction, orbit.distance);
+      let distance = world.cameraDistance(focus, direction, orbit.distance);
+      if (distance < 1.35) {
+        // Low galleries can cover the camera path. Try a clear side angle, then look below the slab.
+        let bestDistance = distance, bestYaw = orbit.yaw, bestPitch = orbit.pitch;
+        for (const side of [-1, 1]) {
+          const yaw = orbit.yaw + side * 0.72;
+          direction.set(Math.sin(yaw) * Math.cos(orbit.pitch), Math.sin(orbit.pitch),
+            Math.cos(yaw) * Math.cos(orbit.pitch));
+          const candidate = world.cameraDistance(focus, direction, Math.min(orbit.distance, 5));
+          if (candidate > bestDistance) { bestDistance = candidate; bestYaw = yaw; }
+        }
+        direction.set(Math.sin(orbit.yaw) * Math.cos(0.13), -Math.sin(0.13),
+          Math.cos(orbit.yaw) * Math.cos(0.13));
+        const lowerDistance = world.cameraDistance(focus, direction, Math.min(orbit.distance, 4.2));
+        if (lowerDistance > bestDistance) { bestDistance = lowerDistance; bestYaw = orbit.yaw; bestPitch = -0.13; }
+        distance = bestDistance;
+        direction.set(Math.sin(bestYaw) * Math.cos(bestPitch), Math.sin(bestPitch),
+          Math.cos(bestYaw) * Math.cos(bestPitch));
+      }
       desiredCamera.copy(focus).addScaledVector(direction, distance);
       camera.position.copy(desiredCamera);
       camera.lookAt(focus);
@@ -379,14 +358,8 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
       try {
         const dt = previous ? Math.min((timestamp - previous) / 1000, 0.1) : FIXED_STEP;
         previous = timestamp;
-        if (phase === "opening") {
-          const motionDt = document.hidden ? 0 : dt;
-          openingTime = Math.min(OPENING_DURATION, openingTime + motionDt);
-          for (const event of opening.update(openingTime, motionDt)) sound.play(event, opening.state.hero);
-          renderer.toneMappingExposure = 1.05;
-          renderer.render(opening.scene, opening.camera);
-          if (openingTime >= OPENING_DURATION) finishOpening();
-          else if (timestamp - lastHud > 60) { publish(); lastHud = timestamp; }
+        if (phase === "opening" || phase === "level-intro") {
+          // The video and level cards cover the canvas; rendering 3D here can stall their animations.
           raf = requestAnimationFrame(frame);
           return;
         }
@@ -407,7 +380,8 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
               damageRemaining = 0.65;
               publish();
             }
-            if (["coin", "pickup", "heal", "hit", "defeat", "secret", "hammerImpact"].includes(event.type)) particles.emit(event);
+            if (["coin", "pickup", "heal", "hit", "defeat", "secret", "hammerImpact", "shot", "ammo", "discovery", "boss", "chargeReady"].includes(event.type))
+              particles.emit(event, world.player.id);
             if (event.type === "discovery") found = world.artifacts.find((artifact) => artifact.id === event.id);
           }
           if (found && world.status === "playing") { discovery = found; setPaused(true); }
@@ -425,6 +399,7 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
         animateChallenges(renderAlpha);
         updateCamera(visualDt);
         updateCharacters(visualDt);
+        aura.update(world.player, world.chargeTime, world.time, input.orbit.firstPerson);
         plato?.update(world.player, world.level.advisor ? (world.adviceIndex === 0 ? "unstarted" : "searching") : world.questStage, visualDt, world.time);
         coins.forEach((mesh, index) => {
           const coin = world.coins[index];
@@ -442,13 +417,18 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
         animateArtifacts(world.time);
         scenery.userData.animate(true, { period }, (phase === "title" ? introTime : world.time) * 1000);
         templeSky?.update(phase, period, world.time, world.player, scene);
+        templeExtension?.update(world.time * 1000);
         particles.update(visualDt);
         renderer.render(scene, camera);
         if (phase === "game" && input.orbit.firstPerson && world.player.health > 0 && !loadingLevel) {
           firstPersonView.update(renderActors[0] || world.player, visualDt, input.orbit.yaw, camera.aspect);
           firstPersonView.render(renderer);
         }
-        if (timestamp - lastHud > 100) { publish(); lastHud = timestamp; }
+        if (revealGameAfterRender) {
+          revealGameAfterRender = false;
+          publish();
+          lastHud = timestamp;
+        } else if (timestamp - lastHud > 100) { publish(); lastHud = timestamp; }
         raf = requestAnimationFrame(frame);
       } catch (error) { onError?.(error); dispose(); }
     }
@@ -477,13 +457,13 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
     }
     signal.addEventListener("abort", dispose, { once: true });
     canvas.addEventListener("webglcontextlost", contextLost);
-    opening.update(0, 0);
-    renderer.toneMappingExposure = 1.05;
-    renderer.render(opening.scene, opening.camera);
+    renderer.setClearColor(0x080708);
+    renderer.clear();
     onProgress?.(100);
     publish();
     raf = requestAnimationFrame(frame);
     function resetView() {
+      revealGameAfterRender = false;
       damage = null; damageRemaining = 0;
       input.setFirstPerson(false);
       input.setEnabled(phase === "game");
@@ -593,6 +573,7 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
       setMuted(value) { sound.setMuted(value); if (!value) sound.unlock(); },
       action(kind) { input.action(kind); canvas.focus(); },
       hold(kind, pressed) { input.hold(kind, pressed); },
+      cancelHold(kind) { input.cancelHold(kind); },
       move(x, z) { if (phase !== "game" || paused || loadingLevel) return; input.touch.x = x; input.touch.z = z; sound.unlock(); },
       equip(weapon) { input.equip(weapon); canvas.focus(); },
       async nextLevel() {
@@ -610,7 +591,7 @@ export async function createNeonGame({ canvas, signal, onChange, onProgress, onE
         resetView();
       },
       dispose,
-      ...(import.meta.env.DEV ? { inspect: () => ({ world, scene, renderer, camera, input, firstPersonView, opening, openingTime, phase }) } : {})
+      ...(import.meta.env.DEV ? { inspect: () => ({ world, scene, renderer, camera, input, firstPersonView, phase }) } : {})
     };
   } catch (error) { dispose(); throw error; }
 }

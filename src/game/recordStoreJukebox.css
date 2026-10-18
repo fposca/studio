@@ -1,0 +1,122 @@
+.record-jukebox-backdrop { position: absolute; inset: 0; z-index: 9; display: grid; place-items: center; padding: 18px; background: #07050be8; backdrop-filter: blur(9px); pointer-events: auto; }
+.record-jukebox { --cream: #ffe4bd; --pink: #f774c9; --amber: #ffb45f; position: relative; display: flex; flex-direction: column; width: min(1120px, 100%); max-height: min(790px, calc(100vh - 36px)); overflow: hidden; border: 8px solid #4c2638; border-radius: 58px 58px 22px 22px; background: repeating-linear-gradient(0deg, #4a2e30 0 5px, #5d3a36 5px 9px, #39262c 9px 13px); color: var(--cream); box-shadow: 0 0 0 3px #d69b62, 0 0 0 8px #1b1020, 0 22px 80px #000d, inset 0 0 35px #09070d; isolation: isolate; }
+.record-jukebox-arch { position: absolute; z-index: -1; inset: 4px 4px auto; height: 115px; border: 8px solid #f4b16e; border-bottom: 0; border-radius: 48px 48px 0 0; box-shadow: 0 0 13px #ff9d66, inset 0 0 12px #fb90d8; pointer-events: none; }
+.record-jukebox-header { display: flex; align-items: center; gap: 18px; min-height: 112px; padding: 21px 30px 13px; background: radial-gradient(circle at 50% 100%, #ab4b6655, transparent 70%), #1b1421cf; border-bottom: 5px double #f0b477; }
+.record-jukebox-header > div { flex: 1; min-width: 0; }
+.record-jukebox-eyebrow { color: var(--amber); font: 600 10px/1 var(--store-font); letter-spacing: .24em; }
+.record-jukebox-header h2 { margin: 4px 0 1px; color: #fff0d1; font: 700 clamp(28px, 3.4vw, 48px)/.95 var(--store-font); letter-spacing: -.05em; text-shadow: 3px 3px #962a59, 0 0 17px #f385c6; }
+.record-jukebox-header p { margin: 0; font: 600 11px var(--store-font); color: #ffd0aa; }
+.record-jukebox-header img { width: min(180px, 22%); max-height: 68px; object-fit: contain; }
+.record-jukebox button { color: inherit; cursor: pointer; font-family: var(--store-font); }
+.record-jukebox button:disabled { opacity: .5; cursor: not-allowed; }
+.record-jukebox .record-jukebox-close { display: grid; place-items: center; width: 36px; height: 36px; min-width: 36px; padding: 0; border: 2px solid var(--amber); border-radius: 50%; background: #321a28; }
+.record-jukebox-body { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(290px, .9fr); gap: 16px; min-height: 0; padding: 15px 19px; }
+.record-jukebox-tv { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: 9px; }
+.record-jukebox-bezel { padding: 13px; border: 10px solid #a69182; border-radius: 27px; background: linear-gradient(145deg, #d1bba2, #6b6371 32%, #2a2531 80%); box-shadow: inset 4px 4px 5px #fff8, inset -5px -5px 9px #0f0a17, 0 9px 19px #0008; }
+.record-jukebox-bezel-top { display: flex; justify-content: space-between; padding: 0 6px 8px; color: #231821; font: 600 10px var(--store-font); letter-spacing: .12em; }
+.record-jukebox-bezel-top i { font-style: normal; }
+.record-jukebox-screen, .record-jukebox-standby { position: relative; width: 100%; aspect-ratio: 16/9; min-height: 200px; overflow: hidden; border: 5px solid #18141d; border-radius: 12px; background: #070b13; box-shadow: 0 0 0 2px #dac9b4, inset 0 0 25px #00ffda40; }
+.record-jukebox-screen iframe { display: block; width: 100%; height: 100%; min-height: 200px; border: 0; }
+.record-jukebox-standby { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; background: repeating-linear-gradient(0deg, #ffffff08 0 2px, transparent 2px 5px), radial-gradient(circle, #372349 0, #111521 67%); color: #ffd9ad; text-align: center; }
+.record-jukebox-standby span { font: 700 clamp(40px, 6vw, 85px)/.9 var(--store-font); letter-spacing: -.12em; color: #f473bd; text-shadow: 0 0 17px #ff5db8; }
+.record-jukebox-standby strong { font: 600 clamp(12px, 1.4vw, 20px) var(--store-font); letter-spacing: .08em; }
+.record-jukebox-standby small { font: 11px var(--store-font); }
+.record-jukebox-controls { display: flex; flex-wrap: wrap; gap: 6px; padding: 11px 3px 3px; }
+.record-jukebox-controls button, .record-jukebox-transport button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 36px; padding: 7px 10px; border: 2px solid #cc9d78; border-radius: 4px; background: linear-gradient(#4b3c47, #221c29); color: #ffe0be; font: 600 11px var(--store-font); box-shadow: 0 3px 0 #100b14; }
+.record-jukebox-controls button:hover:not(:disabled), .record-jukebox-transport button:hover:not(:disabled) { border-color: #fbc47e; background: #7b3e5f; }
+.record-jukebox-api-note { margin: 0 3px; color: #e6c9b4; font: 10px/1.3 var(--store-font); }
+.record-jukebox-now { display: flex; align-items: center; gap: 8px; padding: 7px 11px; border: 1px solid #bd8f72; background: #16121ceb; font: 600 11px var(--store-font); letter-spacing: .08em; }
+.record-jukebox-now span { width: 9px; height: 9px; border-radius: 50%; background: #55404b; box-shadow: 0 0 0 2px #a78886; }
+.record-jukebox-now span.is-on { background: #ff684f; box-shadow: 0 0 12px #ff684f; }
+.record-jukebox-youtube { display: inline-flex; align-items: center; gap: 5px; width: fit-content; color: #ffdbab; font: 600 11px var(--store-font); }
+.record-jukebox-selections { display: flex; flex-direction: column; min-height: 0; padding: 11px; border: 4px solid #b89177; border-radius: 8px; background: linear-gradient(135deg, #2c1b2b, #1b1722 60%); box-shadow: inset 0 0 25px #030207; }
+.record-jukebox-wallet { display: flex; align-items: center; gap: 8px; padding: 8px; border: 2px solid #db9d67; border-radius: 5px; background: #4d2a33; }
+.record-jukebox-wallet > svg { color: #ffc45f; flex: none; }
+.record-jukebox-wallet div { display: grid; line-height: 1; }
+.record-jukebox-wallet strong { font: 700 19px var(--store-font); color: #ffe1a1; }
+.record-jukebox-wallet span { font: 600 8px var(--store-font); letter-spacing: .17em; }
+.record-jukebox-wallet button { margin-left: auto; padding: 7px 8px; border: 1px solid #ffe0ad; border-radius: 3px; background: #df9c58; color: #20151c; font: 600 10px/1.1 var(--store-font); }
+.record-jukebox-wallet button:hover { background: #ffce83; }
+.record-jukebox-message { min-height: 31px; margin: 6px 1px 9px; color: #ffd9b0; font: 11px/1.35 var(--store-font); }
+.record-jukebox-list { display: grid; gap: 5px; min-height: 0; overflow-y: auto; padding-right: 3px; scrollbar-color: #b77379 #201923; }
+.record-jukebox-list button { display: grid; grid-template-columns: 29px minmax(0, 1fr) 18px; align-items: center; gap: 8px; min-height: 43px; padding: 4px 8px; border: 1px solid #78616b; border-radius: 3px; background: #382833; text-align: left; }
+.record-jukebox-list button:hover, .record-jukebox-list button.is-active { border-color: #ffc681; background: #6a3d53; box-shadow: inset 3px 0 #ffc681; }
+.record-jukebox-list button > span:first-child { color: #ffbf74; font: 600 13px var(--store-font); }
+.record-jukebox-list button strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 12px var(--store-font); }
+.record-jukebox-list button small { display: block; margin-top: 2px; color: #dfb6a5; font: 9px var(--store-font); }
+.record-jukebox-list button svg { color: #ffc681; }
+.record-jukebox-transport { display: flex; gap: 6px; padding-top: 9px; }
+.record-jukebox-transport button { flex: 1; padding: 6px; font-size: 9px; }
+.record-jukebox-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 25px; border-top: 4px double #d5a06f; background: #241725; color: #ffd59d; font: 600 9px var(--store-font); letter-spacing: .14em; }
+.record-jukebox-footer button { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 5px 9px; border: 1px solid #d6a06f; border-radius: 3px; background: #513246; font: 600 11px var(--store-font); letter-spacing: 0; }
+.neon-game .record-jukebox button { min-width: 0; min-height: 0; touch-action: manipulation; }
+.neon-game .record-jukebox button:focus-visible, .record-jukebox button:focus-visible { outline: 3px solid #ffca7b; outline-offset: 2px; }
+@media (max-width: 760px) {
+  .record-jukebox-backdrop { padding: 6px; }
+  .record-jukebox { width: 100%; max-height: calc(100vh - 12px); border-width: 5px; border-radius: 30px 30px 12px 12px; overflow-y: auto; }
+  .record-jukebox-arch { height: 75px; border-radius: 28px 28px 0 0; }
+  .record-jukebox-header { min-height: 78px; padding: 10px 13px; gap: 8px; }
+  .record-jukebox-header img { width: 70px; }
+  .record-jukebox-header h2 { font-size: 27px; }
+  .record-jukebox-header p { font-size: 9px; }
+  .record-jukebox-body { grid-template-columns: 1fr; gap: 9px; padding: 8px; }
+  .record-jukebox-bezel { padding: 7px; border-width: 5px; border-radius: 14px; }
+  .record-jukebox-screen, .record-jukebox-standby { min-height: 200px; }
+  .record-jukebox-controls { gap: 4px; padding-top: 5px; }
+  .record-jukebox-controls button { flex: 1 1 29%; padding: 6px 3px; font-size: 9px; }
+  .record-jukebox-selections { min-height: 315px; }
+  .record-jukebox-list { max-height: 275px; }
+  .record-jukebox-footer { padding: 8px; }
+  .record-jukebox-footer span { display: none; }
+}
+
+.record-jukebox-body { position: relative; }
+.record-jukebox-mobile-collect { display: none; }
+.record-jukebox-coin-drop { position: absolute; z-index: 5; top: 23px; right: 28%; width: 34px; height: 34px; border: 4px solid #ffe0a0; border-radius: 50%; background: radial-gradient(circle, #9b5d18 0 19%, #ffdf84 20% 29%, #bd7928 31% 66%, #fce0a0 69%); box-shadow: 0 0 17px #ffc471; pointer-events: none; animation: record-coin-insert 760ms ease-in forwards; }
+@keyframes record-coin-insert { 0% { opacity: 0; transform: translate(15px, -20px) scale(1.4) rotateY(0); } 25% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; transform: translate(-260px, 100px) scale(.18) rotateY(720deg); } }
+@media (prefers-reduced-motion: reduce) { .record-jukebox-coin-drop { animation: none; display: none; } }
+@media (max-width: 760px) {
+  .record-jukebox { overflow-x: hidden; overflow-y: auto; }
+  .record-jukebox-header { flex: none; flex-wrap: wrap; height: auto; }
+  .record-jukebox-header > div { flex: 1 1 calc(100% - 52px); }
+  .record-jukebox-header img { display: none; }
+  .record-jukebox-header h2 { font-size: 24px; }
+  .record-jukebox .record-jukebox-close { order: 2; }
+  .record-jukebox .record-jukebox-mobile-collect { order: 3; display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: 1 1 100%; min-height: 30px; border: 1px solid #f7bf7c; border-radius: 4px; background: #593644; color: #ffe3ae; font: 600 11px var(--store-font); }
+  .record-jukebox-body { display: flex; flex: none; flex-direction: column; }
+  .record-jukebox-tv { flex: none; min-height: auto; }
+  .record-jukebox-selections { flex: none; min-height: 0; }
+  .record-jukebox-list { max-height: 236px; }
+  .record-jukebox-footer { flex: none; }
+  .record-jukebox-coin-drop { right: 22px; animation-name: record-coin-insert-mobile; }
+  @keyframes record-coin-insert-mobile { 0% { opacity: 0; transform: translate(0, -15px) scale(1.2); } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(-110px, 175px) scale(.15) rotateY(720deg); } }
+}
+
+/* Walnut, brushed metal and tactile controls echo the cabinet in the 3D room. */
+.record-jukebox {
+  font-family: var(--store-font); --cream: #eee1c7; --pink: #b7809c; --amber: #d8b57d;
+  border-color: #34252a;
+  background: repeating-linear-gradient(1deg, #ffffff03 0 1px, #00000008 1px 3px, transparent 3px 7px), linear-gradient(110deg, #392a26, #5a3c30 28%, #302527 72%, #5c4031);
+  box-shadow: 0 0 0 2px #a99576, 0 0 0 6px #17151a, 0 25px 90px #000e, inset 1px 2px 3px #e6c89955;
+}
+.record-jukebox-arch { border-color: #d2b991; box-shadow: 0 0 8px #e8b77988, inset 0 0 9px #e8b77955; }
+.record-jukebox-header { background: linear-gradient(115deg, #1b1b20ef, #30272bd9); border-bottom: 3px double #8e7d67; }
+.record-jukebox-header h2 { font-weight: 500; letter-spacing: -.025em; line-height: 1.05; text-shadow: 0 2px 6px #0009; }
+.record-jukebox-header p { font-weight: 400; letter-spacing: .02em; }
+.record-jukebox-bezel { position: relative; border-color: #837d76; background: linear-gradient(130deg, #d1cbc0, #8c8783 20%, #a49e96 25%, #514e53 71%, #2c2b31); box-shadow: inset 2px 3px 2px #ffffff80, inset -3px -4px 4px #121015, 0 8px 16px #0009; }
+.record-jukebox-bezel::before { content: ""; position: absolute; inset: -6px; pointer-events: none; background: radial-gradient(circle at 12px 12px, #18171b 1px, #e0dcd1 2px, #676362 3px, transparent 4px), radial-gradient(circle at calc(100% - 12px) 12px, #18171b 1px, #e0dcd1 2px, #676362 3px, transparent 4px), radial-gradient(circle at 12px calc(100% - 12px), #18171b 1px, #e0dcd1 2px, #676362 3px, transparent 4px), radial-gradient(circle at calc(100% - 12px) calc(100% - 12px), #18171b 1px, #e0dcd1 2px, #676362 3px, transparent 4px); }
+.record-jukebox-standby { background: repeating-linear-gradient(0deg, #00000020 0 1px, transparent 1px 4px), radial-gradient(ellipse, #294246, #080e16 76%); }
+.record-jukebox-standby span { color: #e6d4b4; font-weight: 500; letter-spacing: -.045em; text-shadow: 0 0 15px #b7dfce55; }
+.record-jukebox-standby strong { font-weight: 500; letter-spacing: .12em; }
+.record-jukebox-controls button, .record-jukebox-transport button { border: 1px solid #958b7d; background: linear-gradient(#ded5c5, #aaa294); color: #25232a; box-shadow: inset 0 1px #fff9, 0 3px 0 #18161d, 0 4px 5px #0005; border-radius: 5px; }
+.record-jukebox-controls button:hover:not(:disabled), .record-jukebox-transport button:hover:not(:disabled) { color: #17161b; background: linear-gradient(#f6e6ca, #c8b28e); }
+.record-jukebox-selections { border-color: #827361; background: linear-gradient(120deg, #242129, #14151c); }
+.record-jukebox-wallet { border: 1px solid #897863; background: linear-gradient(#40363a, #2b272e); }
+.record-jukebox-wallet button { background: linear-gradient(#dfc49b, #b89a6f); color: #27232a; box-shadow: inset 0 1px #fff7, 0 2px 0 #17131a; }
+.record-jukebox-list button { background: linear-gradient(110deg, #d8cbb3, #bfb29c); border-color: #897b6a; color: #28232c; box-shadow: inset 0 1px #fff6, 0 2px 2px #0007; }
+.record-jukebox-list button strong { font-size: 13px; font-weight: 600; }
+.record-jukebox-list button small { color: #645864; font-size: 10px; }
+.record-jukebox-list button > span:first-child, .record-jukebox-list button svg { color: #795036; }
+.record-jukebox-list button:hover, .record-jukebox-list button.is-active { border-color: #e6bb79; background: linear-gradient(110deg, #f4dfb5, #d8bd90); box-shadow: inset 3px 0 #ad653c, 0 0 10px #d9984933; }
+.record-jukebox-now { border-color: #6a5c52; font-weight: 500; letter-spacing: .035em; }
+.record-jukebox-footer { background: #18171e; border-top-color: #766653; font-weight: 500; }

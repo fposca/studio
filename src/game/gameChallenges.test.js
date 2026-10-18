@@ -66,7 +66,7 @@ for (const phase of [0, 1.5, 3.5]) test("the sky ascent reaches the dragon perch
   const branch = world.platforms.find((platform) => platform.id === "step-4");
   place(world, branch.x, branch.y + 0.015, branch.z);
   for (let i = 0; i < 5; i++) world.step();
-  const route = world.platforms.slice(7);
+  const route = world.platforms.filter((platform) => platform.sky);
   for (const target of route) {
     let landed = false;
     for (let frame = 0; frame < 140; frame++) {
@@ -99,7 +99,7 @@ test("moving slabs push nearby guardians clear instead of crossing their bodies"
 });
 
 test("the landed dragon speaks once and remembers Neonboy after loading", (t) => {
-  const world = setup(t), perch = world.platforms.at(-1);
+  const world = setup(t), perch = world.platforms.find((platform) => platform.id === "dragon-perch");
   world.time = world.level.dragon.landingTime + 1;
   world.updateChallenges(true);
   place(world, perch.x, perch.y + 0.015, perch.z);
@@ -218,10 +218,34 @@ test("saving on a platform restores its phase and continues carrying the player"
 test("older level-one saves gain the new boss without losing their collected coins", (t) => {
   const world = setup(t), legacy = save(world);
   delete legacy.world.layoutVersion;
-  legacy.world.enemies.pop();
+  legacy.world.enemies = legacy.world.enemies.slice(0, 4);
   legacy.world.coins = [0, 1, 2];
   const migrated = validateGameSave(legacy);
   assert.equal(migrated.world.enemies.length, world.enemies.length);
   assert.equal(migrated.world.enemies.at(-1).health, 360);
   assert.deepEqual(migrated.world.coins, [0, 1, 2]);
+});
+
+for (const phase of [0, 2.5]) test(`the extended rear temple platforms can be crossed at phase ${phase}`, (t) => {
+  const world = setup(t);
+  for (let i = 0; i < phase / FIXED_STEP; i++) world.step();
+  const route = world.platforms.filter((platform) => platform.id.startsWith("rear-"));
+  place(world, route[0].x, 0, route[0].z + 3);
+  for (let i = 0; i < 5; i++) world.step();
+  for (const target of route) {
+    let landed = false;
+    for (let frame = 0; frame < 145; frame++) {
+      const dx = target.x - world.player.x, dz = target.z - world.player.z;
+      const distance = Math.hypot(dx, dz);
+      world.player.invulnerable = 1;
+      world.step({ x: distance > 0.15 ? dx / distance : 0,
+        z: distance > 0.15 ? dz / distance : 0, run: true, jump: frame === 0 });
+      if (world.player.grounded && world.player.platformId === target.id && distance < 0.45) {
+        landed = true; break;
+      }
+    }
+    assert.ok(landed, `${target.id} unreachable from ${world.player.x},${world.player.y},${world.player.z}`);
+  }
+  assert.ok(world.player.z < -78);
+  assert.equal(world.coins.filter((coin) => coin.platformId?.startsWith("rear-") && coin.collected).length, route.length);
 });

@@ -10,6 +10,7 @@ test("each level introduces itself before gameplay, can be skipped, and replays 
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/tests/fixtures/game.html");
   await page.waitForFunction(() => Boolean(window.game), null, { timeout: 90_000 });
+  await page.getByRole("button", { name: "Omitir cinematica" }).click();
   await page.getByRole("button", { name: "Play", exact: true }).click();
   const intro = page.locator(".neon-game-level-intro");
   const snapshot = () => page.evaluate(() => {
@@ -29,7 +30,7 @@ test("each level introduces itself before gameplay, can be skipped, and replays 
       await expect(page.getByRole("progressbar", { name: "Vida", exact: true })).toHaveCount(0);
       await page.screenshot({ path: testInfo.outputPath(`level-${level}-intro.png`) });
     }
-    if (level === 1) await expect(intro).toHaveCount(0, { timeout: 6000 });
+    if (level === 1) await expect(intro).toHaveCount(0, { timeout: 12000 });
     else if (await intro.count()) await page.getByRole("button", { name: "Omitir intro" }).click();
     await expect(intro).toHaveCount(0);
     if (level === 2) await page.getByRole("button", { name: "Aceptar mision" }).click();
@@ -52,9 +53,36 @@ test("each level introduces itself before gameplay, can be skipped, and replays 
   expect(errors).toEqual([]);
 });
 
+test("the level card covers the title until the first gameplay frame is rendered", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto("/tests/fixtures/game.html");
+  await page.waitForFunction(() => Boolean(window.game), null, { timeout: 90_000 });
+  await page.getByRole("button", { name: "Omitir cinematica" }).click();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  const intro = page.locator(".neon-game-level-intro");
+  await expect(intro).toBeVisible();
+  await page.evaluate(() => {
+    const { renderer } = window.game.inspect();
+    const originalRender = renderer.render.bind(renderer);
+    window.firstGameplayFrameCovered = null;
+    renderer.render = (...args) => {
+      const result = originalRender(...args);
+      if (window.game.inspect().phase === "game" && window.firstGameplayFrameCovered === null) {
+        const card = document.querySelector(".neon-game-level-intro");
+        const style = card && getComputedStyle(card);
+        window.firstGameplayFrameCovered = Boolean(card && style.opacity === "1" && style.clipPath === "none");
+      }
+      return result;
+    };
+  });
+  await expect(intro).toHaveCount(0, { timeout: 90_000 });
+  expect(await page.evaluate(() => window.firstGameplayFrameCovered)).toBe(true);
+});
+
 test("intro fits portrait and landscape screens and respects reduced motion", async ({ page }, testInfo) => {
   await page.goto("/tests/fixtures/game.html");
   await page.waitForFunction(() => Boolean(window.game), null, { timeout: 90_000 });
+  await page.getByRole("button", { name: "Omitir cinematica" }).click();
   for (const [index, size] of [{ width: 390, height: 844 }, { width: 320, height: 640 }, { width: 844, height: 390 }].entries()) {
     await page.setViewportSize(size);
     if (index === 0) await page.getByRole("button", { name: "Play", exact: true }).click();

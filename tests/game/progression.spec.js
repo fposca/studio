@@ -98,8 +98,8 @@ test("jump plays its airborne pose; pickups, hotkeys, cemetery and checkpoint in
       pixelMax: Math.max(...pixels.filter((_, i) => i % 4 !== 3)), textures: renderer.info.memory.textures };
   });
   expect(level.inventory).toContain("sword"); expect(level.equipped).toBe("sword");
-  expect(level.health).toBe(100); expect(level.demons).toBe(3);
-  expect(level.zombies).toBe(8); expect(level.zombieBoss).toBe(1); expect(level.total).toBe(42);
+  expect(level.health).toBe(100); expect(level.demons).toBe(5);
+  expect(level.zombies).toBe(15); expect(level.zombieBoss).toBe(1); expect(level.total).toBe(88);
   expect(level.pixelMax).toBeGreaterThan(25); expect(level.textures).toBeGreaterThan(6);
   await page.screenshot({ path: testInfo.outputPath("cemetery-desktop.png") });
   await teleport(page, { x: 0, y: 0, z: 1.5 });
@@ -122,7 +122,7 @@ test("jump plays its airborne pose; pickups, hotkeys, cemetery and checkpoint in
   await expect(page.getByRole("button", { name: "Espada (2)", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("button", { name: "Hacha: sin recoger", exact: true })).toBeDisabled();
   await finishLevel(page);
-  await expect(page.getByRole("button", { name: /^Nivel \d:/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Nivel 4: Las catacumbas" })).toBeVisible();
   await page.evaluate(() => window.unmountGame());
   expect(errors).toEqual([]);
 });

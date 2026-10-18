@@ -1,3 +1,4 @@
+// Cinematica 3D original conservada para reutilizarla. La apertura activa usa intro.mp4.
 import * as THREE from "three";
 import { createGameCharacter, disposeObjects } from "./gameCharacters.js";
 import { createWeaponModel } from "./gameWeapons.js";

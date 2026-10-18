@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Box3, Color, Vector3 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -2313,6 +2313,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const hostRef = useRef(null);
   const runtimeRef = useRef(null);
   const activeRef = useRef(active);
+  const [rendererInitialized, setRendererInitialized] = useState(active);
   const graphicsSuspendedRef = useRef(false);
   const selectedRef = useRef(null);
   const selectedIdsRef = useRef(new Set());
@@ -2463,7 +2464,7 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   const [poseBone, setPoseBone] = useState("LeftArm");
   const [poseVersion, setPoseVersion] = useState(0);
 
-  useEffect(() => { activeRef.current = active; }, [active]);
+  useEffect(() => { activeRef.current = active; if (active) setRendererInitialized(true); }, [active]);
   useEffect(() => {
     performanceModeRef.current = performanceMode;
     localStorage.setItem("neon:three-quality", performanceMode);
@@ -3406,6 +3407,8 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
   }
 
   useEffect(() => {
+    // La app mantiene el editor oculto montado; crear WebGL s?lo al abrirlo.
+    if (!rendererInitialized) return undefined;
     const host = hostRef.current;
     if (!host) return undefined;
 
@@ -4409,15 +4412,20 @@ export default function ThreeDEditor({ active = false, onRequestProjectSave, ope
       renderer.domElement.remove();
       runtimeRef.current = null;
     };
-  }, []);
+  }, [rendererInitialized]);
+
+  // Liberar el contexto antes de que una nueva pesta?a monte su propia escena WebGL.
+  useLayoutEffect(() => {
+    const renderer = runtimeRef.current?.renderer;
+    if (!active && renderer && !graphicsSuspendedRef.current) {
+      graphicsSuspendedRef.current = true;
+      renderer.forceContextLoss();
+    }
+  }, [active]);
 
   useEffect(() => {
     const renderer = runtimeRef.current?.renderer;
-    if (!renderer) return;
-    if (!active && !graphicsSuspendedRef.current) {
-      graphicsSuspendedRef.current = true;
-      renderer.forceContextLoss();
-    } else if (active && graphicsSuspendedRef.current) {
+    if (active && renderer && graphicsSuspendedRef.current) {
       graphicsSuspendedRef.current = false;
       renderer.forceContextRestore();
     }

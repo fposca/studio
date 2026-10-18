@@ -1,4 +1,6 @@
 export const HD_WALK_GAIT_UNITS_PER_SECOND = 1.43;
+// The newer NeonBoy walk has a short cycle. A longer stride keeps its playback grounded.
+export const NEONBOY_NEW_WALK_GAIT_UNITS_PER_SECOND = 2.0;
 
 export function syncedGaitRate(worldSpeed, modelScale, gaitUnitsPerSecond = HD_WALK_GAIT_UNITS_PER_SECOND) {
   const nativeSpeed = Math.abs(modelScale) * gaitUnitsPerSecond;

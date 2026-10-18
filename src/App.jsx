@@ -6,7 +6,6 @@ import { canUseDesktop, canUseFullWeb } from "./auth/permissions.js";
 import { CustomTooltip, Wizard } from "./components/Guidance";
 import VideoEditor from "./editors/VideoEditor";
 import AudioEditor from "./editors/AudioEditor";
-import ThreeDEditor from "./editors/ThreeDEditor";
 import DesignLayersPanel from "./editors/design/DesignLayersPanel.jsx";
 import DesignViewportControls from "./editors/design/DesignViewportControls.jsx";
 import DesignDocumentPanel, { documentPixelSize } from "./editors/design/DesignDocumentPanel.jsx";
@@ -89,7 +88,9 @@ import {
   X
 } from "lucide-react";
 
+const ThreeDEditor = lazy(() => import("./editors/ThreeDEditor.jsx"));
 const NeonGame = lazy(() => import("./game/NeonGame.jsx"));
+const DiscographyStore = lazy(() => import("./game/DiscographyStore.jsx"));
 
 const API = window.location.port === "5173" ? "http://127.0.0.1:5174" : window.location.origin;
 const IS_DESKTOP_APP = navigator.userAgent.includes("Electron");
@@ -4948,6 +4949,8 @@ function PdfEditor({ openProjectSignal = 0, templateRequest = null }) {
 export default function App() {
   const { loading, login, logout, resetPassword, role, user } = useAuth();
   const [tab, setTab] = useState("home");
+  const [threeOpened, setThreeOpened] = useState(false);
+  useEffect(() => { if (tab === "three") setThreeOpened(true); }, [tab]);
   const [openSignals, setOpenSignals] = useState({ image: 0, pdf: 0, video: 0, audio: 0, three: 0 });
   const [imageTemplate, setImageTemplate] = useState(null);
   const [designTemplate, setDesignTemplate] = useState(null);
@@ -5017,7 +5020,7 @@ export default function App() {
 
   useEffect(() => {
     if (!user) return;
-    if (tab === "game") { setWizardScreen(""); return; }
+    if (tab === "game" || tab === "discography") { setWizardScreen(""); return; }
     if (!localStorage.getItem(`${WIZARD_SEEN_PREFIX}${tab}`)) {
       setWizardScreen(tab);
     }
@@ -5172,6 +5175,9 @@ export default function App() {
           <button className={tab === "game" ? "active" : ""} onClick={() => setTab("game")}>
             <Gamepad2 size={17} /> Juego
           </button>
+          <button className={tab === "discography" ? "active" : ""} onClick={() => setTab("discography")}>
+            <Music2 size={17} /> Discografía
+          </button>
         </nav>
         <div className="header-actions">
           <button className="icon-button" disabled={tab === "game"} data-tooltip="Guardar proyecto" onClick={() => setSaveDialogOpen(true)}>
@@ -5225,12 +5231,19 @@ export default function App() {
           <AudioEditor active={tab === "audio"} onRequestProjectSave={() => setSaveDialogOpen(true)} />
         </div>
         <div className={tab === "three" ? "editor-pane" : "editor-pane is-hidden"}>
-          <ThreeDEditor
-            active={tab === "three"}
-            onRequestProjectSave={() => setSaveDialogOpen(true)}
-            openProjectSignal={openSignals.three}
-          />
+          {(tab === "three" || threeOpened) && <Suspense fallback={<div className="neon-game-loading" role="status"><Loader2 className="spin" size={28} /></div>}>
+            <ThreeDEditor
+              active={tab === "three"}
+              onRequestProjectSave={() => setSaveDialogOpen(true)}
+              openProjectSignal={openSignals.three}
+            />
+          </Suspense>}
         </div>
+        {tab === "discography" && <div className="editor-pane" style={{ position: "relative", overflow: "hidden" }}>
+          <Suspense fallback={<div className="neon-game-loading" role="status"><Loader2 className="spin" size={28} /></div>}>
+            <DiscographyStore standalone onClose={() => setTab("game")} />
+          </Suspense>
+        </div>}
         {tab === "game" && <div className="editor-pane">
           <Suspense fallback={<div className="neon-game-loading" role="status"><Loader2 className="spin" size={28} /></div>}>
             <NeonGame />

@@ -1,9 +1,10 @@
 import RAPIER from "@dimforge/rapier3d-compat";
 import { CEMETERY_OBSTACLES, CEMETERY_TORCHES, getLevel, LEVELS, platformPositionAt } from "./gameLevels.js";
 import { parthenonColumnPositions } from "../editors/parthenonSet.js";
-import { CATACOMB_OBSTACLES, CATACOMB_TORCHES } from "./gameCatacombsLevel.js";
+import { CATACOMB_CHAMBERS, CATACOMB_OBSTACLES, CATACOMB_SARCOPHAGUS_COLLIDERS, CATACOMB_TORCHES } from "./gameCatacombsLevel.js";
+import { TEMPLE_EXTENSION_OBSTACLES, TEMPLE_EXTENSION_COLUMNS, TEMPLE_EXTENSION_DETAIL_COLLIDERS } from "./gameTempleExtension.js";
 import { INTERIOR_COLUMNS, INTERIOR_OBSTACLES, INTERIOR_TORCHES, questDialogue } from "./gameInteriorLevel.js";
-import { ATTACKS, BODY_OFFSET, BOUNDS, FIXED_STEP, GRAVITY, JUMP_SPEED, MAX_HEALTH, MOVE_SPEED, RUN_SPEED, canStrike, movementVector } from "./gameRules.js";
+import { ATTACKS, ATTACK_CHARGE_SECONDS, CHARGED_DAMAGE_MULTIPLIER, BODY_OFFSET, BOUNDS, FIXED_STEP, GRAVITY, JUMP_SPEED, MAX_HEALTH, MOVE_SPEED, RUN_SPEED, canStrike, movementVector } from "./gameRules.js";
 
 let physicsReady;
 export function initializePhysics() {
@@ -67,7 +68,8 @@ export class GameWorld {
     this.secretDoors = (this.level.secretDoors || []).map((door) => ({ ...door, broken: false,
       collider: this.box(door.x, door.height / 2, door.z, door.width, door.height, door.depth) }));
     if (this.level.id === 4) {
-      for (const obstacle of CATACOMB_OBSTACLES) this.box(...obstacle);
+      for (const obstacle of [...CATACOMB_OBSTACLES, ...CATACOMB_SARCOPHAGUS_COLLIDERS]) this.box(...obstacle);
+      for (const { x, z } of CATACOMB_CHAMBERS) this.box(x, 0.12, z, 4.2, 0.24, 3.7);
       for (const [x, z] of CATACOMB_TORCHES) this.box(x, 0.88, z, 0.74, 1.76, 0.74);
     } else if (this.level.id === 3) {
       for (const obstacle of CEMETERY_OBSTACLES) this.box(...obstacle);
@@ -92,12 +94,27 @@ export class GameWorld {
       this.box(6.85, 3.65, -25, 0.45, 5.8, 24);
       this.box(0, 3.65, -37.2, 14.1, 5.8, 0.55);
       for (const x of [-11.9, 11.9]) for (const z of [-3.5, -13.5]) this.box(x, 0.75, z, 0.9, 1.5, 0.9);
+      // The two pitched roof planes use the same ridge and eaves as the visible marble roof.
+      for (const side of [-1, 1]) {
+        const angle = side * -Math.atan2(2.22, 10.55);
+        this.physics.createCollider(RAPIER.ColliderDesc.cuboid(10.78 / 2, 0.12 / 2, 32.6 / 2)
+          .setTranslation(side * 5.275, 9.37, -23.6)
+          .setRotation({ x: 0, y: 0, z: Math.sin(angle / 2), w: Math.cos(angle / 2) }));
+      }
+      for (const obstacle of [...TEMPLE_EXTENSION_OBSTACLES, ...TEMPLE_EXTENSION_DETAIL_COLLIDERS]) this.box(...obstacle);
+      for (const [x, z, height] of TEMPLE_EXTENSION_COLUMNS) {
+        this.physics.createCollider(RAPIER.ColliderDesc.cylinder(height / 2, 0.58)
+          .setTranslation(x, height / 2, z));
+      }
     }
-    // Low perimeter walls in the scene mark the playable terrace; these tall colliders contain jumps.
-    this.box(BOUNDS.left - 0.3, 4, -11.25, 0.6, 10, 65.1);
-    this.box(BOUNDS.right + 0.3, 4, -11.25, 0.6, 10, 65.1);
-    this.box(0, 4, BOUNDS.back - 0.3, 34.2, 10, 0.6);
-    this.box(0, 4, BOUNDS.front + 0.3, 34.2, 10, 0.6);
+    // Level-specific perimeter keeps the expanded sanctuary inside its new walls.
+    const bounds = this.level.bounds || BOUNDS;
+    const middleX = (bounds.left + bounds.right) / 2, middleZ = (bounds.back + bounds.front) / 2;
+    const spanX = bounds.right - bounds.left + 0.6, spanZ = bounds.front - bounds.back + 0.6;
+    this.box(bounds.left - 0.3, 4, middleZ, 0.6, 10, spanZ);
+    this.box(bounds.right + 0.3, 4, middleZ, 0.6, 10, spanZ);
+    this.box(middleX, 4, bounds.back - 0.3, spanX, 10, 0.6);
+    this.box(middleX, 4, bounds.front + 0.3, spanX, 10, 0.6);
   }
 
   createActor(spawn, id) {
@@ -128,6 +145,7 @@ export class GameWorld {
     this.dragonMet = false;
     this.dragonDepartureTime = null;
     this.ammo = this.level.id === 4 ? 10 : 0;
+    this.chargeTime = 0;
     this.arrows = [];
     this.ammoPickups.forEach((pickup) => { pickup.readyAt = 0; });
     this.dialogue = null;
@@ -204,7 +222,7 @@ export class GameWorld {
     this.physics.propagateModifiedBodyPositionsToColliders();
   }
 
-  startAttack(actor, kind) {
+  startAttack(actor, kind, { charged = false } = {}) {
     if (actor === this.player) {
       if (!["punch", "kick"].includes(kind)) return false;
       if (kind === "punch" && this.equipped !== "unarmed") kind = this.equipped;
@@ -224,9 +242,9 @@ export class GameWorld {
     }
     actor.combo += 1;
     actor.combat = 2.2;
-    actor.attack = { kind, elapsed: 0, hit: new Set(), variant: (actor.combo - 1) % 3,
+    actor.attack = { kind, elapsed: 0, hit: new Set(), charged: charged && actor === this.player && kind !== "punch" && kind !== "kick", variant: (actor.combo - 1) % 3,
       side: ["sword", "axe", "hammer", "crossbow", "mummyChief"].includes(kind) ? "Right" : actor.combo % 2 ? "Left" : "Right" };
-    this.events.push({ type: "attack", actor: actor.id, kind, x: actor.x, y: actor.y + 1, z: actor.z });
+    this.events.push({ type: "attack", actor: actor.id, kind, charged: actor.attack.charged, x: actor.x, y: actor.y + 1, z: actor.z });
     return true;
   }
 
@@ -272,12 +290,13 @@ export class GameWorld {
     victim.invulnerable = victim === this.player ? 0.85 : 0.2;
     victim.stun = victim.boss ? 0.08 : 0.28;
     if (!victim.boss || !victim.health) victim.attack = null;
+    if (victim === this.player) this.chargeTime = 0;
     const angle = Math.atan2(victim.x - attacker.x, victim.z - attacker.z);
     const knockback = definition.knockback * (victim.stationary ? 0 : victim.boss ? 0.2 : 1);
     victim.velocityX = Math.sin(angle) * knockback;
     victim.velocityZ = Math.cos(angle) * knockback;
     victim.combat = 2.2;
-    this.events.push({ type: victim.health ? "hit" : "defeat", kind: definition.kind || attacker.attack?.kind || "punch", actor: victim.id, amount: previousHealth - victim.health, previousHealth, x: victim.x, y: victim.y + 1, z: victim.z });
+    this.events.push({ type: victim.health ? "hit" : "defeat", kind: definition.kind || attacker.attack?.kind || "punch", charged: Boolean(definition.charged || attacker.attack?.charged), actor: victim.id, amount: previousHealth - victim.health, previousHealth, x: victim.x, y: victim.y + 1, z: victim.z });
     if (!victim.health) victim.mode = "dead";
   }
 
@@ -289,8 +308,8 @@ export class GameWorld {
     if (attack.kind === "crossbow" && !attack.fired && attack.elapsed >= definition.impact) {
       attack.fired = true;
       this.arrows.push({ x: actor.x, y: actor.y + (this.firstPerson ? 1.62 : 1.3),
-        z: actor.z, yaw: actor.yaw, pitch: this.firstPerson ? this.aimPitch : 0, age: 0 });
-      this.events.push({ type: "shot", x: actor.x, y: actor.y + 1.3, z: actor.z });
+        z: actor.z, yaw: actor.yaw, pitch: this.firstPerson ? this.aimPitch : 0, charged: attack.charged, age: 0 });
+      this.events.push({ type: "shot", charged: attack.charged, x: actor.x, y: actor.y + 1.3, z: actor.z });
     }
     if (actor === this.player && this.firstPerson && attack.kind === "hammer" && !attack.impacted && attack.elapsed >= definition.impact) {
       attack.impacted = true;
@@ -309,7 +328,7 @@ export class GameWorld {
       for (const target of targets) {
         if (!target.active || target.health <= 0 || attack.hit.has(target.id) || !canStrike(actor, target, definition) || !this.hasLineOfSight(actor, target)) continue;
         attack.hit.add(target.id);
-        this.damage(target, actor, definition);
+        this.damage(target, actor, attack.charged ? { ...definition, charged: true, damage: Math.round(definition.damage * CHARGED_DAMAGE_MULTIPLIER) } : definition);
       }
     }
     if (attack.elapsed >= definition.duration) {
@@ -331,7 +350,8 @@ export class GameWorld {
           this.enemies.some((enemy) => enemy.active && enemy.health > 0 && enemy.collider.handle === collider.handle)));
       const hitEnemy = wall && this.enemies.find((enemy) => enemy.collider.handle === wall.collider.handle);
       if (hitEnemy) {
-        this.damage(hitEnemy, this.player, { ...ATTACKS.crossbow, kind: "crossbow" });
+        this.damage(hitEnemy, this.player, { ...ATTACKS.crossbow, kind: "crossbow", charged: arrow.charged,
+          damage: Math.round(ATTACKS.crossbow.damage * (arrow.charged ? CHARGED_DAMAGE_MULTIPLIER : 1)) });
         return false;
       }
       if (wall) {
@@ -369,7 +389,7 @@ export class GameWorld {
     const advisor = this.level.advisor;
     if (advisor && this.adviceIndex < advisor.tips.length &&
       (this.adviceIndex === 0 ? Math.hypot(this.player.x - advisor.x, this.player.z - advisor.z) < 4.7 :
-        this.adviceIndex === 1 ? this.player.z < -12 : this.player.z < -31)) {
+        this.adviceIndex === 1 ? this.player.z < -12 : this.player.z < -79)) {
       this.dialogue = { speaker: "Platon", ...advisor.tips[this.adviceIndex], advisor: true };
       this.events.push({ type: "dialogue" });
       return;
@@ -402,7 +422,23 @@ export class GameWorld {
       this.events.push({ type: "jump" });
       player.platformId = null;
     }
-    if (input.attack) this.startAttack(player, input.attack);
+    if (input.attack) {
+      this.chargeTime = 0;
+      this.startAttack(player, input.attack);
+    } else if (this.equipped === "unarmed") {
+      this.chargeTime = 0;
+      if (input.attackHeld || input.attackReleased) this.startAttack(player, "punch");
+    } else if (input.attackReleased) {
+      const charged = this.chargeTime >= ATTACK_CHARGE_SECONDS - 0.001;
+      this.chargeTime = 0;
+      this.startAttack(player, "punch", { charged });
+    } else if (input.attackHeld && !player.attack && !player.stun && player.health > 0) {
+      const previous = this.chargeTime;
+      const nextCharge = this.chargeTime + dt;
+      this.chargeTime = nextCharge >= ATTACK_CHARGE_SECONDS - 0.000001 ? ATTACK_CHARGE_SECONDS : nextCharge;
+      if (previous < ATTACK_CHARGE_SECONDS && this.chargeTime >= ATTACK_CHARGE_SECONDS)
+        this.events.push({ type: "chargeReady", x: player.x, y: player.y + 1, z: player.z });
+    } else this.chargeTime = 0;
     const motion = movementVector(input.x || 0, input.z || 0, input.yaw || 0);
     const pace = (input.run ? RUN_SPEED : MOVE_SPEED) * (player.attack ? 0.23 : 1) * (player.stun ? 0 : 1);
     if (this.equipped === "crossbow" && !player.attack) player.yaw = this.aimYaw;
@@ -538,6 +574,7 @@ export class GameWorld {
   equip(weapon) {
     if (this.status !== "playing" || !this.inventory.has(weapon) || this.player.attack || this.player.stun || this.player.health <= 0) return false;
     this.equipped = this.player.equipped = weapon;
+    this.chargeTime = 0;
     return true;
   }
 
@@ -554,10 +591,11 @@ export class GameWorld {
   snapshot() {
     return { status: this.status, health: this.player.health, coins: this.collected, total: this.coins.length,
       level: this.level.id, levelName: this.level.name, inventory: [...this.inventory], equipped: this.equipped,
+      charge: this.chargeTime / ATTACK_CHARGE_SECONDS, chargeReady: this.chargeTime >= ATTACK_CHARGE_SECONDS,
       score: this.scoreBase + this.artifacts.reduce((sum, artifact) => sum + (artifact.found ? artifact.points : 0), 0) +
         (this.questStage === "complete" ? this.level.quest.reward : 0),
       quest: this.questStage ? { stage: this.questStage, text: { unstarted: "Habla con Platon", searching: "Recupera el Sello de Atenea", returning: "Regresa con Platon", complete: "Sello entregado" }[this.questStage] } : null,
-      dialogue: this.dialogue, dragonMet: this.dragonMet, guardsRemaining: this.enemies.filter((enemy) => !enemy.boss && enemy.health > 0).length, ammo: this.ammo, ammoNotice: this.ammoNotice > this.time, maxAmmo: this.level.id === 4 ? 10 : 0, secrets: this.secretDoors.filter((door) => door.broken).length,
+      dialogue: this.dialogue, dragonMet: this.dragonMet, guardsRemaining: this.enemies.filter((enemy) => !enemy.boss && enemy.health > 0).length, ammo: this.ammo, ammoNotice: this.ammoNotice > this.time, maxAmmo: this.level.id === 4 ? 10 : 0, secrets: this.secretDoors.filter((door) => door.broken).length, secretTotal: this.secretDoors.length,
       discoveries: this.artifacts.filter((artifact) => artifact.found).length, discoveryTotal: this.artifacts.length,
       nextLevel: this.status === "won" && this.level.id < LEVELS.length,
       nextLevelName: LEVELS.find((level) => level.id === this.level.id + 1)?.name,
@@ -593,6 +631,7 @@ export class GameWorld {
     this.dragonMet = saved.dragonMet ?? false;
     this.dragonDepartureTime = saved.dragonDepartureTime ?? (this.dragonMet ? 0 : null);
     this.ammo = saved.ammo ?? (this.level.id === 4 ? 10 : 0);
+    this.chargeTime = 0;
     this.ammoPickups.forEach((pickup) => { pickup.readyAt = saved.ammoPickups?.find((entry) => entry.id === pickup.id)?.readyAt ?? 0; });
     this.arrows = [];
     this.secretDoors.forEach((door) => { door.broken = saved.secretDoors?.includes(door.id) || false; door.collider.setEnabled(!door.broken); });

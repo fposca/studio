@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowRight, ArrowUp, Axe, Camera, Coins, Crosshair, FolderOpen, Footprints, Gem, Hammer, Hand, Heart, Home, Loader2, LockKeyhole, Maximize, MessageCircle, Minimize, Moon, Pause, Play, RotateCcw, Save, ScrollText, Skull, Sun, Sunset, Sword, Trophy, Volume2, VolumeX } from "lucide-react";
+import { ArrowRight, ArrowUp, Axe, Camera, Coins, Crosshair, Disc3, FolderOpen, Footprints, Gem, Hammer, Hand, Heart, Home, Loader2, LockKeyhole, Maximize, MessageCircle, Minimize, Moon, Pause, Play, RotateCcw, Save, ScrollText, Skull, Sun, Sunset, Sword, Trophy, Volume2, VolumeX } from "lucide-react";
 import { createNeonGame } from "./createNeonGame.js";
 import GameLevelIntro from "./GameLevelIntro.jsx";
+import DiscographyStore from "./DiscographyStore.jsx";
 import { LEVELS } from "./gameLevels.js";
 import neonboyLogoUrl from "../assets/neonboy-logo.png";
+import introVideoUrl from "../assets/neonboy-animaciones/nueva-intro.mp4";
 import dragonAvatarUrl from "./avatars/dragon.svg";
 import platonAvatarUrl from "./avatars/platon.svg";
 import { MAX_HEALTH, WEAPONS } from "./gameRules.js";
@@ -38,15 +40,18 @@ function Joystick({ onMove, disabled }) {
 }
 
 export default function NeonGame({ onReady }) {
-  const canvasRef = useRef(null), shellRef = useRef(null), gameRef = useRef(null), onReadyRef = useRef(onReady);
+  const canvasRef = useRef(null), videoRef = useRef(null), shellRef = useRef(null), gameRef = useRef(null), onReadyRef = useRef(onReady);
   const [attempt, setAttempt] = useState(0);
   const [progress, setProgress] = useState(0);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [muted, setMuted] = useState(false);
+  const [openingAudioEnabled, setOpeningAudioEnabled] = useState(false);
+  const [openingNeedsPlay, setOpeningNeedsPlay] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [slot, setSlot] = useState(() => readGameSave());
   const [selectedLevel, setSelectedLevel] = useState(1);
+  const [showDiscography, setShowDiscography] = useState(false);
   const [notice, setNotice] = useState("");
   const [confirmation, setConfirmation] = useState(null);
   const [state, setState] = useState({ phase: "opening", health: MAX_HEALTH, coins: 0, total: 24, score: 0, discoveries: 0, discoveryTotal: 2, discovery: null, enemies: 4, defeated: 0, time: 0, status: "playing", paused: false, period: "night", level: 1, levelName: "El Partenon", inventory: ["unarmed"], equipped: "unarmed" });
@@ -72,6 +77,12 @@ export default function NeonGame({ onReady }) {
     return () => { controller.abort(); gameRef.current = null; };
   }, [attempt]);
   useEffect(() => { gameRef.current?.setMuted(muted); }, [muted, ready]);
+  useEffect(() => {
+    if (!ready || state.phase !== "opening") return;
+    let active = true;
+    videoRef.current?.play()?.catch(() => { if (active) setOpeningNeedsPlay(true); });
+    return () => { active = false; };
+  }, [ready, state.phase]);
   useEffect(() => {
     const change = () => setFullscreen(document.fullscreenElement === shellRef.current);
     document.addEventListener("fullscreenchange", change);
@@ -112,6 +123,18 @@ export default function NeonGame({ onReady }) {
   const blocked = !ready || Boolean(error) || opening || title || introducing || state.paused || state.loadingLevel || state.status !== "playing";
   const EquippedIcon = WEAPON_ICONS[state.equipped] || Hand;
   const equippedWeapon = WEAPONS.find((weapon) => weapon.id === state.equipped);
+  function finishOpeningVideo() {
+    videoRef.current?.pause();
+    gameRef.current?.skipOpening();
+  }
+  function toggleOpeningAudio() {
+    const enable = muted || !openingAudioEnabled;
+    setOpeningAudioEnabled(enable);
+    setMuted(!enable);
+    if (videoRef.current) videoRef.current.muted = !enable;
+    gameRef.current?.setMuted(!enable);
+    if (enable) videoRef.current?.play()?.catch(() => setOpeningNeedsPlay(true));
+  }
   function toggleFullscreen() {
     const request = document.fullscreenElement ? document.exitFullscreen?.() : shellRef.current?.requestFullscreen?.();
     request?.catch(() => {});
@@ -154,12 +177,14 @@ export default function NeonGame({ onReady }) {
   return <section ref={shellRef} className="neon-game" aria-label={`Neonboy: ${state.levelName}`}>
     <canvas key={attempt} ref={canvasRef} className={`neon-game-canvas${state.damage && !blocked ? " is-hit" : ""}`} tabIndex={0} aria-label="Escenario 3D de Neonboy" />
     {ready && !error && opening && <div className="neon-game-opening" aria-label="Cinematica de apertura">
-      <div className="neon-game-opening-fade" aria-hidden="true" style={{ opacity: Math.max(state.openingFade || 0, 1 - Math.min(1, (state.openingTime || 0) / 0.2)) }} />
-      <div className="neon-game-opening-tools"><GameButton label={state.soundReady && !muted ? "Silenciar" : "Activar sonido"} onClick={() => {
-        if (state.soundReady && !muted) setMuted(true);
-        else { setMuted(false); gameRef.current?.setMuted(false); }
-      }}>{state.soundReady && !muted ? <Volume2 size={18} /> : <VolumeX size={18} />}</GameButton></div>
-      <button autoFocus className="neon-game-opening-skip" type="button" onClick={() => gameRef.current?.skipOpening()}>Omitir cinematica <ArrowRight size={16} /></button>
+      <video ref={videoRef} className="neon-game-opening-video" src={introVideoUrl} autoPlay muted={!openingAudioEnabled || muted}
+        playsInline preload="auto" aria-label="Intro de Neonboy" onEnded={finishOpeningVideo} onError={finishOpeningVideo} />
+      {openingNeedsPlay && <button className="neon-game-opening-play" type="button" onClick={() => {
+        videoRef.current?.play()?.then(() => setOpeningNeedsPlay(false)).catch(() => setOpeningNeedsPlay(true));
+      }}><Play size={22} /> Reproducir intro</button>}
+      <div className="neon-game-opening-tools"><GameButton label={muted || !openingAudioEnabled ? "Activar sonido" : "Silenciar"}
+        onClick={toggleOpeningAudio}>{muted || !openingAudioEnabled ? <VolumeX size={18} /> : <Volume2 size={18} />}</GameButton></div>
+      <button autoFocus className="neon-game-opening-skip" type="button" onClick={finishOpeningVideo}>Omitir cinematica <ArrowRight size={16} /></button>
     </div>}
     {ready && !error && !state.loadingLevel && title && <div className="neon-game-title">
       <div className="neon-game-title-brand"><h1 aria-label="NeonBoy"><img src={neonboyLogoUrl} alt="" /></h1><p lang="en">Ancient nightmare</p></div>
@@ -169,16 +194,19 @@ export default function NeonGame({ onReady }) {
       </div>
       <div className="neon-game-title-actions">
         <div className="neon-game-level-picker" role="group" aria-label="Elegir escenario">
-          <span>Eleg� un escenario</span>
+          <span>Eleg� un escenario</span>
           <div>{LEVELS.map((level) => <button key={level.id} type="button"
             aria-label={`Nivel ${level.id}: ${level.name}`} aria-pressed={selectedLevel === level.id}
-            onClick={() => setSelectedLevel(level.id)}><strong>NIVEL {String(level.id).padStart(2, "0")}</strong><small>{level.name}</small></button>)}</div>
+            onClick={() => setSelectedLevel(level.id)}><strong>NIVEL {String(level.id).padStart(2, "0")}</strong><small>{level.name}</small></button>)}
+            <button className="neon-game-discography-option" type="button" aria-label="Escenario extra: Tienda de discos" aria-pressed={selectedLevel === "discography"} onClick={() => setSelectedLevel("discography")}><Disc3 size={18} /><strong>ESCENARIO EXTRA</strong><small>Tienda de discos · Halloween</small></button></div>
         </div>
-        <button className="neon-game-play" type="button" onClick={() => { setNotice(""); gameRef.current?.start(selectedLevel); }}><Play size={22} fill="currentColor" /> Play</button>
+        <button className="neon-game-play" type="button" onClick={() => { setNotice(""); if (selectedLevel === "discography") setShowDiscography(true); else gameRef.current?.start(selectedLevel); }}>{selectedLevel === "discography" ? <Disc3 size={22} /> : <Play size={22} fill="currentColor" />}{selectedLevel === "discography" ? "Entrar a la tienda" : "Play"}</button>
+
         <button type="button" disabled={!slot.save} onClick={load}><FolderOpen size={18} /> Cargar partida</button>
         <span className="neon-game-save-meta">{slot.save ? `Nivel ${slot.save.world.level} - ${slot.save.world.coins.length} monedas - ${new Date(slot.save.savedAt).toLocaleString("es-AR", { dateStyle: "short", timeStyle: "short" })}` : slot.error || "Sin partida guardada"}</span>
       </div>
     </div>}
+    {ready && !error && title && showDiscography && <DiscographyStore onClose={() => setShowDiscography(false)} />}
     {!opening && !title && !introducing && <>
     {state.health <= 25 && state.health > 0 && !blocked && <div className="neon-game-critical" aria-hidden="true" />}
     {state.damage && !state.paused && !state.loadingLevel && <div key={state.damage.id} className="neon-game-damage" aria-hidden="true" />}
@@ -207,22 +235,28 @@ export default function NeonGame({ onReady }) {
         <GameButton label={muted ? "Activar sonido" : "Silenciar"} aria-pressed={muted} onClick={() => setMuted(!muted)}>{muted ? <VolumeX size={18} /> : <Volume2 size={18} />}</GameButton>
         <GameButton label={fullscreen ? "Salir de pantalla completa" : "Pantalla completa"} onClick={toggleFullscreen}>{fullscreen ? <Minimize size={18} /> : <Maximize size={18} />}</GameButton>
       </div>
-      {state.quest && <div className="neon-game-mission"><ScrollText size={15} /><span>{state.quest.text}</span><small>Secretos {state.secrets}/2</small></div>}
+      {state.quest && <div className="neon-game-mission"><ScrollText size={15} /><span>{state.quest.text}</span><small>Secretos {state.secrets}/{state.secretTotal}</small></div>}
       {state.boss && !state.boss.active && state.guardsRemaining > 0 && state.status === "playing" &&
         <div className="neon-game-mission neon-game-boss-gate"><Skull size={15} /><span>Derrota a los enemigos para atraer al jefe.</span><small>{state.guardsRemaining} restantes</small></div>}
-    {state.level === 4 && <div className="neon-game-mission"><Crosshair size={15} /><span>Ballesta: {state.ammo}/{state.maxAmmo} flechas. Dispara a las runas y busca municion.</span><small>Secretos {state.secrets}/2</small></div>}
+    {state.level === 4 && <div className="neon-game-mission"><Crosshair size={15} /><span>Ballesta: {state.ammo}/{state.maxAmmo} flechas. Dispara a las runas y busca municion.</span><small>Secretos {state.secrets}/{state.secretTotal}</small></div>}
     {state.boss?.active && state.boss.health > 0 && state.status === "playing" && <div className="neon-game-boss">
       <div><strong>{state.boss.name}</strong><span>{state.boss.health} / {state.boss.maxHealth}</span></div>
       <div className="neon-game-boss-health" role="progressbar" aria-label="Vida del jefe" aria-valuemin={0}
         aria-valuemax={state.boss.maxHealth} aria-valuenow={state.boss.health}><i style={{ width: `${state.boss.health / state.boss.maxHealth * 100}%` }} /></div>
-      <small>{state.level === 2 ? "Camara del sello" : state.level === 3 ? "Frente al mausoleo" : state.level === 4 ? "Cripta del jefe" : "Frente al templo"} - {state.boss.distance} m
+      <small>{state.level === 2 ? "Camara del sello" : state.level === 3 ? "Osario final" : state.level === 4 ? "Cripta final" : "Frente al templo"} - {state.boss.distance} m
         {state.level === 3 && state.boss.attack && ` - ${state.boss.attack === "zombieSweep" ? "Barrido" : "Golpe aplastante"}`}</small>
     </div>}
     </div>
     {state.pickup && <div className="neon-game-pickup" role="status"><EquippedPickup weapon={state.pickup} /></div>}
     {state.ammoNotice && <div className="neon-game-ammo-notice" role="status">Flechas recogidas: {state.ammo}/{state.maxAmmo}</div>}
     {(state.firstPerson || state.equipped === "crossbow") && state.phase === "game" && state.status === "playing" && !state.paused && !state.dialogue && !state.discovery && <div className={`neon-game-reticle${state.firstPerson ? " is-first-person" : ""}`} style={{ left: `${state.reticle?.x ?? 50}%`, top: `${state.reticle?.y ?? 48}%` }} aria-label={state.equipped === "crossbow" ? "Mira de ballesta" : "Mira de combate"}><i />{state.equipped === "crossbow" && <b>{state.ammo} / {state.maxAmmo}</b>}</div>}
-    {state.firstPerson && !blocked && <div className="neon-game-view-hint"><strong>{equippedWeapon.name}</strong><span>Mouse: apuntar | Clic/J: atacar | V: vista | Esc: pausa</span></div>}
+    {state.charge > 0 && !blocked && state.equipped !== "unarmed" &&
+      <div className={`neon-game-charge${state.chargeReady ? " is-ready" : ""}`} role="progressbar" aria-label="Carga de poder"
+        aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(state.charge * 100)}>
+        <span>{state.chargeReady ? "PODER LISTO · SOLTÁ PARA GOLPEAR" : "CARGANDO PODER VIOLETA"}</span>
+        <div><i style={{ width: `${state.charge * 100}%` }} /></div>
+      </div>}
+    {state.firstPerson && !blocked && <div className="neon-game-view-hint"><strong>{equippedWeapon.name}</strong><span>{state.equipped === "unarmed" ? "Mouse: apuntar | Clic/J: atacar | V: vista | Esc: pausa" : "Mantené clic/J 2,5 s y soltá: golpe potente | V: vista"}</span></div>}
     <div className="neon-game-bottom">
       <Joystick disabled={blocked} onMove={(x, z) => gameRef.current?.move(x, z)} />
       <div className="neon-game-weapons" role="group" aria-label="Armas">
@@ -237,8 +271,8 @@ export default function NeonGame({ onReady }) {
         <GameButton label="Patada (K)" disabled={blocked} onPointerDown={(event) => hold("kick", event)}
           onPointerUp={() => gameRef.current?.hold("kick", false)} onPointerCancel={() => gameRef.current?.hold("kick", false)} onLostPointerCapture={() => gameRef.current?.hold("kick", false)}
           onClick={(event) => { if (event.detail === 0) gameRef.current?.action("kick"); }}><Footprints size={23} /></GameButton>
-        <GameButton label={`${state.equipped === "unarmed" ? "Punetazo" : equippedWeapon.name} (J o clic)`} className="neon-game-primary-action" disabled={blocked} onPointerDown={(event) => hold("punch", event)}
-          onPointerUp={() => gameRef.current?.hold("punch", false)} onPointerCancel={() => gameRef.current?.hold("punch", false)} onLostPointerCapture={() => gameRef.current?.hold("punch", false)}
+        <GameButton label={`${state.equipped === "unarmed" ? "Punetazo" : equippedWeapon.name} (J o clic; mantené 2,5 s para cargar)`} className={`neon-game-primary-action${state.charge > 0 ? " is-charging" : ""}${state.chargeReady ? " is-ready" : ""}`} disabled={blocked} onPointerDown={(event) => hold("punch", event)}
+          onPointerUp={() => gameRef.current?.hold("punch", false)} onPointerCancel={() => gameRef.current?.cancelHold("punch")} onLostPointerCapture={() => gameRef.current?.cancelHold("punch")}
           onClick={(event) => { if (event.detail === 0) gameRef.current?.action("punch"); }}><EquippedIcon size={27} /></GameButton>
       </div>
     </div>

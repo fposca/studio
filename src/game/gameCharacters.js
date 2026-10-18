@@ -2,16 +2,16 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { clone } from "three/addons/utils/SkeletonUtils.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
-import { syncedGaitRate } from "../editors/walkGait.js";
+import { NEONBOY_NEW_WALK_GAIT_UNITS_PER_SECOND, syncedGaitRate } from "../editors/walkGait.js";
 import { ATTACKS, attackEnvelope, GRAVITY, JUMP_SPEED, RUN_SPEED } from "./gameRules.js";
 import { createWeaponModel } from "./gameWeapons.js";
 import { createHandGrip } from "./gameGrip.js";
 import { landingCompression } from "./gameLocomotion.js";
 
 const idleUrl = new URL("../assets/neonboy-animaciones/neon-inactivo-hd.glb", import.meta.url).href;
-const walkUrl = new URL("../assets/neonboy-animaciones/neonBoy-walking-alta.glb", import.meta.url).href;
+const walkUrl = new URL("../assets/neonboy-animaciones/neonboy-new-walk.anim.glb", import.meta.url).href;
 const runUrl = new URL("../assets/neonboy-animaciones/run.glb", import.meta.url).href;
-const jumpUrl = new URL("../assets/neonboy-animaciones/newJump.glb", import.meta.url).href;
+const jumpUrl = new URL("../assets/neonboy-animaciones/neonboy-new-jump.anim.glb", import.meta.url).href;
 const kickUrl = new URL("../assets/neonboy-animaciones/patada.glb", import.meta.url).href;
 const fistUrl = new URL("../assets/neonboy-animaciones/neon-fist.glb", import.meta.url).href;
 const enemyUrl = new URL("../assets/neonboy-animaciones/reptiliano-walk.glb", import.meta.url).href;
@@ -309,7 +309,7 @@ export function createGameCharacter(asset, hostile = false, { boss = false } = {
   kickAction?.setEffectiveWeight(0);
   punchAction?.setEffectiveWeight(0);
   mixer.update(0);
-  let walkWeight = 0, jumpWeight = 0, guardWeight = 0, runWeight = 0, kickWeight = 0, punchWeight = 0;
+  let walkWeight = 0, jumpWeight = 0, guardWeight = 0, heavyWalkWeight = 0, runWeight = 0, kickWeight = 0, punchWeight = 0;
   let wasAirborne = false, lastKickAttack = null, lastPunchAttack = null, lastEnemyAttack = null, enemyAttackWeight = 0;
   const animatedPose = [...bones.values()].map((bone) => ({ bone, quaternion: bone.quaternion.clone(), position: bone.position.clone() }));
   const currentDirection = new THREE.Vector3(), targetDirection = new THREE.Vector3();
@@ -381,6 +381,7 @@ export function createGameCharacter(asset, hostile = false, { boss = false } = {
       lastKickAttack = kickAttack;
       lastPunchAttack = punchAttack;
       walkWeight = THREE.MathUtils.damp(walkWeight, moving && (!runAction || !actor.running) ? 1 : 0, 14, dt);
+      heavyWalkWeight = THREE.MathUtils.damp(heavyWalkWeight, !hostile && moving && !actor.running && actor.equipped === "unarmed" && actor.combat <= 0 ? 1 : 0, 9, dt);
       runWeight = THREE.MathUtils.damp(runWeight, moving && actor.running && runAction ? 1 : 0, 14, dt);
       jumpWeight = THREE.MathUtils.damp(jumpWeight, airborne && !kickAttack ? 1 : 0, 18, dt);
       kickWeight = THREE.MathUtils.damp(kickWeight, kickAttack ? 1 : 0, 24, dt);
@@ -389,7 +390,7 @@ export function createGameCharacter(asset, hostile = false, { boss = false } = {
       const totalWeight = walkWeight + runWeight + jumpWeight + kickWeight + punchWeight + enemyAttackWeight;
       const blendScale = totalWeight > 1 ? 1 / totalWeight : 1;
       walkAction.setEffectiveWeight(idleAction ? walkWeight * blendScale : 1 - enemyAttackWeight);
-      walkAction.setEffectiveTimeScale(asset.interior ? (moving ? actor.speed / 1.85 : 0) : asset.demon ? 0.6 : asset.templeBoss ? moving ? 1 : 0.1 : moving ? syncedGaitRate(actor.speed, scale, hostile ? 0.65 : 1.43) : hostile ? 0.06 : 0);
+      walkAction.setEffectiveTimeScale(asset.interior ? (moving ? actor.speed / 1.85 : 0) : asset.demon ? 0.6 : asset.templeBoss ? moving ? 1 : 0.1 : moving ? syncedGaitRate(actor.speed, scale, hostile ? 0.65 : NEONBOY_NEW_WALK_GAIT_UNITS_PER_SECOND) : hostile ? 0.06 : 0);
       for (const action of enemyAttackActions.values()) action.setEffectiveWeight(action === enemyAttackAction ? enemyAttackWeight * blendScale : 0);
       if (enemyAttack) enemyAttackAction.setEffectiveTimeScale(enemyAttackAction.getClip().duration / ATTACKS[enemyAttack.kind].duration);
       runAction?.setEffectiveWeight(runWeight * blendScale);
@@ -409,13 +410,27 @@ export function createGameCharacter(asset, hostile = false, { boss = false } = {
       visual.rotation.z = actor.health <= 0 ? -Math.PI * 0.48 * Math.min(1, (actor.deadTime || 0.65) * 2.5) : 0;
       visual.position.y = actor.health <= 0 ? -0.03 : 0;
       root.visible = actor.health > 0 || (actor.deadTime || 0) < 2.5;
-      visual.rotation.x = 0;
+      visual.rotation.x = airborne ? 0 : heavyWalkWeight * 0.055;
       const alive = actor.health > 0;
       guardWeight = THREE.MathUtils.damp(guardWeight, alive && !hostile && !airborne && actor.equipped === "unarmed" && actor.combat > 0 ? 1 : 0, 15, dt);
+      if (!airborne && heavyWalkWeight > 0.01) {
+        bones.get("LeftUpLeg") && (bones.get("LeftUpLeg").position.x += 0.025 * heavyWalkWeight);
+        bones.get("RightUpLeg") && (bones.get("RightUpLeg").position.x -= 0.025 * heavyWalkWeight);
+        for (const [side, sign] of [["Left", 1], ["Right", -1]]) {
+          aim(side + "Arm", side + "ForeArm", [sign * 0.52, -0.82, 0.18], heavyWalkWeight * 0.32);
+        }
+      }
       if (!punchAttack) {
         for (const [side, sign] of [["Left", 1], ["Right", -1]]) {
           aim(`${side}Arm`, `${side}ForeArm`, [sign * 0.35, -0.65, 0.38], guardWeight);
           aim(`${side}ForeArm`, `${side}Hand`, [-sign * 0.16, 0.85, 0.32], guardWeight);
+        }
+      }
+      if (!hostile && alive && airborne && actor.raiseArmsOnJump) {
+        const lift = jumpWeight * THREE.MathUtils.clamp(actor.y / 0.3, 0, 1);
+        for (const [side, sign] of [["Left", 1], ["Right", -1]]) {
+          aim(`${side}Arm`, `${side}ForeArm`, [sign * 0.5, 0.8, 0.3], lift);
+          aim(`${side}ForeArm`, `${side}Hand`, [sign * 0.22, 0.86, 0.35], lift * 0.9);
         }
       }
       if (asset.demon && alive && moving) {

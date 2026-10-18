@@ -10,7 +10,7 @@ test("the title menu opens levels 2, 3 and 4 directly without campaign progress"
   await page.waitForFunction(() => Boolean(window.game), null, { timeout: 90_000 });
   const picker = page.getByRole("group", { name: "Elegir escenario" });
   await expect(picker).toBeVisible({ timeout: 15_000 });
-  await expect(picker.getByRole("button")).toHaveCount(4);
+  await expect(picker.getByRole("button")).toHaveCount(5);
   await expect(picker.getByRole("button", { name: "Nivel 1: El Partenon" })).toHaveAttribute("aria-pressed", "true");
 
   await picker.getByRole("button", { name: "Nivel 2: El santuario de Atenea" }).click();
@@ -40,7 +40,7 @@ test("the title menu opens levels 2, 3 and 4 directly without campaign progress"
     const world = window.game.inspect().world;
     return { level: world.level.id, inventory: [...world.inventory], coins: world.coins.length,
       enemies: world.enemies.length, pickup: world.pickups[0].weapon };
-  })).toEqual({ level: 3, inventory: ["unarmed"], coins: 42, enemies: 12, pickup: "axe" });
+  })).toEqual({ level: 3, inventory: ["unarmed"], coins: 88, enemies: 21, pickup: "axe" });
   await page.getByRole("button", { name: "Omitir intro" }).click();
   await expect(page.locator(".neon-game-level-intro")).toHaveCount(0);
   await page.evaluate(() => window.game.showTitle());
@@ -51,7 +51,7 @@ test("the title menu opens levels 2, 3 and 4 directly without campaign progress"
     const world = window.game.inspect().world;
     return { level: world.level.id, ammo: world.ammo, enemies: world.enemies.length,
       weapon: world.pickups[0].weapon, secrets: world.secretDoors.length };
-  })).toEqual({ level: 4, ammo: 10, enemies: 9, weapon: "crossbow", secrets: 2 });
+  })).toEqual({ level: 4, ammo: 10, enemies: 19, weapon: "crossbow", secrets: 4 });
   await page.getByRole("button", { name: "Omitir intro" }).click();
   expect(errors).toEqual([]);
 });

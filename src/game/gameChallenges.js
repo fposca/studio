@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 export function createGameChallenges(parent, world) {
   const group = new THREE.Group();
-  group.name = world.level.id >= 3 ? "Trampas y plataformas del cementerio" : "Pruebas del Partenon";
+  group.name = world.level.id === 2 ? "Galeria movil de Atenea" : world.level.id === 4 ? "Galeria de huesos de las catacumbas" : world.level.id === 3 ? "Trampas y plataformas del cementerio" : "Pruebas del Partenon";
   parent.add(group);
   if (!world.platforms.length) return () => {};
   const map = new THREE.TextureLoader().load(world.level.id >= 3 ?
@@ -13,7 +13,7 @@ export function createGameChallenges(parent, world) {
   const stone = new THREE.MeshStandardMaterial({ map, bumpMap: map, bumpScale: 0.055, color: world.level.id >= 3 ? 0x9ba69e : 0xb7b5aa, roughness: 0.9 });
   const bronze = new THREE.MeshStandardMaterial({ color: 0x79663c, metalness: 0.75, roughness: 0.4 });
   const iron = new THREE.MeshStandardMaterial({ color: 0x383c3e, metalness: 0.78, roughness: 0.48 });
-  const inlay = new THREE.MeshStandardMaterial({ color: world.level.id >= 3 ? 0xc5a77a : 0x74d8c3, emissive: world.level.id >= 3 ? 0x654624 : 0x2d8e7b, emissiveIntensity: 0.65, metalness: 0.4, roughness: 0.3 });
+  const inlay = new THREE.MeshStandardMaterial({ color: world.level.id === 2 ? 0xc9ab79 : world.level.id >= 3 ? 0xc5a77a : 0x74d8c3, emissive: world.level.id === 2 ? 0x6c4c27 : world.level.id >= 3 ? 0x654624 : 0x2d8e7b, emissiveIntensity: 0.65, metalness: 0.4, roughness: 0.3 });
   const warning = new THREE.MeshStandardMaterial({ color: 0xeb7651, emissive: 0x9e2916, emissiveIntensity: 0.5, roughness: 0.55 });
   function mesh(geometry, material, owner, x = 0, y = 0, z = 0) {
     const object = new THREE.Mesh(geometry, material);

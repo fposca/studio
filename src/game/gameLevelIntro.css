@@ -1,8 +1,8 @@
 .neon-game-level-intro {
-  --intro-ink: #171412;
-  --intro-paper: #d0c5b7;
-  --intro-accent: #e6d5bc;
-  --intro-gold: #a79786;
+  --intro-ink: #e6d5bc;
+  --intro-paper: #080807;
+  --intro-accent: #312a23;
+  --intro-gold: #bea37f;
   position: absolute;
   inset: 0;
   z-index: 8;
@@ -12,13 +12,12 @@
   color: var(--intro-ink);
   background: var(--intro-paper);
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  animation: neon-level-scene 3600ms both;
 }
-.neon-game-level-intro[data-variant="1"] { --intro-accent: #b4a18a; --intro-gold: #efe0c9; }
-.neon-game-level-intro[data-variant="2"] { --intro-accent: #ddcfbb; --intro-gold: #8c7761; }
-.neon-game-level-intro[data-variant="3"] { --intro-paper: #b6a38a; --intro-accent: #e4d5ba; --intro-gold: #493b32; }
+.neon-game-level-intro[data-variant="1"] { --intro-accent: #25231f; --intro-gold: #d3b38c; }
+.neon-game-level-intro[data-variant="2"] { --intro-accent: #342b23; --intro-gold: #bf9e77; }
+.neon-game-level-intro[data-variant="3"] { --intro-accent: #282523; --intro-gold: #bd9a74; }
 .neon-level-art { position: absolute; inset: 0; z-index: -1; overflow: hidden; }
-.neon-level-grid { position: absolute; inset: 0; opacity: 0.16; background-image: linear-gradient(#17141224 1px, transparent 1px), linear-gradient(90deg, #17141224 1px, transparent 1px); background-size: 72px 72px; }
+.neon-level-grid { position: absolute; inset: 0; opacity: 0.16; background-image: linear-gradient(#e6d5bc20 1px, transparent 1px), linear-gradient(90deg, #e6d5bc20 1px, transparent 1px); background-size: 72px 72px; }
 .neon-level-plane { position: absolute; rotate: -45deg; animation: neon-level-plane-in 1100ms cubic-bezier(.16, 1, .3, 1) both; }
 .neon-level-plane-main { width: 115cqmax; height: 38cqh; left: 38%; top: 21%; background: var(--intro-accent); }
 .neon-level-plane-gold { width: 100cqmax; height: 5cqh; left: 50%; top: 67%; background: var(--intro-gold); animation-delay: 160ms; }
@@ -33,7 +32,7 @@
 .neon-level-header { top: 5%; font-size: clamp(10px, 1cqw, 14px); font-weight: 700; letter-spacing: 0.13em; }
 .neon-level-header > span:last-child { color: var(--intro-ink); background: var(--intro-accent); padding: 7px 10px; }
 .neon-level-brand { display: inline-flex; align-items: center; gap: 10px; padding: 7px 10px; background: var(--intro-paper); }
-.neon-level-brand i { width: 12px; height: 12px; background: var(--intro-accent); border-radius: 50%; }
+.neon-level-brand i { width: 12px; height: 12px; background: var(--intro-gold); border-radius: 50%; }
 .neon-level-composition { position: absolute; inset: 21% 8% 23%; display: grid; grid-template-columns: 1.15fr 1fr; align-items: center; gap: 2%; }
 .neon-level-copy { min-width: 0; z-index: 1; }
 .neon-level-kicker { display: block; margin-bottom: 3cqh; color: var(--intro-ink); font-size: clamp(10px, 1cqw, 15px); font-weight: 700; letter-spacing: 0.22em; animation: neon-level-copy-in 700ms 200ms both; }
@@ -45,17 +44,16 @@
 .neon-level-number { justify-self: center; color: var(--intro-ink); font-size: min(29cqw, 52cqh); font-weight: 900; line-height: 0.85; letter-spacing: -0.09em; padding-right: 0.08em; animation: neon-level-number-in 1150ms 120ms cubic-bezier(.16, 1, .3, 1) both; }
 .neon-level-footer { bottom: 5%; }
 .neon-level-index { width: clamp(110px, 20cqw, 270px); font-size: 11px; font-weight: 700; letter-spacing: 0.15em; }
-.neon-level-index > div { height: 2px; margin-top: 12px; background: #17141240; overflow: hidden; }
+.neon-level-index > div { height: 2px; margin-top: 12px; background: #e6d5bc40; overflow: hidden; }
 .neon-level-index i { display: block; height: 100%; background: var(--intro-ink); transform-origin: left; animation: neon-level-progress 3200ms linear both; }
 .neon-game .neon-level-footer button { display: inline-flex; align-items: center; gap: 12px; padding: 10px 13px; border-radius: 0; border-color: var(--intro-ink); color: var(--intro-ink); background: var(--intro-accent); font-family: inherit; font-size: 12px; }
-.neon-game .neon-level-footer button:hover { background: #f4e9d5; color: var(--intro-ink); border-color: var(--intro-ink); }
+.neon-game .neon-level-footer button:hover { background: var(--intro-ink); color: var(--intro-paper); border-color: var(--intro-ink); }
 .neon-game-level-intro[data-variant="1"] .neon-level-disc { left: 4%; top: -23cqh; border-radius: 0 0 50% 50%; rotate: -45deg; }
 .neon-game-level-intro[data-variant="2"] .neon-level-disc { left: 33%; top: -24cqh; border-width: 3cqh; }
 .neon-game-level-intro[data-variant="2"] .neon-level-steps { bottom: 8%; }
 .neon-game-level-intro[data-variant="3"] .neon-level-disc { left: 51%; top: -27cqh; border-width: 6cqh; }
 .neon-game-level-intro[data-variant="3"] .neon-level-steps { right: 8%; bottom: -12%; }
 
-@keyframes neon-level-scene { 0% { opacity: 0; } 7%, 87% { opacity: 1; clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); } 100% { opacity: 1; clip-path: polygon(150% 0, 250% 0, 100% 100%, 100% 100%); } }
 @keyframes neon-level-plane-in { from { translate: 80% -30%; } to { translate: 0 0; } }
 @keyframes neon-level-disc-in { from { translate: 0 -80%; rotate: -90deg; } to { translate: 0 0; } }
 @keyframes neon-level-ribbon-in { from { opacity: 0; translate: -25% 25%; } to { opacity: 1; translate: 0 0; } }

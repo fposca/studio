@@ -1,0 +1,9 @@
+{
+  "console": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": 1 },
+  "monitor-left": { "position": [0, -0.23, 0], "rotation": [0, 0, 0], "scale": 1 },
+  "monitor-right": { "position": [0, -0.23, 0], "rotation": [0, 0, 0], "scale": 1 },
+  "chair": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": 1 },
+  "crt": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": 1 },
+  "amplifier": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": 1 },
+  "microphone": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": 1 }
+}

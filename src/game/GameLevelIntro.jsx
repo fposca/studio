@@ -1,11 +1,11 @@
-import React, { useEffect } from "react";
+import React, { useLayoutEffect } from "react";
 import { ArrowUpRight } from "lucide-react";
 import { LEVELS } from "./gameLevels.js";
 import "./gameLevelIntro.css";
 
 export default function GameLevelIntro({ level, name, onComplete }) {
   const number = String(level).padStart(2, "0");
-  useEffect(() => {
+  useLayoutEffect(() => {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const timer = window.setTimeout(onComplete, reducedMotion ? 1400 : 3600);
     return () => window.clearTimeout(timer);

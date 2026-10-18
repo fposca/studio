@@ -115,7 +115,8 @@ test("ground-level cemetery coins and the axe remain reachable around the graves
 
 test("cemetery platforms and their coins are reachable with real jumps", (t) => {
   const world = setup(t, { level: 3 });
-  for (const route of [world.platforms.slice(0, 4), world.platforms.slice(4)]) {
+  for (const route of [world.platforms.slice(0, 4), world.platforms.slice(4, 7),
+    world.platforms.slice(7, 13), world.platforms.slice(13, 19)]) {
     const first = route[0];
     teleport(world, { x: first.x, y: 0, z: first.z + 3 });
     for (const target of route) {
@@ -130,7 +131,7 @@ test("cemetery platforms and their coins are reachable with real jumps", (t) => 
       assert.ok(landed, `${target.id} unreachable from ${world.player.x}, ${world.player.y}, ${world.player.z}`);
     }
   }
-  assert.equal(world.coins.filter((coin) => coin.platformId && coin.collected).length, 14);
+  assert.equal(world.coins.filter((coin) => coin.platformId && coin.collected).length, 38);
 });
 
 test("the axe breaks cemetery walls and exposes the secret relics", (t) => {
@@ -162,7 +163,7 @@ test("zombie boss alternates a sweep and a crushing combo", (t) => {
   const world = setup(t, { level: 3 }), boss = world.boss;
   boss.health = boss.maxHealth;
   boss.active = true; boss.collider.setEnabled(true);
-  teleport(world, { x: boss.x, y: 0, z: boss.z + 2.3 });
+  teleport(world, { x: boss.x, y: 0, z: boss.z + 1.8 });
   world.step();
   assert.equal(boss.attack?.kind, "zombieSweep");
   assert.ok(ATTACKS.zombieSweep.reach > ATTACKS.zombieCrush.reach);
@@ -196,4 +197,31 @@ test("sound effects have finite audio, headroom, a soft tail and distinct variat
     const alternate = synthesizeEffect(kind, 22050, 2);
     assert.ok(samples.some((value, index) => value !== alternate[index]), kind);
   }
+});
+
+test("the rear cemetery mausoleum blocks the center while its side aisle reaches the boss", (t) => {
+  const world = setup(t, { level: 3 });
+  world.player.invulnerable = 100;
+  teleport(world, { x: 0, y: 0, z: -62 });
+  for (let i = 0; i < 150; i++) world.step({ z: -1, run: true });
+  assert.ok(world.player.z > -64, `passed through the mausoleum: ${world.player.z}`);
+  teleport(world, { x: 10, y: 0, z: -62 });
+  for (let i = 0; i < 420 && world.player.z > -88; i++) world.step({ z: -1, run: true });
+  assert.ok(world.player.z < -87.5, `side aisle ended at ${world.player.z}`);
+  assert.equal(world.level.bounds.back, -93);
+  assert.equal(world.boss.spawn.z, -89);
+});
+
+test("the rear ossuary can be opened with the axe and entered", (t) => {
+  const world = setup(t, { level: 3, inventory: ["axe"], equipped: "axe" });
+  const door = world.secretDoors.find((entry) => entry.id === "west-ossuary");
+  const relic = world.artifacts.find((entry) => entry.secret === door.id);
+  teleport(world, { x: door.x + 1.4, y: 0, z: door.z });
+  world.player.yaw = -Math.PI / 2;
+  assert.equal(world.startAttack(world.player, "punch"), true);
+  for (let i = 0; i < 65; i++) world.step();
+  assert.equal(door.broken, true);
+  assert.equal(world.artifactAvailable(relic), true);
+  for (let i = 0; i < 125 && !relic.found; i++) world.step({ x: -1 });
+  assert.equal(relic.found, true);
 });

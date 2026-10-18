@@ -1,0 +1,6 @@
+﻿:root { color-scheme: dark; font-family: "Bahnschrift", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; background: #120d18; }
+* { box-sizing: border-box; }
+html, body, #root { width: 100%; min-height: 100%; margin: 0; }
+#root { height: 100dvh; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }

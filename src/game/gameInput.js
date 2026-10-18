@@ -4,7 +4,7 @@ export function createGameInput(canvas, onPause, onInteract, onToggleView) {
   const keys = new Set();
   const held = new Set();
   const touch = { x: 0, z: 0 };
-  let jump = false, attack = null, equipment = null, dragging = null, enabled = true;
+  let jump = false, attack = null, attackReleased = false, equipment = null, dragging = null, enabled = true;
   const orbit = { yaw: 0.15, pitch: 0.26, distance: 7.5, firstPerson: false, lookPitch: 0 };
   let wasLocked = false, requestingMouse = false;
   const finePointer = () => window.matchMedia("(pointer: fine)").matches;
@@ -25,7 +25,8 @@ export function createGameInput(canvas, onPause, onInteract, onToggleView) {
   const controller = new AbortController();
   const options = { signal: controller.signal };
   const isField = (target) => /INPUT|TEXTAREA|SELECT/.test(target?.tagName) || target?.isContentEditable;
-  function clear() { keys.clear(); held.clear(); touch.x = touch.z = 0; jump = false; attack = null; equipment = null; dragging = null; }
+  const primaryHeld = () => keys.has("KeyJ") || held.has("punch") || held.has("mouse");
+  function clear() { keys.clear(); held.clear(); touch.x = touch.z = 0; jump = false; attack = null; attackReleased = false; equipment = null; dragging = null; }
   function equip(weapon) { if (enabled) { equipment = weapon; onInteract?.(); } }
   function action(kind) {
     if (!enabled) return;
@@ -57,12 +58,16 @@ export function createGameInput(canvas, onPause, onInteract, onToggleView) {
       keys.add(event.code);
       if (!event.repeat) {
         if (event.code === "Space") action("jump");
-        if (event.code === "KeyJ") action("punch");
+        if (event.code === "KeyJ") onInteract?.();
         if (event.code === "KeyK") action("kick");
       }
     }
   }, options);
-  window.addEventListener("keyup", (event) => keys.delete(event.code), options);
+  window.addEventListener("keyup", (event) => {
+    const primary = event.code === "KeyJ" && keys.has("KeyJ");
+    keys.delete(event.code);
+    if (primary && !primaryHeld()) attackReleased = true;
+  }, options);
   window.addEventListener("blur", () => { clear(); onPause(true); }, options);
   document.addEventListener("visibilitychange", () => { if (document.hidden) { clear(); onPause(true); } }, options);
   canvas.addEventListener("contextmenu", (event) => event.preventDefault(), options);
@@ -76,7 +81,7 @@ export function createGameInput(canvas, onPause, onInteract, onToggleView) {
     } else if (event.button === 0) {
       // The first click attacks too; aiming already works before locking the cursor.
       captureMouse();
-      held.add("mouse"); action("punch");
+      held.add("mouse");
     }
   }, options);
   canvas.addEventListener("pointermove", (event) => {
@@ -97,7 +102,11 @@ export function createGameInput(canvas, onPause, onInteract, onToggleView) {
     if (wasLocked && !locked && enabled && orbit.firstPerson) { clear(); onPause(true); }
     wasLocked = locked;
   }, options);
-  window.addEventListener("pointerup", () => held.delete("mouse"), options);
+  window.addEventListener("pointerup", () => {
+    const primary = held.delete("mouse");
+    if (primary && !primaryHeld()) attackReleased = true;
+  }, options);
+  window.addEventListener("pointercancel", () => held.delete("mouse"), options);
   for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) canvas.addEventListener(type, () => { dragging = null; }, options);
   canvas.addEventListener("wheel", (event) => {
     if (!enabled) return;
@@ -108,7 +117,16 @@ export function createGameInput(canvas, onPause, onInteract, onToggleView) {
   return {
     orbit, touch, action, equip,
     setFirstPerson(value) { orbit.firstPerson = Boolean(value); clear(); if (!value) releaseMouse(); },
-    hold(kind, pressed) { if (pressed && enabled) { held.add(kind); action(kind); } else held.delete(kind); },
+    hold(kind, pressed) {
+      if (pressed && enabled) {
+        if (!held.has(kind)) { held.add(kind); if (kind === "punch") onInteract?.(); else action(kind); }
+      } else {
+        const primary = kind === "punch" && held.has(kind);
+        held.delete(kind);
+        if (primary && !primaryHeld()) attackReleased = true;
+      }
+    },
+    cancelHold(kind) { held.delete(kind); },
     clear,
     setEnabled(value) { enabled = value; if (!value) { clear(); releaseMouse(); } },
     read(dt) {
@@ -117,9 +135,11 @@ export function createGameInput(canvas, onPause, onInteract, onToggleView) {
       const value = { x: Number(keys.has("KeyD") || keys.has("ArrowRight")) - Number(keys.has("KeyA") || keys.has("ArrowLeft")) + touch.x,
         z: Number(keys.has("KeyS") || keys.has("ArrowDown")) - Number(keys.has("KeyW") || keys.has("ArrowUp")) + touch.z,
         run: keys.has("ShiftLeft") || keys.has("ShiftRight"), yaw: orbit.yaw, aimPitch: orbit.lookPitch, firstPerson: orbit.firstPerson, jump, equip: equipment,
-        attack: attack || (keys.has("KeyK") || held.has("kick") ? "kick" : keys.has("KeyJ") || (held.has("punch") || held.has("mouse")) ? "punch" : null) };
+        attack: attack || (keys.has("KeyK") || held.has("kick") ? "kick" : null),
+        attackHeld: primaryHeld(), attackReleased };
       jump = false;
       attack = null;
+      attackReleased = false;
       equipment = null;
       return value;
     },

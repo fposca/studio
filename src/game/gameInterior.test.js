@@ -22,6 +22,58 @@ function disableEnemies(world) {
 }
 const wrap = (world) => ({ version: 1, savedAt: 100, period: "night", camera: { yaw: 0, pitch: 0.3, distance: 7 }, world: world.serialize() });
 
+test("the expanded sanctuary is traversable, carries a reachable gallery and saves deep progress", (t) => {
+  const world = setup(t); accept(world); disableEnemies(world);
+  assert.ok(world.level.bounds.back < -90);
+  assert.ok(world.coins.length > 55);
+  assert.equal(world.platforms.length, 9);
+  place(world, world.player, 0, -39);
+  for (let frame = 0; frame < 280; frame++) world.step({ z: -1, run: true });
+  assert.ok(world.player.z < -53, "the open portal must lead into the second nave");
+  assert.ok(world.player.z > -56, "the central relief should redirect the route");
+  place(world, world.player, 10, -53);
+  for (let frame = 0; frame < 550; frame++) world.step({ z: -1, run: true });
+  assert.ok(world.player.z < -89, "the side aisle must reach the altar chamber");
+  const first = world.platforms[0];
+  place(world, world.player, first.x, first.z + 3);
+  let landed = false;
+  for (let frame = 0; frame < 100; frame++) {
+    const dz = first.z - world.player.z;
+    world.step({ z: dz < -0.12 ? -1 : 0, run: true, jump: frame === 0 });
+    if (world.player.grounded && world.player.platformId === first.id) { landed = true; break; }
+  }
+  assert.ok(landed, "the first gallery slab must be reachable by jumping");
+  for (const slab of world.platforms.slice(1)) {
+    let arrived = false;
+    for (let frame = 0; frame < 130; frame++) {
+      const dx = slab.x - world.player.x, dz = slab.z - world.player.z;
+      const distance = Math.hypot(dx, dz);
+      world.step({ x: distance > 0.12 ? dx / distance : 0,
+        z: distance > 0.12 ? dz / distance : 0, run: true, jump: frame === 0 });
+      if (world.player.grounded && world.player.platformId === slab.id) { arrived = true; break; }
+    }
+    assert.ok(arrived, slab.id + " must be reachable from the preceding slab");
+  }
+  place(world, world.player, 18, -84);
+  const saved = validateGameSave(wrap(world));
+  assert.equal(saved.world.player.z, -84);
+  const restored = setup(t); restored.restore(saved.world);
+  assert.equal(restored.player.z, -84);
+});
+
+test("old sanctuary saves gain the new guardians and move Medusa to the new altar", (t) => {
+  const world = setup(t); accept(world);
+  const old = wrap(world);
+  old.world.enemies = [...old.world.enemies.slice(0, 6), old.world.enemies.at(-1)];
+  old.world.enemies.at(-1).z = -33;
+  const migrated = validateGameSave(old);
+  assert.equal(migrated.world.enemies.length, world.enemies.length);
+  assert.equal(migrated.world.enemies.at(-1).z, -92);
+  assert.ok(migrated.world.enemies.slice(6, -1).every((enemy) => enemy.health > 0));
+  const restored = setup(t); restored.restore(migrated.world);
+  assert.equal(restored.boss.z, -92);
+});
+
 test("Plato pauses the simulation until accepting, without repeating his introduction", (t) => {
   const world = setup(t);
   world.step();

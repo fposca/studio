@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { createChurchFog } from "../editors/churchFog.js";
 import { createGameFire } from "./gameFire.js";
-import { CEMETERY_CRYPT_WALLS, CEMETERY_TORCHES, GRAVES } from "./gameLevels.js";
+import { CEMETERY_CRYPT_WALLS, CEMETERY_MAUSOLEUMS, CEMETERY_REAR_CRYPTS, CEMETERY_TORCHES, GRAVES } from "./gameLevels.js";
 
 export function createGameCemetery(world) {
   const root = new THREE.Group();
@@ -48,15 +48,27 @@ export function createGameCemetery(world) {
     mesh(box, black, x, 1.0, z + 0.177, 0.2, 0.035, 0.012);
     for (let i = 0; i < 3; i++) mesh(box, black, x, 0.69 - i * 0.075, z + 0.177, 0.42 - i * 0.06, 0.018, 0.012);
   }
-  // A solid mausoleum matches the physics obstacle; the barred entrance is decorative.
-  mesh(box, stone, 0, 2.8, -38.2, 8, 5.6, 6);
-  mesh(box, stone, 0, 5.62, -38.2, 8.6, 0.32, 6.5);
-  mesh(box, stone, 0, 0.16, -38.2, 8.5, 0.32, 6.5);
-  mesh(box, black, 0, 1.9, -35.18, 2.65, 3.8, 0.03);
-  for (let x = -1.1; x <= 1.15; x += 0.22) mesh(box, iron, x, 1.87, -35.1, 0.035, 3.7, 0.07);
-  for (const x of [-3.3, 3.3]) mesh(box, stone, x, 2.7, -34.98, 0.5, 5.4, 0.55);
-  mesh(box, stone, 0, 6.35, -38.2, 0.28, 1.4, 0.32);
-  mesh(box, stone, 0, 6.56, -38.2, 1.0, 0.24, 0.32);
+  // Each mausoleum is solid, forcing a choice between the two burial aisles.
+  for (const [x, y, z, width, height, depth] of CEMETERY_MAUSOLEUMS) {
+    mesh(box, stone, x, y, z, width, height, depth);
+    mesh(box, stone, x, height + 0.02, z, width + 0.6, 0.32, depth + 0.5);
+    mesh(box, stone, x, 0.16, z, width + 0.5, 0.32, depth + 0.5);
+    mesh(box, black, x, 1.9, z + depth / 2 + 0.02, 2.65, 3.8, 0.03);
+    for (let bar = -1.1; bar <= 1.15; bar += 0.22)
+      mesh(box, iron, x + bar, 1.87, z + depth / 2 + 0.1, 0.035, 3.7, 0.07);
+    for (const side of [-1, 1]) mesh(box, stone, x + side * (width / 2 - 0.7), 2.7,
+      z + depth / 2 + 0.22, 0.5, 5.4, 0.55);
+    mesh(box, stone, x, height + 0.75, z, 0.28, 1.4, 0.32);
+    mesh(box, stone, x, height + 0.96, z, 1, 0.24, 0.32);
+  }
+  // A ruined gate frames the last encounter and stays solid at ground level.
+  for (const x of [-4, 4]) {
+    mesh(box, stone, x, 2.2, -91.7, 1.15, 4.4, 1.1);
+    mesh(box, iron, x, 4.45, -91.7, 1.45, 0.16, 1.35);
+  }
+  mesh(box, stone, 0, 4.75, -91.7, 9.6, 0.65, 1.35);
+  mesh(box, black, 0, 2, -92.35, 6.8, 4, 0.18);
+  for (let x = -3; x <= 3.1; x += 0.45) mesh(box, iron, x, 2, -92.23, 0.055, 3.8, 0.09);
   // Two walled burial chambers share their dimensions with the physics colliders.
   for (const [x, y, z, width, height, depth] of CEMETERY_CRYPT_WALLS) {
     mesh(box, stone, x, y, z, width, height, depth);
@@ -86,6 +98,11 @@ export function createGameCemetery(world) {
     mesh(box, stone, side * 15.05, 0.1, z, 2.8, 0.2, 3.8);
     mesh(box, black, side * 15.1, 0.22, z, 1.9, 0.025, 2.9);
   }
+  for (const { x, z } of CEMETERY_REAR_CRYPTS) {
+    mesh(box, stone, x, 0.12, z, 4.6, 0.24, 3.9);
+    mesh(box, black, x, 0.25, z, 3.5, 0.025, 2.8);
+    for (const offset of [-1.3, 1.3]) mesh(box, stone, x + offset, 0.42, z, 0.7, 0.6, 1.4);
+  }
   const flames = [];
   CEMETERY_TORCHES.forEach(([x, z], index) => {
     mesh(box, stone, x, 0.8, z, 0.65, 1.6, 0.65);
@@ -100,8 +117,8 @@ export function createGameCemetery(world) {
     const limb = mesh(segment, bark, (ax + bx) / 2, (ay + by) / 2, (az + bz) / 2, width, direction.length(), width);
     limb.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
   }
-  for (let i = 0; i < 24; i++) {
-    const side = i % 2 ? 1 : -1, x = side * (20 + (i % 4) * 2.8), z = 20 - Math.floor(i / 2) * 6.2;
+  for (let i = 0; i < 40; i++) {
+    const side = i % 2 ? 1 : -1, x = side * (26 + (i % 4) * 2.8), z = 20 - Math.floor(i / 2) * 6.2;
     const h = 5.2 + (i % 3);
     branch(x, 0, z, x + side * 0.5, h, z - 0.7, 3.2);
     for (let j = 0; j < 5; j++) {
@@ -112,17 +129,19 @@ export function createGameCemetery(world) {
     }
   }
   const moon = new THREE.DirectionalLight(0xd4e3ff, 2.2);
-  moon.position.set(-18, 27, 8); moon.target.position.set(0, 0, -12);
+  moon.position.set(-18, 27, -35); moon.target.position.set(0, 0, -43);
   moon.castShadow = true; moon.shadow.mapSize.set(2048, 2048);
-  Object.assign(moon.shadow.camera, { left: -24, right: 24, top: 40, bottom: -40, near: 0.5, far: 110 });
+  Object.assign(moon.shadow.camera, { left: -65, right: 65, top: 70, bottom: -70, near: 0.5, far: 180 });
   moon.shadow.normalBias = 0.04; moon.shadow.bias = -0.00015;
   root.add(moon, moon.target);
+  const gateLight = new THREE.PointLight(0x91a9b2, 62, 20, 2);
+  gateLight.position.set(0, 4.1, -88); root.add(gateLight);
   const sky = mesh(new THREE.SphereGeometry(180, 48, 24), new THREE.MeshBasicMaterial({
     map: texture(new URL("../assets/environments/sky-cemetery-v2.png", import.meta.url).href), side: THREE.BackSide, depthWrite: false, fog: false, toneMapped: false
-  }), 0, 0, -10);
+  }), 0, 0, -35);
   sky.castShadow = sky.receiveShadow = false;
   const fog = createChurchFog(); root.add(fog);
-  const fogConfig = { enabled: true, intensity: 0.18, height: 1.6, coverage: 68, color: "#63736f", windSpeed: 0.34 };
+  const fogConfig = { enabled: true, intensity: 0.18, height: 1.6, coverage: 120, color: "#63736f", windSpeed: 0.34 };
   root.userData.atmosphere = new THREE.FogExp2(0x202b2e, 0.018);
   root.userData.animate = (_enabled, { period }, time) => {
     const night = period === "night";

@@ -28,7 +28,7 @@ test("Plato introduces the catacombs and offers later advice", (t) => {
   world.step();
   assert.match(world.dialogue.text, /losas altas/);
   world.answerDialogue();
-  place(world, 0, -32);
+  place(world, 0, -80);
   world.step();
   assert.match(world.dialogue.text, /guadana/);
   world.answerDialogue();
@@ -87,7 +87,8 @@ test("both elevated coin trails can be reached with jumps", (t) => {
   const world = create(t);
   world.adviceIndex = 3;
   for (const enemy of world.enemies) { enemy.health = 0; enemy.collider.setEnabled(false); }
-  for (const trail of [world.platforms.slice(0, 3), world.platforms.slice(3)]) {
+  for (const trail of [world.platforms.slice(0, 3), world.platforms.slice(3, 6),
+    world.platforms.slice(6, 12), world.platforms.slice(12, 18)]) {
     place(world, trail[0].x, trail[0].z + 2.8);
     frames(world, 5);
     for (const target of trail) {
@@ -112,7 +113,7 @@ test("mummy chief's scythe has a windup and damages within its long reach", (t) 
   for (const enemy of world.enemies) if (!enemy.boss) { enemy.health = 0; enemy.collider.setEnabled(false); }
   const boss = world.boss;
   world.activateBoss();
-  place(world, 0, -35.5);
+  place(world, boss.x, boss.z + 2.5);
   boss.yaw = 0;
   boss.cooldown = 0;
   assert.equal(world.startAttack(boss, "mummyChief"), true);
@@ -121,4 +122,56 @@ test("mummy chief's scythe has a windup and damages within its long reach", (t) 
   frames(world, 55);
   assert.ok(world.player.health < 100);
   assert.equal(world.events.some((event) => event.type === "hit" && event.kind === "mummyChief"), true);
+});
+
+test("the new rune gates have solid center panels and passable side aisles", (t) => {
+  const world = create(t);
+  world.adviceIndex = 3;
+  for (const enemy of world.enemies) { enemy.health = 0; enemy.collider.setEnabled(false); }
+  world.player.invulnerable = 100;
+  for (const z of [-55, -79]) {
+    place(world, 0, z + 3);
+    frames(world, 115, { z: -1, run: true });
+    assert.ok(world.player.z > z + 0.45, `crossed the center wall at ${z}`);
+    place(world, 7, z + 3);
+    frames(world, 115, { z: -1, run: true });
+    assert.ok(world.player.z < z - 2, `side aisle blocked at ${z}: ${world.player.z}`);
+  }
+  assert.equal(world.boss.spawn.z, -91);
+});
+
+test("a rear bone vault opens with the crossbow", (t) => {
+  const world = new GameWorld({ level: 4, inventory: ["crossbow"], equipped: "crossbow" });
+  t.after(() => world.dispose());
+  world.adviceIndex = 3;
+  for (const enemy of world.enemies) { enemy.health = 0; enemy.collider.setEnabled(false); }
+  const door = world.secretDoors.find((entry) => entry.id === "west-bone-vault");
+  const relic = world.artifacts.find((entry) => entry.secret === door.id);
+  place(world, -10, door.z);
+  world.step({ yaw: Math.PI / 2 });
+  assert.equal(world.startAttack(world.player, "punch"), true);
+  frames(world, 50, { yaw: Math.PI / 2 });
+  assert.equal(door.broken, true);
+  assert.equal(world.artifactAvailable(relic), true);
+  assert.equal(world.ammo, 9);
+});
+
+test("the four visible sarcophagi block movement and support a falling player", (t) => {
+  const world = create(t);
+  world.adviceIndex = 3;
+  for (const enemy of world.enemies) { enemy.health = 0; enemy.collider.setEnabled(false); }
+  for (const [x, z] of [[-9, 1], [9, -10], [-9, -22], [8.8, -35]]) {
+    Object.assign(world.player, { x, y: 2.4, z, grounded: false, velocityY: 0, velocityX: 0, velocityZ: 0 });
+    const body = { x, y: 2.4 + BODY_OFFSET, z };
+    world.player.body.setTranslation(body, true);
+    world.player.body.setNextKinematicTranslation(body);
+    world.physics.step();
+    frames(world, 75);
+    assert.ok(world.player.grounded, `not grounded on sarcophagus ${x},${z}`);
+    assert.ok(Math.abs(world.player.y - 0.95) < 0.08,
+      `fell through sarcophagus ${x},${z}: ${world.player.y}`);
+  }
+  place(world, 8.8, -32.8);
+  frames(world, 80, { z: -1, run: true });
+  assert.ok(world.player.z > -33.55, `walked through sarcophagus: ${world.player.z}`);
 });

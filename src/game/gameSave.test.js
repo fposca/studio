@@ -107,18 +107,18 @@ test("old cemetery saves keep their progress and gain new zombies, coins and bos
   try {
     world.step();
     const legacy = wrap(world);
-    legacy.world.enemies = legacy.world.enemies.slice(0, 5);
+    legacy.world.enemies = [...legacy.world.enemies.slice(0, 4), legacy.world.enemies.at(-1)];
     legacy.world.coins = [0, 1, 27];
     legacy.world.artifacts = ["lekythos"];
     legacy.world.enemies[0].health = 35;
     const saved = validateGameSave(legacy);
-    assert.equal(saved.world.enemies.length, 12);
+    assert.equal(saved.world.enemies.length, world.enemies.length);
     assert.deepEqual(saved.world.coins, [0, 1, 27]);
     assert.equal(saved.world.enemies[0].health, 35);
     assert.equal(saved.world.enemies.at(-1).health, 480);
     restored.restore(saved.world);
     assert.equal(restored.snapshot().coins, 3);
-    assert.equal(restored.snapshot().total, 42);
+    assert.equal(restored.snapshot().total, world.coins.length);
     assert.equal(restored.boss.active, false);
   } finally { world.dispose(); restored.dispose(); }
 });
@@ -176,4 +176,62 @@ test("completed and lost rounds cannot overwrite a resumable game", () => {
     world.status = "lost";
     assert.throws(() => world.serialize());
   } finally { world.dispose(); }
+});
+
+test("older cemetery and catacomb saves keep collected platform coins and relocate their bosses", () => {
+  for (const [level, oldCount, oldBossZ, oldPlatformCoin] of [[3, 12, -31, 28], [4, 9, -38, 21]]) {
+    const world = new GameWorld({ level }), restored = new GameWorld({ level });
+    try {
+      const saved = wrap(world);
+      saved.world.enemies = [...saved.world.enemies.slice(0, oldCount - 1),
+        { ...saved.world.enemies.at(-1), z: oldBossZ }];
+      saved.world.enemies[0].health = 35;
+      saved.world.coins = [0, oldPlatformCoin];
+      saved.world.player.z = -32;
+      const migrated = validateGameSave(saved);
+      assert.equal(migrated.world.enemies.length, world.enemies.length);
+      assert.equal(migrated.world.enemies[0].health, 35);
+      assert.equal(migrated.world.enemies.at(-1).z, world.boss.spawn.z);
+      assert.equal(migrated.world.enemies[oldCount - 1].health > 0, true);
+      assert.deepEqual(migrated.world.coins, [0, oldPlatformCoin]);
+      restored.restore(migrated.world);
+      assert.equal(restored.coins[oldPlatformCoin].platformId,
+        level === 3 ? "crypt-step-1" : "vault-1");
+      assert.equal(restored.boss.active, false);
+    } finally { world.dispose(); restored.dispose(); }
+  }
+});
+
+test("deep cemetery and catacomb checkpoints remain loadable", () => {
+  for (const level of [3, 4]) {
+    const world = new GameWorld({ level }), restored = new GameWorld({ level });
+    try {
+      world.player.z = -82;
+      world.enemies.at(-1).z = world.boss.spawn.z;
+      const saved = validateGameSave(wrap(world));
+      restored.restore(saved.world);
+      assert.equal(restored.player.z, -82);
+      assert.equal(restored.boss.z, world.boss.spawn.z);
+    } finally { world.dispose(); restored.dispose(); }
+  }
+});
+
+test("a previous five-enemy temple save keeps its boss progress in the expanded patio", () => {
+  const world = new GameWorld(), restored = new GameWorld();
+  try {
+    const old = wrap(world);
+    old.world.enemies = [...old.world.enemies.slice(0, 4), old.world.enemies.at(-1)];
+    old.world.enemies[0].health = 0;
+    old.world.enemies.at(-1).health = 180;
+    old.world.coins = [0, 12, 55];
+    const migrated = validateGameSave(old);
+    assert.equal(migrated.world.enemies.length, world.enemies.length);
+    assert.equal(migrated.world.enemies[0].health, 0);
+    assert.equal(migrated.world.enemies.at(-1).health, 180);
+    assert.equal(migrated.world.enemies.at(-1).z, -85);
+    assert.deepEqual(migrated.world.coins, [0, 12, 55]);
+    restored.restore(migrated.world);
+    assert.equal(restored.boss.z, -85);
+    assert.equal(restored.boss.active, false);
+  } finally { world.dispose(); restored.dispose(); }
 });

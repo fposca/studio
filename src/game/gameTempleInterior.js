@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { createFlutedDoricShaftGeometry } from "../editors/parthenonSet.js";
 import { createChurchFog } from "../editors/churchFog.js";
 import { createGameFire } from "./gameFire.js";
-import { INTERIOR_COLUMNS, INTERIOR_OBSTACLES, INTERIOR_TORCHES } from "./gameInteriorLevel.js";
+import { INTERIOR_COLUMNS, INTERIOR_DECOR_OBSTACLES, INTERIOR_TORCHES } from "./gameInteriorLevel.js";
 
 export function createGameTempleInterior(world) {
   const root = new THREE.Group();
@@ -38,14 +38,22 @@ export function createGameTempleInterior(world) {
     root.add(group); return group;
   }
   mesh(box, charcoal, 0, -0.12, -11.25, 34.6, 0.2, 65.5);
+  mesh(box, charcoal, 0, -0.12, -72.2, 42.6, 0.2, 57.6);
   const tiles = [];
   for (let x = -16; x <= 16; x += 2) for (let z = -42.5; z <= 20; z += 2.1) tiles.push([x, -0.055, z, 1.974, 0.09, 2.07]);
+  for (let x = -20; x <= 20; x += 2) for (let z = -99.2; z <= -44.5; z += 2.1) tiles.push([x, -0.055, z, 1.974, 0.09, 2.07]);
   instances("Losas de marmol gastado", box, floorStone, tiles);
   const wallBlocks = [];
   for (const x of [-17.1, 17.1]) for (let z = -42; z < 21; z += 3) for (let y = 0.75; y < 8; y += 1.5) wallBlocks.push([x, y, z, 0.6, 1.475, 2.975]);
-  for (const z of [-43.8, 21.3]) for (let x = -16; x <= 16; x += 2) for (let y = 0.75; y < 8; y += 1.5) wallBlocks.push([x, y, z, 1.975, 1.475, 0.6]);
+  for (let x = -16; x <= 16; x += 2) for (let y = 0.75; y < 8; y += 1.5) wallBlocks.push([x, y, 21.3, 1.975, 1.475, 0.6]);
+  for (let x = -16; x <= 16; x += 2) if (Math.abs(x) >= 7) for (let y = 0.75; y < 8; y += 1.5)
+    wallBlocks.push([x, y, -43.8, 1.975, 1.475, 0.6]);
+  for (const x of [-21.1, 21.1]) for (let z = -99; z <= -45; z += 3) for (let y = 0.75; y < 8; y += 1.5)
+    wallBlocks.push([x, y, z, 0.6, 1.475, 2.975]);
+  for (let x = -20; x <= 20; x += 2) for (let y = 0.75; y < 8; y += 1.5)
+    wallBlocks.push([x, y, -100.8, 1.975, 1.475, 0.6]);
   instances("Silleria del santuario", box, stone, wallBlocks);
-  for (const obstacle of INTERIOR_OBSTACLES) mesh(box, stone, ...obstacle);
+  for (const obstacle of INTERIOR_DECOR_OBSTACLES) mesh(box, stone, ...obstacle);
   instances("Columnas doricas", createFlutedDoricShaftGeometry(), columnStone,
     INTERIOR_COLUMNS.map(([x, z]) => [x, 3.5, z, 1.08, 1.24, 1.08]));
   for (const [x, z] of INTERIOR_COLUMNS) {
@@ -58,9 +66,19 @@ export function createGameTempleInterior(world) {
     }
   }
   for (const x of [-5.8, 5.8]) mesh(box, stone, x, 7.65, -12, 1.55, 0.62, 61);
+  for (const x of [-15.2, -7.2, 7.2, 15.2]) mesh(box, stone, x, 7.65, -72.2, 1.35, 0.62, 56);
   mesh(box, darkStone, 0, 8.6, -11.25, 34.6, 0.4, 65.5);
+  mesh(box, darkStone, 0, 8.6, -72.2, 42.6, 0.4, 57.6);
   for (let z = -40; z < 21; z += 4) mesh(box, stone, 0, 8.1, z, 34, 0.45, 0.34);
   for (let x = -16; x <= 16; x += 4) mesh(box, stone, x, 8.1, -11.25, 0.34, 0.45, 65);
+  for (let z = -98; z <= -45; z += 4) mesh(box, stone, 0, 8.1, z, 42, 0.45, 0.34);
+  for (let x = -20; x <= 20; x += 4) mesh(box, stone, x, 8.1, -72.2, 0.34, 0.45, 57);
+  for (const z of [-54, -70, -86]) {
+    mesh(box, bronze, 0, 8.05, z, 42, 0.12, 0.14);
+    const compass = mesh(new THREE.RingGeometry(2.5, 2.65, 48), bronze, 0, 0.013, z);
+    compass.rotation.x = -Math.PI / 2; compass.castShadow = false;
+    for (const x of [-17.5, 17.5]) mesh(new THREE.CylinderGeometry(0.92, 1.08, 0.17, 20), bronze, x, 1.82, z);
+  }
   for (const x of [-16.7, 16.7]) {
     for (const y of [0.22, 6.1, 7.8]) mesh(box, darkStone, x, y, -11.25, 0.3, 0.22, 65);
     for (const z of [12, -14, -34]) {
@@ -69,6 +87,29 @@ export function createGameTempleInterior(world) {
       for (const y of [3.7, 5.5]) mesh(box, bronze, x - Math.sign(x) * 0.045, y, z, 0.07, 0.07, 6);
     }
   }
+  for (const x of [-18.5, -10.5, 10.5, 18.5]) {
+    const inlay = mesh(box, bronze, x, 0.018, -72, 0.035, 0.018, 52);
+    inlay.castShadow = false;
+  }
+  for (const [z, width] of [[-55.3, 9], [-78.5, 10]]) {
+    mesh(box, bronze, 0, 4.28, z, width + 0.45, 0.16, 0.95);
+    for (const face of [-1, 1]) {
+      const panel = mesh(new THREE.PlaneGeometry(width - 1, 1.9), relief, 0, 2.65, z + face * 0.41);
+      panel.rotation.y = face < 0 ? Math.PI : 0;
+      for (const x of [-width / 2 + 0.2, width / 2 - 0.2])
+        mesh(box, bronze, x, 2.1, z + face * 0.43, 0.09, 3.8, 0.09);
+    }
+  }
+  for (const x of [-20.75, 20.75]) for (const z of [-53, -67, -81, -94]) {
+    const panel = mesh(new THREE.PlaneGeometry(6.8, 2), relief, x, 4.5, z);
+    panel.rotation.y = -Math.sign(x) * Math.PI / 2;
+    for (const y of [3.35, 5.65]) mesh(box, bronze, x, y, z, 0.07, 0.07, 7);
+  }
+  for (const x of [-6.1, 6.1]) {
+    mesh(box, bronze, x, 3.5, -43.52, 0.11, 7, 0.14);
+    mesh(box, stone, x, 7.35, -43.8, 0.85, 0.62, 0.75);
+  }
+  mesh(box, stone, 0, 7.6, -43.8, 12.5, 0.6, 0.75);
   // A recessed bronze entrance and a distant altar frame the route through the hall.
   mesh(box, darkStone, 0, 3.4, 20.92, 5.1, 6.8, 0.15);
   for (const x of [-2.7, 2.7]) mesh(box, stone, x, 3.5, 20.7, 0.6, 7, 0.6);
@@ -77,13 +118,13 @@ export function createGameTempleInterior(world) {
     mesh(box, bronze, x, 3.3, 20.8, 2.15, 6.3, 0.16);
     for (const y of [1.5, 4.8]) mesh(box, charcoal, x, y, 20.68, 1.7, 2.3, 0.08);
   }
-  const medallion = mesh(new THREE.CylinderGeometry(2.1, 2.1, 0.15, 64), bronze, 0, 4.8, -43.3);
+  const medallion = mesh(new THREE.CylinderGeometry(2.1, 2.1, 0.15, 64), bronze, 0, 4.8, -100.4);
   medallion.rotation.x = Math.PI / 2;
-  const inner = mesh(new THREE.TorusGeometry(1.82, 0.07, 8, 64), stone, 0, 4.8, -43.15);
+  const inner = mesh(new THREE.TorusGeometry(1.82, 0.07, 8, 64), stone, 0, 4.8, -100.2);
   inner.castShadow = false;
-  for (const x of [-0.55, 0.55]) mesh(new THREE.TorusGeometry(0.39, 0.08, 8, 32), darkStone, x, 5.12, -43.16);
-  mesh(new THREE.OctahedronGeometry(0.8), stone, 0, 4.1, -43.17, 1, 1, 0.25);
-  for (const x of [-4, 4]) mesh(box, stone, x, 1.3, -41, 1.3, 2.6, 1.3);
+  for (const x of [-0.55, 0.55]) mesh(new THREE.TorusGeometry(0.39, 0.08, 8, 32), darkStone, x, 5.12, -100.21);
+  mesh(new THREE.OctahedronGeometry(0.8), stone, 0, 4.1, -100.22, 1, 1, 0.25);
+  for (const x of [-4, 4]) mesh(box, stone, x, 1.3, -97.5, 1.3, 2.6, 1.3);
   const doors = world.secretDoors.map((door) => {
     const group = new THREE.Group(); group.name = `Muro agrietado ${door.id}`; group.position.set(door.x, 0, door.z); root.add(group);
     mesh(box, darkStone, 0, door.height / 2, 0, door.width, door.height, door.depth, group);
@@ -108,17 +149,21 @@ export function createGameTempleInterior(world) {
     flames.push(createGameFire(root, { x, y: 1.66, z, intensity: 11, distance: 8, seed: index * 2.7 }));
   });
   const lamps = [];
-  for (const [i, z] of [11, -3, -17, -31].entries()) {
-    const lamp = new THREE.PointLight(0xffb879, 85, 20, 2); lamp.position.set(i % 2 ? 7.2 : -7.2, 2.3, z); root.add(lamp); lamps.push(lamp);
+  for (const [i, z] of [11, -3, -17, -31, -49, -61, -73, -85, -96].entries()) {
+    const lamp = new THREE.PointLight(0xffb879, 85, 20, 2); lamp.position.set(i < 4 ? (i % 2 ? 7.2 : -7.2) : (i % 2 ? 16 : -16), 2.3, z); root.add(lamp); lamps.push(lamp);
   }
-  const altarLight = new THREE.PointLight(0x73cdbf, 55, 13, 2); altarLight.position.set(0, 4, -40); root.add(altarLight);
+  const altarLight = new THREE.PointLight(0x73cdbf, 55, 13, 2); altarLight.position.set(0, 4, -96); root.add(altarLight);
+  for (const z of [-57, -79]) {
+    const ritualLight = new THREE.PointLight(0x9d84ce, 38, 16, 2);
+    ritualLight.position.set(0, 5.4, z); root.add(ritualLight);
+  }
   const key = new THREE.SpotLight(0xbdced4, 135, 80, 0.62, 0.7, 1.5);
   key.position.set(-3, 7.8, 14); key.target.position.set(0, 0, -10);
   key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.normalBias = 0.045; key.shadow.bias = -0.0001;
   root.add(key, key.target);
   const fill = new THREE.HemisphereLight(0x9ac0c8, 0x35362f, 0.3); root.add(fill);
   const fog = createChurchFog(); root.add(fog);
-  const fogConfig = { enabled: true, intensity: 0.06, height: 0.8, coverage: 70, color: "#788d89", windSpeed: 0.16 };
+  const fogConfig = { enabled: true, intensity: 0.06, height: 0.8, coverage: 120, color: "#788d89", windSpeed: 0.16 };
   root.userData.atmosphere = new THREE.FogExp2(0x111d1d, 0.012);
   root.userData.animate = (_enabled, { period }, time) => {
     const brightness = period === "day" ? 1.35 : period === "sunset" ? 1.15 : 1;

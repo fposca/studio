@@ -16,10 +16,10 @@ const inventory = (value, legacy) => {
   return normalized;
 };
 const levelSkyHeight = 25;
-const actor = (value, maxHealth, isPlayer = false) => {
+const actor = (value, maxHealth, isPlayer = false, bounds = BOUNDS) => {
   if (!value || typeof value.grounded !== "boolean") invalid();
-  return { x: number(value.x, BOUNDS.left, BOUNDS.right), y: number(value.y, -0.2, levelSkyHeight),
-    z: number(value.z, BOUNDS.back, BOUNDS.front), yaw: number(value.yaw, -1e7, 1e7),
+  return { x: number(value.x, bounds.left, bounds.right), y: number(value.y, -0.2, levelSkyHeight),
+    z: number(value.z, bounds.back, bounds.front), yaw: number(value.yaw, -1e7, 1e7),
     health: number(value.health, isPlayer ? 1 : 0, maxHealth),
     velocityY: number(value.velocityY, -18, JUMP_SPEED), grounded: value.grounded };
 };
@@ -51,17 +51,29 @@ export function validateGameSave(value) {
   const scoreBase = number(source.scoreBase === undefined ? 0 : source.scoreBase, 0, previousMaximum);
   if (!Number.isInteger(scoreBase)) invalid();
   if (!Array.isArray(source.enemies)) invalid();
-  const legacyBoss = layoutVersion === 1 && level.id === 1 && source.enemies.length === level.enemies.length - 1;
-  const legacyCemetery = level.id === 3 && source.enemies.length === 5;
-  if (source.enemies.length !== level.enemies.length && !legacyBoss && !legacyCemetery) invalid();
-  const enemies = source.enemies.map((enemy, index) => actor(enemy, level.enemies[index].maxHealth || level.enemyHealth));
+  const legacyTemple = level.id === 1 && [4, 5].includes(source.enemies.length) && level.enemies.length > 5;
+  const legacySanctuary = level.id === 2 && source.enemies.length === 7 && level.enemies.length > 7;
+  const legacyCemetery = level.id === 3 && [5, 12].includes(source.enemies.length);
+  const legacyCatacombs = level.id === 4 && source.enemies.length === 9;
+  if (source.enemies.length !== level.enemies.length && !legacyTemple && !legacySanctuary &&
+    !legacyCemetery && !legacyCatacombs) invalid();
+  const bossSpawn = level.enemies.at(-1);
+  const freshEnemy = (spawn) => ({ ...spawn, yaw: Math.PI,
+    health: spawn.maxHealth || level.enemyHealth, velocityY: 0, grounded: true });
+  const savedEnemies = legacyTemple ? [
+    ...source.enemies.slice(0, 4), ...level.enemies.slice(4, -1).map(freshEnemy),
+    source.enemies.length === 5 ? { ...source.enemies[4], x: bossSpawn.x, z: bossSpawn.z } : freshEnemy(bossSpawn)
+  ] : legacySanctuary ? [
+    ...source.enemies.slice(0, 6), ...level.enemies.slice(6, -1).map(freshEnemy),
+    { ...source.enemies[6], x: bossSpawn.x, z: bossSpawn.z }
+  ] : legacyCemetery || legacyCatacombs ? [
+    ...source.enemies.slice(0, -1),
+    ...level.enemies.slice(source.enemies.length - 1, -1).map(freshEnemy),
+    { ...source.enemies.at(-1), x: bossSpawn.x, z: bossSpawn.z }
+  ] : source.enemies;
+  const bounds = level.bounds || BOUNDS;
+  const enemies = savedEnemies.map((enemy, index) => actor(enemy, level.enemies[index].maxHealth || level.enemyHealth, false, bounds));
   const bossIndex = level.enemies.findIndex((enemy) => enemy.boss);
-  if (legacyBoss || legacyCemetery) {
-    for (const spawn of level.enemies.slice(enemies.length)) {
-      enemies.push(actor({ ...spawn, yaw: Math.PI, health: spawn.maxHealth || level.enemyHealth,
-        velocityY: 0, grounded: true }, spawn.maxHealth || level.enemyHealth));
-    }
-  }
   const secretDoors = source.secretDoors ?? [];
   if (!Array.isArray(secretDoors) || new Set(secretDoors).size !== secretDoors.length ||
     secretDoors.some((id) => !level.secretDoors?.some((door) => door.id === id))) invalid();
@@ -105,7 +117,7 @@ export function validateGameSave(value) {
     camera: { ...view, yaw: number(value.camera.yaw, -1e7, 1e7), pitch: number(value.camera.pitch, 0.12, 1.15), distance: number(value.camera.distance, 3.5, 12) },
     world: { level: level.id, layoutVersion: 3, inventory: owned, equipped, checkpoint, checkpointWeapon, questStage, adviceIndex, dragonMet, dragonDepartureTime, ammo, ammoPickups, bossActive, secretDoors: [...secretDoors],
       time: number(source.time, 0, 1e9), coins: [...source.coins], hearts: [...hearts], artifacts: [...artifacts], scoreBase,
-      player: actor(source.player, MAX_HEALTH, true),
+      player: actor(source.player, MAX_HEALTH, true, bounds),
       enemies } };
 }
 

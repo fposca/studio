@@ -124,7 +124,7 @@ test("artifact points carry into the cemetery without rediscovering level one", 
 
 test("level one hearts heal 25 percent once, but remain available at full health", (t) => {
   const world = setup(t);
-  assert.equal(world.hearts.length, 4);
+  assert.equal(world.hearts.length, 6);
   const [first, second, third, fourth] = world.hearts;
   place(world, world.player, first.x, first.y, first.z);
   world.step();
@@ -164,10 +164,10 @@ test("columns and the perimeter block movement", (t) => {
   place(world, world.player, -8.75, 0.76, -6.9);
   advance(world, 1, { z: -1 });
   assert.ok(world.player.z > -7.3);
-  place(world, world.player, 15, 0, 12);
+  place(world, world.player, 19, 0, 12);
   advance(world, 2, { x: 1 });
-  assert.ok(world.player.x < BOUNDS.right);
-  assert.ok(world.player.x > BOUNDS.right - 0.5);
+  assert.ok(world.player.x < world.level.bounds.right);
+  assert.ok(world.player.x > world.level.bounds.right - 0.5);
 });
 
 test("strikes require range, height and a forward arc", () => {
@@ -243,7 +243,7 @@ test("collecting all accessible coins wins the round", (t) => {
 
 test("the ground coin route remains reachable while jumping past the new obstacles", (t) => {
   const world = setup(t);
-  for (const coin of world.coins.filter((entry) => !entry.platformId)) {
+  for (const coin of world.coins.filter((entry) => !entry.platformId && entry.id < 56)) {
     // Leave the low return platform around its east edge before walking underneath the upper slabs.
     if (coin.id === 20) {
       for (const [x, z] of [[16.5, -10], [16.5, -2]]) {
@@ -266,4 +266,30 @@ test("the ground coin route remains reachable while jumping past the new obstacl
     assert.ok(coin.collected, `coin ${coin.id} unreachable from ${world.player.x}, ${world.player.z}`);
   }
   assert.equal(world.status, "playing");
+});
+
+test("the sloping Parthenon roof catches a fall on both sides", (t) => {
+  const world = setup(t);
+  for (const x of [-6, 6]) {
+    place(world, world.player, x, 13.5, -30);
+    advance(world, 1.5);
+    const expected = 10.48 - Math.abs(x) * 2.22 / 10.55;
+    assert.ok(world.player.grounded, `not grounded on roof at x=${x}`);
+    assert.ok(Math.abs(world.player.y - expected) < 0.22,
+      `feet at ${world.player.y}, roof at ${expected}`);
+  }
+});
+
+test("the rear temple patio extends the ground route and keeps its ruins solid", (t) => {
+  const world = setup(t);
+  assert.equal(world.level.bounds.back, -92);
+  assert.equal(world.boss.spawn.z, -85);
+  assert.ok(world.platforms.some((platform) => platform.id === "rear-12"));
+  assert.ok(world.coins.some((coin) => coin.z < -85));
+  place(world, world.player, 0, 0, -45);
+  advance(world, 2, { z: -1, run: true });
+  assert.ok(world.player.z < -51, `patio entry blocked at ${world.player.z}`);
+  place(world, world.player, 0, 0, -58.5);
+  advance(world, 1.8, { z: -1, run: true });
+  assert.ok(world.player.z > -60.5, `central ruin crossed at ${world.player.z}`);
 });

@@ -1,6 +1,6 @@
 const LENGTHS = { thunder: 1.35, coin: 0.45, pickup: 1.05, heal: 0.85, victory: 1.8, punch: 0.23, kick: 0.33,
   sword: 0.4, axe: 0.55, hammer: 0.68, enemy: 0.5, demon: 0.62, hit: 0.38, metal: 0.48,
-  heavy: 0.6, hurt: 0.52, shot: 0.27, empty: 0.1, ammo: 0.45, defeat: 0.66, jump: 0.2, land: 0.26 };
+  heavy: 0.6, hurt: 0.52, shot: 0.27, empty: 0.1, ammo: 0.45, defeat: 0.66, jump: 0.2, land: 0.26, chargeReady: 0.52 };
 
 // Short layered Foley: filtered air, a low impact body and damped metallic partials.
 // Buffers are generated once, with deterministic variations instead of repeated beeps.
@@ -35,6 +35,9 @@ export function synthesizeEffect(kind, sampleRate = 44100, variation = 0) {
         sample += (sine(frequency, elapsed) * 0.25 + sine(frequency * 2.71, elapsed) * 0.12 + sine(frequency * 4.13, elapsed) * 0.05) * envelope;
       });
       sample += air * Math.exp(-t * 110) * 0.08;
+    } else if (kind === "chargeReady") {
+      const envelope = Math.sin(Math.PI * u) ** 1.5;
+      sample = (sine(340 + 650 * u, t) * 0.19 + sine(560 + 890 * u, t) * 0.12 + air * 0.035) * envelope;
     } else if (["hit", "metal", "heavy", "defeat", "land"].includes(kind)) {
       sample = (sine(kind === "heavy" ? 53 : 82, t + 0.025 * (1 - Math.exp(-t * 25))) * 0.8 + low * 2.4) * Math.exp(-t * 19);
       sample += air * 0.32 * Math.exp(-t * 65);
@@ -84,7 +87,7 @@ export function effectForEvent(event, playerId) {
   if (kind === "crossbow") kind = "shot";
   if (kind === "ammo") kind = "pickup";
   if (kind === "boss") kind = "demon";
-  if (kind === "hit") kind = event.kind === "sword" ? "metal" : ["axe", "hammer", "statue", "zombieCrush"].includes(event.kind) ? "heavy" : "hit";
+  if (kind === "hit") kind = event.charged ? "heavy" : event.kind === "sword" ? "metal" : ["axe", "hammer", "statue", "zombieCrush"].includes(event.kind) ? "heavy" : "hit";
   return kind;
 }
 

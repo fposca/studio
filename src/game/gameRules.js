@@ -5,6 +5,8 @@ export const MOVE_SPEED = 2.8;
 export const RUN_SPEED = 4.4;
 export const JUMP_SPEED = 8.1;
 export const GRAVITY = 20;
+export const ATTACK_CHARGE_SECONDS = 2.5;
+export const CHARGED_DAMAGE_MULTIPLIER = 2;
 export const BODY_OFFSET = 0.9;
 export const BOUNDS = Object.freeze({ left: -16.8, right: 16.8, back: -43.5, front: 21 });
 

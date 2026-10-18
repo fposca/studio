@@ -16,7 +16,10 @@
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1",
     "desktop": "corepack pnpm run build && electron .",
-    "dist:win": "corepack pnpm run build && node desktop/build-windows.js"
+    "dist:win": "corepack pnpm run build && node desktop/build-windows.js",
+    "dev:discografia": "vite --config apps/neonboy-discografia/vite.config.js --host 127.0.0.1 --port 5174 --strictPort",
+    "build:discografia": "vite build --config apps/neonboy-discografia/vite.config.js",
+    "preview:discografia": "vite preview --config apps/neonboy-discografia/vite.config.js --host 127.0.0.1 --port 4174 --strictPort"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",

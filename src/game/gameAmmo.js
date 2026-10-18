@@ -29,6 +29,8 @@ export function createArrowVisuals(parent, world) {
   const group = new THREE.Group(); group.name = "Flechas disparadas"; parent.add(group);
   const shaftMaterial = new THREE.MeshStandardMaterial({ color: 0x49372a, metalness: 0.1, roughness: 0.8 });
   const pointMaterial = new THREE.MeshStandardMaterial({ color: 0xd4b77e, metalness: 0.8, roughness: 0.3 });
+  const chargedPoint = new THREE.MeshStandardMaterial({ color: 0xc68aff, emissive: 0x8e3cff, emissiveIntensity: 1.8, metalness: 0.45, roughness: 0.3 });
+  const chargedGlow = new THREE.MeshBasicMaterial({ color: 0xb063ff, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false });
   const visuals = new Map();
   return () => {
     for (const [arrow, mesh] of visuals) if (!world.arrows.includes(arrow)) { group.remove(mesh); mesh.traverse((part) => part.geometry?.dispose()); visuals.delete(arrow); }
@@ -38,8 +40,12 @@ export function createArrowVisuals(parent, world) {
         root = new THREE.Group();
         const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.55, 6), shaftMaterial);
         shaft.rotation.x = Math.PI / 2; root.add(shaft);
-        const tip = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.16, 6), pointMaterial);
+        const tip = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.16, 6), arrow.charged ? chargedPoint : pointMaterial);
         tip.rotation.x = Math.PI / 2; tip.position.z = 0.34; root.add(tip);
+        if (arrow.charged) {
+          const glow = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), chargedGlow);
+          glow.position.z = 0.34; root.add(glow);
+        }
         group.add(root); visuals.set(arrow, root);
       }
       root.position.set(arrow.x, arrow.y, arrow.z); root.rotation.set(-(arrow.pitch || 0), arrow.yaw, 0, "YXZ");

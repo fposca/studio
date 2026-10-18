@@ -52,12 +52,22 @@ test("sanctuary quest, animated guardians, hammer secrets and saved progress lea
       }) };
   });
   expect(models.inventory).toContain("sword");
-  expect(models.enemies.filter((s) => s === "hoplite")).toHaveLength(4);
-  expect(models.enemies.filter((s) => s === "statue")).toHaveLength(2);
+  expect(models.enemies.filter((s) => s === "hoplite")).toHaveLength(8);
+  expect(models.enemies.filter((s) => s === "statue")).toHaveLength(4);
   for (const model of models.models) { expect(model.bones).toBeGreaterThan(40); expect(model.textured).toBeGreaterThan(0); }
   const image = await pixels(page);
   expect(image.lost).toBe(false); expect(image.contrast).toBeGreaterThan(40); expect(image.lit).toBeGreaterThan(0.2);
   await page.screenshot({ path: testInfo.outputPath("sanctuary-desktop.jpg") });
+  expect(await page.evaluate(() => {
+    const world = window.game.inspect().world;
+    return { coins: world.coins.length, platforms: world.platforms.length, bossZ: world.boss.spawn.z };
+  })).toEqual({ coins: 63, platforms: 9, bossZ: -92 });
+  await place(page, 0, -48);
+  await page.waitForTimeout(180);
+  await page.screenshot({ path: testInfo.outputPath("gallery-entrance.jpg") });
+  await place(page, -6, -60);
+  await page.waitForTimeout(180);
+  await page.screenshot({ path: testInfo.outputPath("expanded-gallery.jpg") });
   await place(page, 3, 4);
   await expect(page.getByRole("button", { name: "Martillo (3)", exact: true })).toBeEnabled();
   await page.keyboard.press("3");
@@ -98,6 +108,8 @@ test("sanctuary quest, animated guardians, hammer secrets and saved progress lea
   await place(page, 0, -27);
   await page.waitForFunction(() => window.game.inspect().world.boss.active);
   await expect(page.getByRole("progressbar", { name: "Vida del jefe" })).toBeVisible();
+  await place(page, 0, -88);
+  await page.waitForTimeout(180);
   await page.screenshot({ path: testInfo.outputPath("medusa-desktop.jpg") });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(250);
@@ -107,7 +119,7 @@ test("sanctuary quest, animated guardians, hammer secrets and saved progress lea
   expect(mission.y + mission.height).toBeLessThanOrEqual(boss.y);
   await page.screenshot({ path: testInfo.outputPath("sanctuary-mobile.jpg") });
   await page.evaluate(() => { const { world } = window.game.inspect(); world.boss.health = 0; world.boss.collider.setEnabled(false); });
-  await place(page, 0, -39);
+  await place(page, 0, -97);
   await expect(page.getByRole("heading", { name: "El Sello de Atenea" })).toBeVisible();
   await page.getByRole("button", { name: "Volver al juego" }).click();
   await expect(page.locator(".neon-game-mission:not(.neon-game-boss-gate)")).toContainText("Regresa con Platon");
