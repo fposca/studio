@@ -48,12 +48,16 @@ export default function RecordStoreConversation({ npc, node, lastChoice, onChoos
   return <div className="record-store-conversation-overlay">
     <section className="record-store-conversation" role="dialog" aria-modal="true" aria-label={`Conversación con ${npc.name}`}>
       <div className="record-store-conversation-head">
-        <span className="record-store-conversation-avatar" aria-hidden="true">{npc.id === "tito" ? "TS" : npc.id === "rulo" ? "RD" : npc.id === "roxy" ? "RX" : npc.id === "freddy" ? "FR" : npc.id === "skeleton-holy" ? "HF" : "UF"}</span>
+        <span className="record-store-conversation-avatar" aria-hidden="true">{npc.avatar || (npc.id === "tito" ? "TS" : npc.id === "rulo" ? "RD" : npc.id === "roxy" ? "RX" : npc.id === "freddy" ? "FR" : npc.id === "skeleton-holy" ? "HF" : "UF")}</span>
         <div><small>{node.kicker || `${npc.role} · 1999`}</small><h3><MessageCircle size={18} /> {npc.name}</h3></div>
         <button type="button" className="record-store-conversation-close" onClick={onClose} aria-label="Cerrar conversación"><X size={20} /></button>
       </div>
       {lastChoice && <p className="record-store-neonboy-line"><strong>NEONBOY</strong> {lastChoice}</p>}
       {node.text && <p className="record-store-conversation-line">{node.text}</p>}
+      {node.lines && <div className="record-store-conversation-lines">{node.lines.map((line, index) =>
+        <p key={index} className={line.speaker === "NEONBOY" ? "is-neonboy" : "is-hugo"}>
+          <strong>{line.speaker}</strong>{line.text}
+        </p>)}</div>}
       {voiceUrl && <button type="button" className="record-store-voice-button" onClick={replayVoice}
         aria-label={(voiceStatus === "blocked" ? "Escuchar" : "Repetir") + " voz de " + npc.name}>
         <Volume2 size={16} aria-hidden="true" /> {voiceStatus === "blocked" ? "Escuchar voz" : "Repetir voz"}

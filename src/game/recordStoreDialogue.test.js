@@ -11,7 +11,8 @@ function choose(npc, node, choice, progress) {
 
 test("Tito and Rulo gate the forbidden record behind rumor, duel and password", () => {
   let progress = { ...INITIAL_STORE_PROGRESS };
-  assert.equal(getStoreDialogueNode("tito", "greeting", progress).options.length, 4);
+  assert.deepEqual(getStoreDialogueNode("tito", "greeting", progress).options.map((entry) => entry.id),
+    ["master:start", "master:hugo", "topic:tito:discs", "topic:tito:door", "more", "bye"]);
   assert.equal(getStoreDialogueNode("rulo", "greeting", progress).options.length, 4);
   assert.equal(choose("tito", "more", "password", progress).changed, false);
   assert.equal(choose("rulo", "more", "duel", progress).changed, false);

@@ -1,0 +1,60 @@
+{
+  "neonboy": {
+    "position": [
+      0,
+      0,
+      0.025
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1,
+    "fretHand": "left",
+    "anchor": "waist"
+  },
+  "john-zool": {
+    "position": [
+      0,
+      0,
+      0.025
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1,
+    "fretHand": "right",
+    "anchor": "waist"
+  },
+  "revenant": {
+    "position": [
+      0,
+      0,
+      0.025
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1,
+    "fretHand": "left",
+    "anchor": "waist"
+  },
+  "lujan": {
+    "position": [
+      0,
+      0.08,
+      0.025
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  }
+}

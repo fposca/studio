@@ -1,9 +1,203 @@
 {
-  "console": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": 1 },
-  "monitor-left": { "position": [0, -0.23, 0], "rotation": [0, 0, 0], "scale": 1 },
-  "monitor-right": { "position": [0, -0.23, 0], "rotation": [0, 0, 0], "scale": 1 },
-  "chair": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": 1 },
-  "crt": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": 1 },
-  "amplifier": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": 1 },
-  "microphone": { "position": [0, 0, 0], "rotation": [0, 0, 0], "scale": 1 }
+  "console": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "monitor-left": {
+    "position": [
+      0,
+      -0.23,
+      0
+    ],
+    "rotation": [
+      0,
+      12,
+      0
+    ],
+    "scale": 1
+  },
+  "monitor-right": {
+    "position": [
+      0,
+      -0.23,
+      0
+    ],
+    "rotation": [
+      0,
+      -12,
+      0
+    ],
+    "scale": 1
+  },
+  "chair": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 0.8
+  },
+  "crt": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "amplifier": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      90,
+      0
+    ],
+    "scale": 1
+  },
+  "microphone": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "pc-table": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "drumkit": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "drum-bench": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "guitar": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      -90,
+      0
+    ],
+    "scale": 1
+  },
+  "guitar-2": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      -90,
+      0
+    ],
+    "scale": 1
+  },
+  "guitar-3": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      -90,
+      0
+    ],
+    "scale": 1
+  },
+  "sofa": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      -90,
+      0
+    ],
+    "scale": 1
+  },
+  "hugo": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1.5,
+    "reach": 1.5,
+    "indicator": [
+      0,
+      1.35,
+      0
+    ]
+  }
 }

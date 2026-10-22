@@ -54,7 +54,7 @@ test("the shop groups the real albums and opens supplied songs at the listening 
 test("the direct 3D store includes all 13 named records and lets the player select one", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const response = await page.goto("/discografia/");
+  const response = await page.goto("/discografia/?direct=1");
   expect(response?.status()).toBe(200);
   const shop = page.getByRole("region", { name: "Tienda de discos Neonboy" });
   await expect(shop).toBeVisible();
@@ -78,7 +78,7 @@ test("the direct 3D store includes all 13 named records and lets the player sele
 });
 
 test("the album tray and listening station fold independently", async ({ page }) => {
-  await page.goto("/discografia/");
+  await page.goto("/discografia/?direct=1");
   const shop = page.getByRole("region", { name: "Tienda de discos Neonboy" });
   const tray = shop.locator(".record-store-wall");
   const listener = shop.locator(".record-store-listener");

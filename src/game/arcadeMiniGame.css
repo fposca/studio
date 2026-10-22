@@ -1,0 +1,11 @@
+.arcade-mini-cabinet{width:min(1020px,100%);border-color:#30234c;box-shadow:0 0 0 2px #ed73bb,0 30px 90px #000}
+.arcade-mini-body{grid-template-columns:minmax(0,1fr) 245px;align-items:center}
+.arcade-mini-crt{width:min(100%,640px);height:auto;max-height:min(67vh,430px);aspect-ratio:640/400}
+.arcade-mini-crt canvas{width:100%;height:100%;display:block;outline:none}
+.arcade-mini-crt canvas:focus-visible{box-shadow:inset 0 0 0 2px #ffe6a8}
+.arcade-mini-message{padding:22px;background:#070819bb}
+.arcade-mini-message span{max-width:410px;line-height:1.6;color:#ffe1bd}
+.arcade-mini-panel p{margin:3px 0;font-size:12px;line-height:1.7}
+.arcade-mini-panel p b{color:#f6a7d9}
+.arcade-mini-panel>small{color:#d4accb}
+@media(max-width:700px){.arcade-mini-body{grid-template-columns:1fr;padding:10px;gap:10px}.arcade-mini-crt{width:100%;max-height:48vh}.arcade-mini-panel{display:grid;grid-template-columns:1fr 1fr}.arcade-mini-panel>strong,.arcade-mini-panel>span,.arcade-mini-panel h3,.arcade-mini-panel p,.arcade-mini-panel>small{grid-column:1/-1}}

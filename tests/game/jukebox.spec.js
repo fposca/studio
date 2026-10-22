@@ -22,7 +22,7 @@ test("the rockola uses collected coins and controls the ten music videos", async
     };
   });
   await page.route("https://www.youtube.com/embed/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<title>Mock YouTube</title>" }));
-  await page.goto("/discografia/");
+  await page.goto("/discografia/?direct=1");
   const shop = page.getByRole("region", { name: "Tienda de discos Neonboy" });
   await expect(shop).toBeVisible();
 

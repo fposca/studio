@@ -1,0 +1,26 @@
+.master-tape-hud { position: absolute; z-index: 4; left: 22px; top: 272px; display: grid; gap: 4px; width: min(360px, calc(100% - 44px)); padding: 10px 13px; border: 1px solid #d295c5; border-left: 3px solid #e668be; border-radius: 4px; background: #170e21e8; color: #f8e9d5; box-shadow: 0 8px 28px #0008; font-family: var(--store-font); pointer-events: none; }
+.master-tape-hud--studio { top: 205px; }
+.master-tape-hud strong { color: #f3a8dc; font-size: 10px; letter-spacing: .12em; }
+.master-tape-hud span { font-size: 11px; font-weight: 700; line-height: 1.35; }
+.master-tape-hud small { color: #e1c4ae; font-size: 9px; line-height: 1.4; }
+.neon-record-store .record-store-arcade-hud .neon-sessions-trigger { border-color: #e199cc; background: #4b2552; color: #fff0de; }
+.neon-sessions-archive { align-self: center; width: min(700px, 100%); max-height: min(84vh, 750px); overflow-y: auto; padding: 22px; border: 2px solid #db8bc7; border-radius: 8px; background: linear-gradient(135deg, #29172f, #100d1c); color: #fff1dc; box-shadow: 0 0 0 5px #130b1b, 0 28px 75px #000d; font-family: var(--store-font); }
+.neon-sessions-archive header small { color: #f4a5ce; font-size: 10px; font-weight: 800; letter-spacing: .15em; }
+.neon-sessions-archive h3 { margin: 10px 0 0; font-size: clamp(30px, 5vw, 48px); line-height: 1; letter-spacing: -.05em; }
+.neon-sessions-archive header p { margin: 5px 0 20px; color: #edbdda; font-size: 12px; font-weight: 800; letter-spacing: .12em; }
+.neon-sessions-categories { display: grid; gap: 7px; }
+.neon-sessions-categories article { display: flex; align-items: center; gap: 12px; padding: 11px 13px; border: 1px solid #76546e; background: #301f37; }
+.neon-sessions-categories article > span { color: #e58dc5; }
+.neon-sessions-categories article div { display: grid; gap: 2px; flex: 1; }
+.neon-sessions-categories strong { font-size: 13px; }
+.neon-sessions-categories small { color: #dbc2c8; font-size: 10px; }
+.neon-sessions-categories em { color: #dfb89d; font-size: 9px; font-style: normal; font-weight: 800; letter-spacing: .1em; }
+.neon-sessions-pending { margin: 17px 0; color: #e6c7d6; font-size: 12px; line-height: 1.5; }
+.neon-sessions-archive footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #75506b; padding-top: 14px; font-size: 11px; font-weight: 800; }
+.neon-record-store .neon-sessions-archive button { min-width: 0; min-height: 0; padding: 10px 15px; border: 1px solid #e3a2ce; border-radius: 3px; background: #693a69; color: #fff1dc; font: 800 11px var(--store-font); cursor: pointer; }
+@media (max-width: 700px) { .master-tape-hud { left: 10px; top: 255px; width: min(340px, calc(100% - 20px)); } .master-tape-hud--studio { top: 205px; } .neon-sessions-archive { padding: 14px; } .neon-sessions-archive footer { flex-wrap: wrap; } }
+
+.master-tape-console-progress { padding: 9px 11px; border-left: 3px solid #b54f90; background: #f5e7e7; color: #512440; font-weight: 800 !important; }
+
+.neon-game .neon-record-store .record-store-arcade-hud button.neon-sessions-trigger { border-color: #e199cc; background: #4b2552; color: #fff0de; }
+.neon-game .neon-record-store .record-store-arcade-hud button.neon-sessions-trigger:hover { background: #783f75; }

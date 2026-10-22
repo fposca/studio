@@ -12,10 +12,11 @@
 }
 .universe-map {
   width: min(100%, 1610px);
-  max-height: 100%;
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid #aa65b1;
   border-radius: 10px;
   background: linear-gradient(145deg, #160c24, #090814 65%);
@@ -67,16 +68,24 @@
 }
 .neon-record-store .universe-map-close:hover { background: #713c75; }
 .universe-map-body {
+  flex: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(245px, 305px);
   gap: 16px;
   min-height: 0;
   padding: 16px;
 }
-.universe-map-image-wrap { min-width: 0; align-self: center; }
+.universe-map-image-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+  container-type: size;
+}
 .universe-map-image {
   position: relative;
-  width: 100%;
+  width: min(100cqw, calc((100cqh - 22px) * 1.667));
   aspect-ratio: 1619 / 971;
   overflow: hidden;
   border: 1px solid #9c5799;
@@ -199,9 +208,8 @@
 .universe-map-unavailable { padding: 14px 10px; border: 1px solid #765a78; border-radius: 4px; color: #d6b9cb; background: #201628; font-size: 12px; text-align: center; }
 .universe-map-detail-bottom small { color: #967e9f; font-size: 9px; font-weight: 700; letter-spacing: .08em; }
 @media (max-width: 800px) {
-  .universe-map { max-height: 100%; }
   .universe-map-header { padding: 13px 15px; }
-  .universe-map-body { grid-template-columns: 1fr; gap: 10px; padding: 10px; }
+  .universe-map-body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; gap: 10px; padding: 10px; }
   .universe-map-detail { padding: 15px; }
   .universe-map-status { margin-top: 10px; }
   .universe-map-detail-bottom { padding-top: 15px; }

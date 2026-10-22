@@ -1,12 +1,15 @@
 import React, { useState } from "react";
-import { STUDIO_ASSETS, resetStudioAssetTransforms, saveStudioAssetTransforms } from "./studioAssets.js";
+import { STUDIO_ASSETS, defaultStudioAssetTransform, saveStudioAssetTransforms } from "./studioAssets.js";
 
 const axes = ["X", "Y", "Z"];
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
-export default function RecordingStudioDevPanel({ transforms, onChange }) {
+export default function RecordingStudioDevPanel({ transforms, onChange, assets = STUDIO_ASSETS,
+  onSave = saveStudioAssetTransforms, onDefault = defaultStudioAssetTransform,
+  filename = "studioAssetTransforms.json", ariaLabel = "Ajustar modelos del estudio",
+  reachIds = ["hugo"] }) {
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState("console");
+  const [selected, setSelected] = useState(assets[0].id);
   const [notice, setNotice] = useState("");
   const current = transforms[selected];
 
@@ -15,13 +18,14 @@ export default function RecordingStudioDevPanel({ transforms, onChange }) {
     if (!Number.isFinite(value)) return;
     const next = clone(transforms);
     if (field === "scale") next[selected].scale = Math.max(0.05, Math.min(value, 5));
+    else if (field === "reach") next[selected].reach = Math.max(1, Math.min(value, 4));
     else next[selected][field][index] = value;
     onChange(next);
     setNotice("Cambios sin guardar");
   }
 
   function save() {
-    try { saveStudioAssetTransforms(transforms); setNotice("Guardado en este navegador"); }
+    try { onSave(transforms); setNotice("Guardado en este navegador"); }
     catch { setNotice("No se pudo guardar en este navegador"); }
   }
 
@@ -30,7 +34,7 @@ export default function RecordingStudioDevPanel({ transforms, onChange }) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = "studioAssetTransforms.json";
+    link.download = filename;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     setNotice("JSON descargado: reemplazá el archivo de configuración del proyecto");
@@ -42,27 +46,30 @@ export default function RecordingStudioDevPanel({ transforms, onChange }) {
   }
 
   function reset() {
-    onChange(resetStudioAssetTransforms());
-    setNotice("Valores originales restaurados");
+    onChange({ ...transforms, [selected]: onDefault(selected) });
+    setNotice("Objeto restaurado. Guardá para confirmar el cambio.");
   }
 
-  return <aside className={"studio-dev-panel" + (open ? " is-open" : "")} aria-label="Ajustar modelos del estudio">
+  return <aside className={"studio-dev-panel" + (open ? " is-open" : "")} aria-label={ariaLabel}>
     <button type="button" className="studio-dev-toggle" onClick={() => setOpen(!open)}>{open ? "Cerrar editor" : "Ajustar modelos"}</button>
     {open && <div className="studio-dev-content">
       <strong>MODELOS · DESARROLLO</strong>
-      <label>Objeto<select value={selected} onChange={(event) => setSelected(event.target.value)}>{STUDIO_ASSETS.map((asset) => <option key={asset.id} value={asset.id}>{asset.label}</option>)}</select></label>
+      <label>Objeto<select value={selected} onChange={(event) => setSelected(event.target.value)}>{assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.label}</option>)}</select></label>
       {[["position", "Posición", 0.1], ["rotation", "Rotación °", 5]].map(([field, label, step]) => <fieldset key={field}>
         <legend>{label}</legend>
         {axes.map((axis, index) => <label key={axis}>{axis}<input type="number" step={step} value={current[field][index]} onChange={(event) => edit(field, index, event.target.value)} /></label>)}
       </fieldset>)}
       <label>Escala<input type="number" min="0.05" max="5" step="0.05" value={current.scale} onChange={(event) => edit("scale", 0, event.target.value)} /></label>
+      {reachIds.includes(selected) && <>
+        <label>Distancia de interacción<input type="number" min="1" max="4" step="0.1" value={current.reach} onChange={(event) => edit("reach", 0, event.target.value)} /></label>
+      </>}
       <div className="studio-dev-actions">
         <button type="button" onClick={save}>Guardar aquí</button>
         <button type="button" onClick={copy}>Copiar JSON</button>
         <button type="button" onClick={exportConfig}>Descargar JSON</button>
-        <button type="button" onClick={reset}>Restablecer</button>
+        <button type="button" onClick={reset}>Restablecer objeto</button>
       </div>
-      <p role="status">{notice || "Los cambios se ven al instante. Descargar JSON fija los valores en el proyecto al reemplazar studioAssetTransforms.json."}</p>
+      <p role="status">{notice || "Los cambios se ven al instante. Descargar JSON fija los valores en el proyecto al reemplazar " + filename + "."}</p>
     </div>}
   </aside>;
 }

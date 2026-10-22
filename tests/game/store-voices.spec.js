@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test("Tito and Rulo speak, and changing or closing a dialogue stops the previous voice", async ({ page }) => {
   test.setTimeout(120_000);
-  await page.goto("/discografia/");
+  await page.goto("/discografia/?direct=1");
   const shop = page.getByRole("region", { name: "Tienda de discos Neonboy" });
   const prompt = shop.locator(".record-store-nearby");
   await expect(shop).toBeVisible();

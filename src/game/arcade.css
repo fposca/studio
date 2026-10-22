@@ -1,0 +1,15 @@
+.neon-arcade { background: #120d19; }
+.neon-arcade .studio-header { background: linear-gradient(#0d0b17f5, #0d0b1700); }
+.neon-arcade .studio-header span { color: #eb87c9; }
+.neon-arcade .studio-header h2 { color: #ffebd4; text-shadow: 0 2px 15px #000c, 0 0 24px #e849b56e; }
+.neon-arcade .studio-control-hint { border-color: #a265c5; background: #160d20e8; }
+.neon-arcade .studio-examine-cue { border-color: #ee9ccc; background: #27152fea; }
+.neon-arcade .studio-examine-message { border-color: #bf75b1; border-left-color: #ed68bd; background: linear-gradient(135deg, #28152ff5, #111320ef); }
+.neon-arcade .studio-examine-message small { color: #ee9fd6; }
+.neon-arcade .studio-footer { border-color: #925a96; background: #100b18eb; }
+.neon-arcade .club-show-hud { top: 165px; border-color: #aa71b0; background: #1a1025ea; }
+.neon-arcade .record-store-loading-panel { border-color: #c478c1; }
+@media (max-width: 700px) {
+  .neon-arcade .studio-header h2 { font-size: 24px; }
+  .neon-arcade .club-show-hud { top: 195px; }
+}

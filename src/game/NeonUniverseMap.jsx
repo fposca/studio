@@ -4,11 +4,11 @@ import mapImage from "../assets/neonboy-animaciones/imagenes/Mapa nocturno de ci
 import { NEON_UNIVERSE_SCENARIOS, NEON_UNIVERSE_STATUS, getScenarioStatus } from "./neonUniverseScenarios.js";
 import "./neonUniverseMap.css";
 
-export default function NeonUniverseMap({ onClose, onEnter }) {
+export default function NeonUniverseMap({ onClose, onEnter, unlockedScenarios = [] }) {
   const [selectedId, setSelectedId] = useState("record-store");
   const closeButtonRef = useRef(null);
   const selected = NEON_UNIVERSE_SCENARIOS.find((scenario) => scenario.id === selectedId);
-  const selectedStatus = getScenarioStatus(selected);
+  const selectedStatus = getScenarioStatus(selected, unlockedScenarios);
 
   useEffect(() => { closeButtonRef.current?.focus(); }, []);
 
@@ -30,7 +30,7 @@ export default function NeonUniverseMap({ onClose, onEnter }) {
             {NEON_UNIVERSE_SCENARIOS.map((scenario) => <button
               key={scenario.id}
               type="button"
-              className={`universe-map-marker is-${getScenarioStatus(scenario)}${selectedId === scenario.id ? " is-selected" : ""}`}
+              className={`universe-map-marker is-${getScenarioStatus(scenario, unlockedScenarios)}${selectedId === scenario.id ? " is-selected" : ""}`}
               style={{ left: `${scenario.position.x}%`, top: `${scenario.position.y}%` }}
               aria-label={`Seleccionar ${scenario.name}`}
               aria-pressed={selectedId === scenario.id}

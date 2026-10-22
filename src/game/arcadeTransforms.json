@@ -1,0 +1,282 @@
+{
+  "cabinet-left-1": {
+    "position": [
+      -9,
+      0,
+      3.6
+    ],
+    "rotation": [
+      0,
+      90,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "cabinet-left-2": {
+    "position": [
+      -9,
+      0,
+      0.8
+    ],
+    "rotation": [
+      0,
+      90,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "cabinet-left-3": {
+    "position": [
+      -9,
+      0,
+      -2
+    ],
+    "rotation": [
+      0,
+      90,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "cabinet-left-4": {
+    "position": [
+      -3.2,
+      0,
+      -0.8
+    ],
+    "rotation": [
+      0,
+      90,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "cabinet-right-1": {
+    "position": [
+      9,
+      0,
+      3.4
+    ],
+    "rotation": [
+      0,
+      -90,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "cabinet-right-2": {
+    "position": [
+      9,
+      0,
+      0.6
+    ],
+    "rotation": [
+      0,
+      -90,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "cabinet-right-3": {
+    "position": [
+      9,
+      0,
+      -2.2
+    ],
+    "rotation": [
+      0,
+      -90,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "cabinet-right-4": {
+    "position": [
+      3.2,
+      0,
+      -0.8
+    ],
+    "rotation": [
+      0,
+      -90,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "racing-seat": {
+    "position": [
+      -6.5,
+      0,
+      -7
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "fight-cabinet": {
+    "position": [
+      6.4,
+      0,
+      -7
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "pinball": {
+    "position": [
+      -7.2,
+      0,
+      -12.3
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "horror-cabinet": {
+    "position": [
+      8.5,
+      0,
+      -10.8
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "broken-cabinet": {
+    "position": [
+      -8.7,
+      0,
+      -17.2
+    ],
+    "rotation": [
+      0,
+      90,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "frequency09Cabinet": {
+    "position": [
+      0,
+      0,
+      -18.25
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.25
+  },
+  "counter": {
+    "position": [
+      -7,
+      0,
+      6.7
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "staff-door": {
+    "position": [
+      7.4,
+      0,
+      -21.65
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "island-vector": {
+    "position": [
+      -3.2,
+      0,
+      -3.5
+    ],
+    "rotation": [
+      0,
+      90,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "island-jungle": {
+    "position": [
+      3.2,
+      0,
+      -3.5
+    ],
+    "rotation": [
+      0,
+      -90,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "light-gun-cabinet": {
+    "position": [
+      6.4,
+      0,
+      -15.4
+    ],
+    "rotation": [
+      0,
+      -18,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  },
+  "social-seats": {
+    "position": [
+      7.1,
+      0,
+      6.9
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.2
+  }
+}

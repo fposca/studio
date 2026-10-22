@@ -1,0 +1,401 @@
+{
+  "charly": {
+    "position": [
+      5.4,
+      0,
+      -8.45
+    ],
+    "rotation": [
+      0,
+      -60,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.5
+  },
+  "club-rulo": {
+    "position": [
+      -4.45,
+      0,
+      -7.25
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.5
+  },
+  "club-roxy": {
+    "position": [
+      4.55,
+      0,
+      -0.65
+    ],
+    "rotation": [
+      0,
+      -60,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.5
+  },
+  "riky": {
+    "position": [
+      5.2,
+      0,
+      -6.5
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.0
+  },
+  "diego": {
+    "position": [
+      -5.45,
+      0,
+      -1.5
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.0
+  },
+  "maxi": {
+    "position": [
+      -4.35,
+      0,
+      2.4
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.0
+  },
+  "gera": {
+    "position": [
+      -7.3,
+      0,
+      -0.95
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.0
+  },
+  "pablito": {
+    "position": [
+      -7.1,
+      0,
+      2.1
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.0
+  },
+  "claudia": {
+    "position": [
+      -6.05,
+      0,
+      2.25
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1,
+    "reach": 2.0
+  },
+  "john-zool": {
+    "position": [
+      -3.65,
+      0.48,
+      -15.0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "lilith-9": {
+    "position": [
+      0,
+      0.48,
+      -15.3
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "revenant": {
+    "position": [
+      4.3,
+      0.48,
+      -15.15
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "lujan": {
+    "position": [
+      0,
+      0.48,
+      -17.65
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "guitar": {
+    "position": [
+      -4.95,
+      0.48,
+      -13.85
+    ],
+    "rotation": [
+      0,
+      0,
+      9
+    ],
+    "scale": 1
+  },
+  "guitar-stand": {
+    "position": [
+      -4.95,
+      0.48,
+      -13.85
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "bass": {
+    "position": [
+      5.45,
+      0.48,
+      -14.15
+    ],
+    "rotation": [
+      0,
+      0,
+      -9
+    ],
+    "scale": 1
+  },
+  "bass-stand": {
+    "position": [
+      5.45,
+      0.48,
+      -14.15
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "microphone": {
+    "position": [
+      0,
+      0.48,
+      -14.7
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "drums": {
+    "position": [
+      0,
+      0.48,
+      -16.8
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "drum-bench": {
+    "position": [
+      0,
+      0.48,
+      -17.65
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": 1
+  },
+  "club-spectator-1": {
+    "position": [
+      -4.45,
+      0,
+      -0.2
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1
+  },
+  "club-drunk": {
+    "position": [
+      -1.9,
+      0,
+      -4.7
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1
+  },
+  "club-audience-1": {
+    "position": [
+      -3.2,
+      0,
+      -8.5
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1
+  },
+  "club-audience-2": {
+    "position": [
+      -7.7,
+      0,
+      1.8
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1
+  },
+  "club-audience-3": {
+    "position": [
+      3.6,
+      0,
+      -9.1
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1
+  },
+  "club-audience-5": {
+    "position": [
+      2.6,
+      0,
+      -3.4
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1
+  },
+  "club-audience-6": {
+    "position": [
+      -7.7,
+      0,
+      -3.35
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1
+  },
+  "club-audience-7": {
+    "position": [
+      4.2,
+      0,
+      3.25
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1
+  },
+  "club-audience-8": {
+    "position": [
+      3.7,
+      0,
+      -6.4
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1
+  },
+  "club-audience-9": {
+    "position": [
+      -7.6,
+      0,
+      -9.2
+    ],
+    "rotation": [
+      0,
+      180,
+      0
+    ],
+    "scale": 1
+  }
+}

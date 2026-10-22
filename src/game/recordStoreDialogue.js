@@ -1,3 +1,4 @@
+import { getMasterTapeDialogueNode, masterTapeOptions } from "./masterTapeQuest.js";
 export const STORE_DIALOGUE_SAVE_KEY = "neonboy.record-store.dialogue.v1";
 
 export const STORE_NPCS = [
@@ -85,7 +86,7 @@ const roxyQuestions = [
   { id: "solo", question: "¿Te gustaría escuchar uno de mis solos de guitarra?", answer: "Prefiero escuchar cómo te alejás. ¡Largo!" }
 ];
 
-const option = (id, label, next, effect) => ({ id, label, next, effect });
+const option = (id, label, next, effect, clubEvent) => ({ id, label, next, effect, clubEvent });
 const topicOption = (npc, key, topics, effect) => option(`topic:${npc}:${key}`, topics[key][0], `reply:${npc}:${key}`, effect);
 
 function greeting(npc, progress, context) {
@@ -105,8 +106,12 @@ function greeting(npc, progress, context) {
   return "¡Eh, vos! ¿Qué hacés vestido así? ¿Te escapaste de un recital de Kiss o te explotó una computadora en la cara?";
 }
 
-function rootOptions(npc, progress) {
+function rootOptions(npc, progress, context) {
   if (npc === "tito") return [
+    ...masterTapeOptions("tito", context.masterTape),
+    ...(context.clubQuest?.hugoSuggestedShow ? [context.clubQuest.credentialGranted
+      ? option("club:reminder", "¿Dónde encuentro a Charly?", "club:reminder")
+      : option("club:credential", "Hugo dice que tengo que salir a tocar.", "club:credential", undefined, "titoGrantsCredential")] : []),
     topicOption("tito", "discs", titoTopics), topicOption("tito", "door", titoTopics, "rumor"),
     option("more", "Tengo más preguntas sobre esta tienda.", "more"), option("bye", "Terminar conversación", "close")
   ];
@@ -119,6 +124,7 @@ function rootOptions(npc, progress) {
 
 export function getStoreDialogueNode(npc, nodeId, progress, context = {}) {
   if (!STORE_NPCS.some((entry) => entry.id === npc)) return null;
+  if (npc === "tito" && nodeId.startsWith("master:")) return getMasterTapeDialogueNode(npc, nodeId, context.masterTape);
   const back = option("back", "Seguir hablando", "root");
   const bye = option("bye", "Terminar conversación", "close");
   const options = (items) => [...items, bye];
@@ -139,7 +145,22 @@ export function getStoreDialogueNode(npc, nodeId, progress, context = {}) {
   }
   if (nodeId === "greeting" || nodeId === "root") return {
     id: nodeId, speaker: npc, text: nodeId === "greeting" ? greeting(npc, progress, context) : "Bien, pibe. ¿Qué más querés saber?",
-    options: rootOptions(npc, progress)
+    options: rootOptions(npc, progress, context)
+  };
+  if (npc === "tito" && nodeId === "club:credential" && context.clubQuest?.hugoSuggestedShow) return {
+    id: nodeId, kicker: "CREDENCIAL DEL CLUB DE ROCK",
+    lines: [
+      { speaker: "NEONBOY", text: "Hugo dice que tengo que salir a tocar." },
+      { speaker: "TITO", text: "¡Y tiene razón! Ya era hora de que salieras del estudio." },
+      { speaker: "NEONBOY", text: "¿Y dónde puedo tocar?" },
+      { speaker: "TITO", text: "Conozco a Charly, el encargado de un boliche de rock. Decile que vas de mi parte." },
+      { speaker: "NEONBOY", text: "¿Y me va a dejar entrar?" },
+      { speaker: "TITO", text: "Con esta credencial, sí. Ahora, que te deje tocar... eso ya es otro problema." },
+    ], options: [back, bye],
+  };
+  if (npc === "tito" && nodeId === "club:reminder" && context.clubQuest?.credentialGranted) return {
+    id: nodeId, text: "Mostrale la credencial a Charly en el Club de Rock. Decile que vas de mi parte.",
+    options: [back, bye],
   };
   if (nodeId === "more") {
     const items = npc === "tito"
@@ -204,5 +225,5 @@ export function chooseStoreDialogue(npc, nodeId, optionId, progress, context = {
       : { ...next, duelStep: step + 1 };
   }
   if (chosen.effect === "archive" && npc === "tito" && next.passwordKnown && next.duelCompleted) next = { ...next, archiveUnlocked: true };
-  return { nodeId: chosen.next, progress: next, changed: next !== progress };
+  return { nodeId: chosen.next, progress: next, changed: next !== progress, questEvent: chosen.questEvent, clubEvent: chosen.clubEvent };
 }

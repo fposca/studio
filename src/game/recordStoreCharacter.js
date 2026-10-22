@@ -66,25 +66,44 @@ export function createRecordStoreCharacter({ scene, idleClip, walkClip, jumpClip
   ring.position.y = 0.035;
   root.add(ring);
 
-  let walkWeight = 0, jumpWeight = 0, heavyWalkWeight = 0, wasAirborne = false;
+  let walkWeight = 0, jumpWeight = 0, heavyWalkWeight = 0, showWeight = 0;
+  let wasAirborne = false, showing = false, showAction = null;
   return {
     root,
+    getBone: (name) => bones.get(name.replace(/[^a-z0-9]/gi, "").replace(/^mixamorig/i, "")) || model.getObjectByName(name),
+    setConcertClip(clip) {
+      if (!clip) return false;
+      showAction = mixer.clipAction(clip);
+      showAction.setLoop(THREE.LoopRepeat);
+      showAction.setEffectiveWeight(0);
+      return true;
+    },
+    setConcertActive(active) {
+      if (!showAction) return false;
+      if (active && !showing) showAction.reset().play();
+      showing = active;
+      visual.scale.x = active ? -1 : 1;
+      return true;
+    },
     update(actor, dt) {
       root.position.set(actor.x, actor.y, actor.z);
       root.rotation.y = actor.yaw;
-      const moving = actor.grounded && actor.speed > 0.1;
-      const airborne = !actor.grounded;
+      const moving = !showing && actor.grounded && actor.speed > 0.1;
+      const airborne = !showing && !actor.grounded;
       if (airborne && !wasAirborne) jumpAction.reset();
       wasAirborne = airborne;
       walkWeight = THREE.MathUtils.damp(walkWeight, moving ? 1 : 0, 14, dt);
       heavyWalkWeight = THREE.MathUtils.damp(heavyWalkWeight, moving && !actor.running ? 1 : 0, 9, dt);
       jumpWeight = THREE.MathUtils.damp(jumpWeight, airborne ? 1 : 0, 18, dt);
-      const total = Math.max(1, walkWeight + jumpWeight);
+      showWeight = THREE.MathUtils.damp(showWeight, showing ? 1 : 0, 8, dt);
+      const total = Math.max(1, walkWeight + jumpWeight + showWeight);
+      showAction?.setEffectiveWeight(showWeight / total);
+      if (!showing && showWeight < 0.005 && showAction?.isRunning()) showAction.stop();
       walkAction.setEffectiveWeight(walkWeight / total);
       walkAction.setEffectiveTimeScale(moving ? actor.speed / Math.max(scale * NEONBOY_NEW_WALK_GAIT_UNITS_PER_SECOND, 0.001) : 0);
       jumpAction.setEffectiveWeight(jumpWeight / total);
       jumpAction.setEffectiveTimeScale(jumpClip.duration * 18 / (2 * 6.4));
-      idleAction.setEffectiveWeight(Math.max(0, 1 - walkWeight - jumpWeight));
+      idleAction.setEffectiveWeight(Math.max(0, 1 - (walkWeight + jumpWeight + showWeight) / total));
       for (const pose of animatedPose) { pose.bone.quaternion.copy(pose.quaternion); pose.bone.position.copy(pose.position); }
       mixer.update(dt);
       for (const pose of animatedPose) { pose.quaternion.copy(pose.bone.quaternion); pose.position.copy(pose.bone.position); }

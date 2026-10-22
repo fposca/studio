@@ -90,7 +90,7 @@ import {
 
 const ThreeDEditor = lazy(() => import("./editors/ThreeDEditor.jsx"));
 const NeonGame = lazy(() => import("./game/NeonGame.jsx"));
-const DiscographyStore = lazy(() => import("./game/DiscographyStore.jsx"));
+const NeonUniverseApp = lazy(() => import("./game/NeonUniverseApp.jsx"));
 
 const API = window.location.port === "5173" ? "http://127.0.0.1:5174" : window.location.origin;
 const IS_DESKTOP_APP = navigator.userAgent.includes("Electron");
@@ -5241,7 +5241,7 @@ export default function App() {
         </div>
         {tab === "discography" && <div className="editor-pane" style={{ position: "relative", overflow: "hidden" }}>
           <Suspense fallback={<div className="neon-game-loading" role="status"><Loader2 className="spin" size={28} /></div>}>
-            <DiscographyStore standalone onClose={() => setTab("game")} />
+            <NeonUniverseApp embedded />
           </Suspense>
         </div>}
         {tab === "game" && <div className="editor-pane">

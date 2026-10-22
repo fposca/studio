@@ -19,11 +19,11 @@ export const NEON_UNIVERSE_SCENARIOS = [
   },
   {
     id: "rock-club",
-    name: "Club de Rock",
+    name: "Club de Rock 1999",
     description: "El escenario de luces y amplificadores donde la noche cobra vida.",
     status: "locked",
     position: { x: 69.1, y: 19.7 },
-    destination: null,
+    destination: "rock-club",
   },
   {
     id: "arcade-1999",
@@ -31,7 +31,7 @@ export const NEON_UNIVERSE_SCENARIOS = [
     description: "Máquinas, fichas y desafíos de otra época esperan tras sus puertas.",
     status: "locked",
     position: { x: 17.3, y: 52.9 },
-    destination: null,
+    destination: "arcade-1999",
   },
   {
     id: "neonboy-rooftop",
@@ -59,7 +59,10 @@ export const NEON_UNIVERSE_STATUS = {
 
 // Temporary preview access; the permanent unlock status remains "locked".
 // Set VITE_RECORDING_STUDIO_PREVIEW=true for a preview build or false in local dev.
-export function getScenarioStatus(scenario) {
-  if (scenario.id === "recording-studio" && (import.meta.env.VITE_RECORDING_STUDIO_PREVIEW === "true" || (import.meta.env.DEV && import.meta.env.VITE_RECORDING_STUDIO_PREVIEW !== "false"))) return "available";
+export function getScenarioStatus(scenario, unlockedScenarios = [], env = import.meta.env ?? {}) {
+  if (scenario.destination && unlockedScenarios.includes(scenario.id)) return "available";
+  if (scenario.id === "arcade-1999" && env.VITE_ARCADE_1999_PREVIEW === "true") return "available";
+  if (scenario.id === "rock-club" && (env.VITE_ROCK_CLUB_PREVIEW === "true" || (env.DEV && env.VITE_ROCK_CLUB_PREVIEW !== "false"))) return "available";
+  if (scenario.id === "recording-studio" && (env.VITE_RECORDING_STUDIO_PREVIEW === "true" || (env.DEV && env.VITE_RECORDING_STUDIO_PREVIEW !== "false"))) return "available";
   return scenario.status;
 }

@@ -4,7 +4,7 @@ test("Neonboy talks to Tito and Rulo, wins the duel and unlocks the forbidden ar
   test.setTimeout(150_000);
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/discografia/");
+  await page.goto("/discografia/?direct=1");
   const shop = page.getByRole("region", { name: "Tienda de discos Neonboy" });
   const prompt = shop.locator(".record-store-nearby");
   await expect(shop).toBeVisible();

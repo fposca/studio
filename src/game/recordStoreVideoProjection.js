@@ -35,10 +35,13 @@ export function createRecordStoreVideoProjection(container, jukebox, standbyLabe
   let firstSeconds = 0;
   let startedAt = 0;
   let playing = false;
+  let suspended = false;
+  let resumeAfterPause = false;
   let disposed = false;
 
   function clear() {
     key = null;
+    resumeAfterPause = false;
     player?.destroy?.();
     player = null;
     shell.replaceChildren();
@@ -54,7 +57,8 @@ export function createRecordStoreVideoProjection(container, jukebox, standbyLabe
     key = nextKey;
     firstSeconds = Math.max(0, video.seconds || 0);
     startedAt = performance.now();
-    playing = video.playing !== false;
+    resumeAfterPause = suspended && video.playing !== false;
+    playing = video.playing !== false && !suspended;
     standbyLabel.visible = false;
     shell.style.display = "block";
     const frame = document.createElement("iframe");
@@ -73,7 +77,7 @@ export function createRecordStoreVideoProjection(container, jukebox, standbyLabe
           onReady: () => {
             if (disposed || key !== nextKey) return;
             if (firstSeconds > 0) player?.seekTo?.(firstSeconds, true);
-            if (playing) player?.playVideo?.();
+            if (playing && !suspended) player?.playVideo?.();
             else player?.pauseVideo?.();
           },
           onStateChange: (event) => {
@@ -81,12 +85,34 @@ export function createRecordStoreVideoProjection(container, jukebox, standbyLabe
             const seconds = player?.getCurrentTime?.();
             if (Number.isFinite(seconds)) firstSeconds = seconds;
             startedAt = performance.now();
-            if (event.data === YT.PlayerState.PLAYING || event.data === YT.PlayerState.BUFFERING) playing = true;
+            if (suspended) { playing = false; player?.pauseVideo?.(); }
+            else if (event.data === YT.PlayerState.PLAYING || event.data === YT.PlayerState.BUFFERING) playing = true;
             else if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) playing = false;
           }
         }
       });
     }).catch(() => { /* The embedded video remains visible without API controls. */ });
+  }
+
+  function setPaused(value) {
+    const next = Boolean(value);
+    if (suspended === next) return;
+    if (next) {
+      const snapshot = getSnapshot();
+      if (snapshot) firstSeconds = snapshot.seconds;
+      resumeAfterPause = playing;
+      playing = false;
+      suspended = true;
+      player?.pauseVideo?.();
+    } else {
+      suspended = false;
+      if (resumeAfterPause && key) {
+        playing = true;
+        startedAt = performance.now();
+        player?.playVideo?.();
+      }
+      resumeAfterPause = false;
+    }
   }
 
   function getSnapshot() {
@@ -112,5 +138,5 @@ export function createRecordStoreVideoProjection(container, jukebox, standbyLabe
     renderer.domElement.remove();
   }
 
-  return { setVideo, getSnapshot, render, resize, dispose, element: renderer.domElement };
+  return { setVideo, setPaused, getSnapshot, render, resize, dispose, element: renderer.domElement };
 }

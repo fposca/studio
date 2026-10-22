@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test("the universe map keeps the 3D store mounted and only enters the record shop", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/discografia/");
+  await page.goto("/discografia/?direct=1");
 
   const shop = page.getByRole("region", { name: "Tienda de discos Neonboy" });
   const scene = shop.locator(".record-store-3d");
@@ -39,13 +39,13 @@ test("the universe map keeps the 3D store mounted and only enters the record sho
 });
 
 test("map markers stay aligned with the image at different viewport sizes", async ({ page }) => {
-  await page.goto("/discografia/");
+  await page.goto("/discografia/?direct=1");
   await page.getByRole("button", { name: "MAPA" }).click();
   const map = page.getByRole("dialog", { name: "Mapa de NeonBoy Universe" });
   const image = map.locator(".universe-map-image");
   const marker = map.getByRole("button", { name: "Seleccionar Neon Recording Studio" });
 
-  for (const size of [{ width: 1440, height: 900 }, { width: 390, height: 700 }]) {
+  for (const size of [{ width: 1920, height: 920 }, { width: 1440, height: 900 }, { width: 390, height: 700 }]) {
     await page.setViewportSize(size);
     const imageBox = await image.boundingBox();
     const markerBox = await marker.boundingBox();
@@ -54,6 +54,14 @@ test("map markers stay aligned with the image at different viewport sizes", asyn
     expect((markerBox.x + markerBox.width / 2 - imageBox.x) / imageBox.width).toBeCloseTo(0.438, 2);
     expect((markerBox.y + markerBox.height / 2 - imageBox.y) / imageBox.height).toBeCloseTo(0.172, 2);
     expect(imageBox.width / imageBox.height).toBeCloseTo(1619 / 971, 2);
+    const mapBox = await map.boundingBox();
+    const noteBox = await map.locator(".universe-map-image-note").boundingBox();
+    const enterBox = await map.getByRole("button", { name: "Entrar a la Tienda de Discos" }).boundingBox();
+    expect(imageBox.y).toBeGreaterThanOrEqual(mapBox.y);
+    expect(imageBox.y + imageBox.height).toBeLessThanOrEqual(mapBox.y + mapBox.height + 1);
+    expect(noteBox.y + noteBox.height).toBeLessThanOrEqual(mapBox.y + mapBox.height + 1);
+    expect(enterBox.y + enterBox.height).toBeLessThanOrEqual(mapBox.y + mapBox.height + 1);
+    expect(await map.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
   }
 });
 

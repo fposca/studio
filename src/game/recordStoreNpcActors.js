@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createInteractionPromptSprite } from "./recordStoreInteractionPrompt.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { STORE_NPCS } from "./recordStoreDialogue.js";
 import { advanceRoxyPatrol, createRoxyPatrol } from "./recordStoreRoxyMotion.js";
@@ -12,30 +13,6 @@ const GUEST_WALK_URLS = {
 };
 const SKELETON_DANCE_URL = new URL("../assets/neonboy-animaciones/esuqeleto-bailando.store.glb", import.meta.url).href;
 const SKELETON_IDLE_URL = new URL("../assets/neonboy-animaciones/esqueleto-sosteniendo-disco-holyFire.anim.glb", import.meta.url).href;
-function promptSprite(label = "[E] HABLAR") {
-  const canvas = document.createElement("canvas");
-  canvas.width = 512;
-  canvas.height = 128;
-  const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#1a1022eb";
-  ctx.fillRect(6, 6, 500, 116);
-  ctx.strokeStyle = "#e3a3ef";
-  ctx.lineWidth = 7;
-  ctx.strokeRect(6, 6, 500, 116);
-  ctx.fillStyle = "#ffe4b6";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.font = '600 57px "Bahnschrift", "Segoe UI", sans-serif';
-  ctx.fillText(label, 256, 66);
-  const map = new THREE.CanvasTexture(canvas);
-  map.colorSpace = THREE.SRGBColorSpace;
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthTest: false }));
-  sprite.scale.set(1.65, 0.42, 1);
-  sprite.position.y = 2.43;
-  sprite.visible = false;
-  return sprite;
-}
-
 function inPlaceClip(source) {
   if (!source) return null;
   const clip = source.clone();
@@ -171,7 +148,7 @@ export function createRecordStoreNpcActors(scene, loader, clickable, disposeLoad
     marker.userData.npcId = npc.id;
     root.add(marker);
     clickable.push(marker);
-    const prompt = promptSprite(npc.id === "jason" ? "[E] INSISTIR" : "[E] HABLAR");
+    const prompt = createInteractionPromptSprite(npc.id === "jason" ? "[E] INSISTIR" : "[E] HABLAR");
     root.add(prompt);
     const actor = { npc, root, marker, prompt, model: null, mixer: null, actions: {}, currentAction: null,
       patrol: npc.id === "roxy" ? createRoxyPatrol() : GUEST_WALK_URLS[npc.id] ? createGuestPatrol(npc.id) : null,

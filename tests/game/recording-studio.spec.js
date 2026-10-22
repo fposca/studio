@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test("NeonBoy enters the studio, examines equipment and returns to the shop", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/discografia/");
+  await page.goto("/discografia/?direct=1");
 
   const shop = page.getByRole("region", { name: "Tienda de discos Neonboy" });
   await expect(shop.locator('.record-store-3d')).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
@@ -23,7 +23,8 @@ test("NeonBoy enters the studio, examines equipment and returns to the shop", as
   await page.keyboard.up("w");
   await expect(studio.getByText("[E] Examinar Consola")).toBeVisible();
   await page.keyboard.press("e");
-  await expect(studio.getByText("Esta consola tiene más canales que una televisión por cable.")).toBeVisible();
+  await expect(studio.getByRole("dialog", { name: "Explorar la consola" })).toBeVisible();
+  await page.keyboard.press("Escape");
 
   await page.keyboard.down("d");
   await page.waitForTimeout(2200);
