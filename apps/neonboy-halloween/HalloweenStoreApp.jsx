@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronsUp, Coins, Disc3, ExternalLink, Headphones, MessageCircle, Phone, PhoneOff, Play, Radio, ScanEye, Volume2, VolumeX, X } from "lucide-react";
+import { ChevronsUp, Coins, Disc3, ExternalLink, Headphones, MessageCircle, Phone, PhoneOff, Play, Radio, Save, ScanEye, Volume2, VolumeX, X } from "lucide-react";
 import HalloweenStoreScene from "./HalloweenStoreScene.jsx";
 import InteractionPrompt from "../../src/game/InteractionPrompt.jsx";
 import { advanceVisionClock, toggleVisionClock } from "./halloweenEncounterLogic.js";
@@ -69,13 +69,13 @@ const DEMON_LINES = {
 
 
 
-export default function HalloweenStoreApp() {
-  const [visionClock, setVisionClock] = useState({ phase: "locked", remaining: 0, activation: 0 });
+export default function HalloweenStoreApp({ initialSave, saveSlot, onSave, onExit, onRetry }) {
+  const [visionClock, setVisionClock] = useState(() => ({ phase: initialSave?.chest?.collected ? "ready" : "locked", remaining: 0, activation: 0 }));
   const visionClockRef = useRef(visionClock);
   visionClockRef.current = visionClock;
   const vision = visionClock.phase === "active";
-  const [realityChest, setRealityChest] = useState(EMPTY_REALITY_CHEST);
-  const realityChestRef = useRef(EMPTY_REALITY_CHEST);
+  const [realityChest, setRealityChest] = useState(initialSave?.chest || EMPTY_REALITY_CHEST);
+  const realityChestRef = useRef(initialSave?.chest || EMPTY_REALITY_CHEST);
   const updateRealityChest = (action) => {
     const next = advanceRealityChest(realityChestRef.current, action);
     realityChestRef.current = next;
@@ -83,11 +83,11 @@ export default function HalloweenStoreApp() {
     return next;
   };
   const glassesCollected = realityChest.collected;
-  const [demonHealth, setDemonHealth] = useState(3);
-  const [judgePhase, setJudgePhase] = useState("inactive");
-  const judgePhaseRef = useRef("inactive");
+  const [demonHealth, setDemonHealth] = useState(initialSave?.demonHealth ?? 3);
+  const [judgePhase, setJudgePhase] = useState(initialSave?.judgeDefeated ? "gone" : "inactive");
+  const judgePhaseRef = useRef(initialSave?.judgeDefeated ? "gone" : "inactive");
   judgePhaseRef.current = judgePhase;
-  const [judgeHealth, setJudgeHealth] = useState(JUDGE_MAX_HEALTH);
+  const [judgeHealth, setJudgeHealth] = useState(initialSave?.judgeDefeated ? 0 : JUDGE_MAX_HEALTH);
   const [judgeQuestion, setJudgeQuestion] = useState(0);
   const [judgeCorrect, setJudgeCorrect] = useState(0);
   const [judgeReaction, setJudgeReaction] = useState("");
@@ -99,11 +99,11 @@ export default function HalloweenStoreApp() {
     judgeTimersRef.current.add(id);
     return id;
   };
-  const [hideDefeatedDemon, setHideDefeatedDemon] = useState(false);
-  const [combatHearts, setCombatHearts] = useState(COMBAT_MAX_HEARTS);
+  const [hideDefeatedDemon, setHideDefeatedDemon] = useState(initialSave?.demonHealth === 0);
+  const [combatHearts, setCombatHearts] = useState(initialSave?.hearts ?? COMBAT_MAX_HEARTS);
   const [damageActive, setDamageActive] = useState(false);
   const damageTimerRef = useRef(0);
-  const combatHeartsRef = useRef(COMBAT_MAX_HEARTS);
+  const combatHeartsRef = useRef(initialSave?.hearts ?? COMBAT_MAX_HEARTS);
   const invulnerableUntilRef = useRef(0);
   const [gameOver, setGameOver] = useState(false);
   const gameOverRef = useRef(false);
@@ -123,16 +123,16 @@ export default function HalloweenStoreApp() {
   const heroSubtitleTimerRef = useRef(0);
   const heroTryRef = useRef(null);
   const heroContextRef = useRef(null);
-  const [vhsCollected, setVhsCollected] = useState(false);
-  const [anniversaryUnlocked, setAnniversaryUnlocked] = useState(false);
+  const [vhsCollected, setVhsCollected] = useState(initialSave?.vhsCollected ?? false);
+  const [anniversaryUnlocked, setAnniversaryUnlocked] = useState(initialSave?.judgeDefeated ?? false);
   const judgeStatusRef = useRef(null);
   judgeStatusRef.current = { phase: judgePhase, health: judgeHealth, anniversaryUnlocked };
-  const [discoveredSecrets, setDiscoveredSecrets] = useState(() => new Set());
+  const [discoveredSecrets, setDiscoveredSecrets] = useState(() => new Set(initialSave?.discoveredSecrets || []));
   const [mirrorMessage, setMirrorMessage] = useState("");
-  const mirrorIndexRef = useRef(0);
+  const mirrorIndexRef = useRef((initialSave?.discoveredSecrets || []).filter((id) => id.startsWith("mirror:")).length % MIRROR_MESSAGES.length);
   const [phoneRinging, setPhoneRinging] = useState(false);
   const phoneRingingRef = useRef(false);
-  const phoneCallIndexRef = useRef(0);
+  const phoneCallIndexRef = useRef(initialSave?.phoneCalls ?? 0);
   const [phoneLine, setPhoneLine] = useState("");
   const phoneTimerRef = useRef(0);
   const vhsVideoRef = useRef(null);
@@ -145,7 +145,7 @@ export default function HalloweenStoreApp() {
   const demonVoicePlayedRef = useRef(new Set());
   const clockPausedRef = useRef(false);
   const lastClockTickRef = useRef(performance.now());
-  const [firstPerson, setFirstPerson] = useState(false);
+  const [firstPerson, setFirstPerson] = useState(initialSave?.firstPerson ?? false);
   const [touchRun, setTouchRun] = useState(false);
   const [orbStatus, setOrbStatus] = useState({ phase: "ready", cooldown: 0 });
   const touchMoveRef = useRef({ x: 0, y: 0 });
@@ -158,25 +158,25 @@ export default function HalloweenStoreApp() {
   const [selectedId, setSelectedId] = useState(DISCOGRAPHY_ALBUMS[0]?.id);
   const [trackIndex, setTrackIndex] = useState(null);
   const [videoIndex, setVideoIndex] = useState(null);
-  const [credits, setCredits] = useState(0);
+  const [credits, setCredits] = useState(initialSave?.credits ?? 0);
   const [coinNotice, setCoinNotice] = useState(null);
   const [jukeboxMessage, setJukeboxMessage] = useState("Tomá las fichas de la mesa. Cada video cuesta una ficha.");
-  const creditsRef = useRef(0);
+  const creditsRef = useRef(initialSave?.credits ?? 0);
   const activeVideoRef = useRef(null);
   const [npcId, setNpcId] = useState(null);
   const [topicIndex, setTopicIndex] = useState(null);
-  const jasonAttemptsRef = useRef(0);
-  const [belfegorAttempts, setBelfegorAttempts] = useState(0);
-  const [jasonResponded, setJasonResponded] = useState(false);
+  const jasonAttemptsRef = useRef(initialSave?.belfegorAttempts ?? 0);
+  const [belfegorAttempts, setBelfegorAttempts] = useState(initialSave?.belfegorAttempts ?? 0);
+  const [jasonResponded, setJasonResponded] = useState((initialSave?.belfegorAttempts ?? 0) >= 4);
   const specialAudioRef = useRef(null);
   const pendingVoiceRef = useRef(null);
   const freezerRef = useRef(null);
   const freezerShouldPlayRef = useRef(false);
-  const [ambientEnabled, setAmbientEnabled] = useState(true);
+  const [ambientEnabled, setAmbientEnabled] = useState(initialSave?.ambientEnabled ?? true);
   const [voicePlaying, setVoicePlaying] = useState(false);
   const [musicPlayback, setMusicPlayback] = useState({ key: null, playing: null });
   const [pageVisible, setPageVisible] = useState(() => !document.hidden);
-  const [showHelp, setShowHelp] = useState(true);
+  const [showHelp, setShowHelp] = useState(!initialSave || (initialSave.demonHealth === 3 && initialSave.discoveredSecrets.length === 0));
   const [reduceFlashing, setReduceFlashing] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const [lightingEvent, setLightingEvent] = useState(null);
   const lightingRef = useRef(null);
@@ -185,9 +185,9 @@ export default function HalloweenStoreApp() {
   sequenceRef.current = sequence;
   const [nearPair, setNearPair] = useState(null);
   const lastAmbientRef = useRef({ id: null, at: 0 });
-  const playedSongsRef = useRef(new Set());
-  const [songsPlayed, setSongsPlayed] = useState(0);
-  const [anniversaryStatus, setAnniversaryStatus] = useState("waiting");
+  const playedSongsRef = useRef(new Set(initialSave?.songs || []));
+  const [songsPlayed, setSongsPlayed] = useState(Math.min(3, initialSave?.songs?.length || 0));
+  const [anniversaryStatus, setAnniversaryStatus] = useState(initialSave?.judgeDefeated ? "done" : "waiting");
   const anniversaryStatusRef = useRef("waiting");
   anniversaryStatusRef.current = anniversaryStatus;
   const [secretRewardPending, setSecretRewardPending] = useState(false);
@@ -204,6 +204,36 @@ export default function HalloweenStoreApp() {
   const judgeCluesComplete = archiveProgress.demonDefeated && archiveProgress.calls === PHONE_LINES.length &&
     archiveProgress.vhsInserted && archiveProgress.npcDialogues === HALLOWEEN_NPC_IDS.length;
   const secretVinylUnlocked = canUnlockSecretVinyl({ judgeDefeated: anniversaryUnlocked, demonHealth, vhsCollected, discovered: discoveredSecrets, songsPlayed });
+  const secretVinylWasUnlockedRef = useRef(secretVinylUnlocked);
+  const playerPositionRef = useRef(initialSave?.player || { x: 0, z: 11.1, yaw: Math.PI });
+  const saveSnapshotRef = useRef(null);
+  saveSnapshotRef.current = {
+    chest: realityChest, demonHealth, judgeDefeated: judgePhase === "gone",
+    hearts: combatHearts, credits, belfegorAttempts, discoveredSecrets: [...discoveredSecrets],
+    phoneCalls: phoneCallIndexRef.current, vhsCollected, songs: [...playedSongsRef.current],
+    player: playerPositionRef.current, firstPerson, ambientEnabled,
+  };
+  const saveNowRef = useRef(null);
+  saveNowRef.current = (announce = false) => {
+    if (ready !== true || gameOverRef.current) return false;
+    const saved = onSave(saveSlot, { ...saveSnapshotRef.current, player: playerPositionRef.current, phoneCalls: phoneCallIndexRef.current, songs: [...playedSongsRef.current] });
+    if (announce) setCoinNotice(saved ? `PARTIDA ${saveSlot + 1} GUARDADA` : "NO SE PUDO GUARDAR LA PARTIDA");
+    return saved;
+  };
+  useEffect(() => {
+    if (ready !== true || gameOver) return;
+    const timer = window.setInterval(() => saveNowRef.current?.(), 15000);
+    const onPageHide = () => saveNowRef.current?.();
+    window.addEventListener("pagehide", onPageHide);
+    const onHidden = () => { if (document.hidden) saveNowRef.current?.(); };
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onHidden);
+    };
+  }, [ready, gameOver, saveSlot]);
+  const goToMenu = () => { if (!gameOverRef.current) saveNowRef.current?.(); onExit(); };
   const activeGroup = selected.group;
   const visibleAlbums = albums.filter((album) => album.group === activeGroup);
   const npc = npcId ? conversations[npcId] : null;
@@ -635,72 +665,6 @@ export default function HalloweenStoreApp() {
       queueHeroVoice("neonboy-damage-02");
     }
   };
-  useEffect(() => {
-    if (!gameOver) return;
-    const timer = window.setTimeout(() => {
-      stopNpcSound();
-      heroQueueRef.current = [];
-      heroLastPlayedRef.current.clear();
-      heroLastRandomRef.current = null;
-      heroRandomRemainingRef.current = 90 + Math.random() * 60;
-      heroIntroQueuedRef.current = false;
-      heroCombatQueuedRef.current = false;
-      heroJudgeVictoryQueuedRef.current = false;
-      judgeFinalVoiceDoneRef.current = false;
-      window.clearTimeout(heroSubtitleTimerRef.current);
-      setHeroSubtitle(null);
-      window.clearTimeout(demonSubtitleTimerRef.current);
-      window.clearTimeout(demonDeathFallbackRef.current);
-      setDemonSubtitle(null);
-      demonVoicePlayedRef.current.clear();
-      combatHeartsRef.current = COMBAT_MAX_HEARTS;
-      invulnerableUntilRef.current = 0;
-      gameOverRef.current = false;
-      setCombatHearts(COMBAT_MAX_HEARTS);
-      const clock = { phase: "locked", remaining: 0, activation: 0 };
-      visionClockRef.current = clock;
-      setVisionClock(clock);
-      wasVisionRef.current = false;
-      updateRealityChest("reset");
-      jasonAttemptsRef.current = 0;
-      setBelfegorAttempts(0);
-      setJasonResponded(false);
-      setDemonHealth(3);
-      for (const timer of judgeTimersRef.current) window.clearTimeout(timer);
-      judgeTimersRef.current.clear();
-      judgePhaseRef.current = "inactive";
-      setJudgePhase("inactive");
-      setJudgeHealth(JUDGE_MAX_HEALTH);
-      setJudgeQuestion(0);
-      setJudgeCorrect(0);
-      setJudgeReaction("");
-      judgeAnswerLockedRef.current = false;
-      setHideDefeatedDemon(false);
-      setVhsCollected(false);
-      setAnniversaryUnlocked(false);
-      setSecretRewardPending(false);
-      setDiscoveredSecrets(new Set());
-      playedSongsRef.current.clear();
-      setSongsPlayed(0);
-      anniversaryStatusRef.current = "waiting";
-      setAnniversaryStatus("waiting");
-      setMirrorMessage("");
-      mirrorIndexRef.current = 0;
-      setPhoneRinging(false);
-      phoneRingingRef.current = false;
-      setPhoneLine("");
-      phoneCallIndexRef.current = 0;
-      window.clearTimeout(phoneTimerRef.current);
-      sfxRef.current?.stopAll();
-      setPanel(null);
-      setNearby(null);
-      setReady(null);
-      setLoading({ percent: 0, label: "Preparando la tienda..." });
-      setEncounterKey((key) => key + 1);
-      setGameOver(false);
-    }, 3200);
-    return () => window.clearTimeout(timer);
-  }, [gameOver]);
   const replayNpcSound = () => {
     const voice = specialAudioRef.current;
     if (!voice) return;
@@ -857,12 +821,13 @@ export default function HalloweenStoreApp() {
     }
   };
   useEffect(() => {
-    if (secretVinylUnlocked) {
+    if (secretVinylUnlocked && !secretVinylWasUnlockedRef.current) {
       sfxRef.current?.play("anniversary-unlock");
       setCoinNotice("ARCHIVO COMPLETO: APARECI\u00d3 UN VINILO ROSA EN EL FONDO DE LA TIENDA.");
       if (panelRef.current) setSecretRewardPending(true);
       else setPanel("secret-vinyl");
     }
+    secretVinylWasUnlockedRef.current = secretVinylUnlocked;
   }, [secretVinylUnlocked]);
   useEffect(() => {
     if (ready !== true || gameOver) return;
@@ -1129,7 +1094,7 @@ export default function HalloweenStoreApp() {
               : nearby?.kind === "vinyl" ? "Ver vinilo del cuarto aniversario" : nearby?.kind === "secretVinyl" ? "Ver vinilo rosa de los secretos" : null;
 
   return <main className={`halloween-game${vision ? " is-matrix" : ""}${reduceFlashing ? " is-reduced-flashing" : ""}${["spawning", "intro", "quiz", "quiz-result", "outcome", "dying"].includes(judgePhase) ? " is-judge-dialogue" : ""}${judgePhase === "combat" ? " is-judge-combat" : ""}`}>
-    <HalloweenStoreScene key={encounterKey} albums={albums} vision={vision} damageActive={damageActive} locked={Boolean(panel) || gameOver || !pageVisible || ["spawning", "intro", "quiz", "quiz-result", "outcome", "dying"].includes(judgePhase)} glassesCollected={glassesCollected} chestOpen={realityChest.open} realityKeyOwned={realityChest.keyOwned} belfegorAttempts={belfegorAttempts} visionActivation={visionClock.activation} hideDefeatedDemon={hideDefeatedDemon} onDemonApproach={() => {
+    <HalloweenStoreScene key={encounterKey} initialSave={initialSave} onPlayerPosition={(position) => { playerPositionRef.current = position; }} albums={albums} vision={vision} damageActive={damageActive} locked={Boolean(panel) || gameOver || !pageVisible || ["spawning", "intro", "quiz", "quiz-result", "outcome", "dying"].includes(judgePhase)} glassesCollected={glassesCollected} chestOpen={realityChest.open} realityKeyOwned={realityChest.keyOwned} belfegorAttempts={belfegorAttempts} visionActivation={visionClock.activation} hideDefeatedDemon={hideDefeatedDemon} onDemonApproach={() => {
       showDemonLine(1);
       if (!heroCombatQueuedRef.current) {
         heroCombatQueuedRef.current = true;
@@ -1146,6 +1111,7 @@ export default function HalloweenStoreApp() {
           <button type="button" onClick={() => { stopNpcSound(); setPanel("album"); }}><Disc3 size={17} /> DISCOS</button>
           <button id="halloween-people-button" type="button" onClick={() => { stopNpcSound(); setPanel("people"); }}><MessageCircle size={17} /> PERSONAJES</button>
           <span className="halloween-credit-counter" role="status" aria-live="polite"><Coins size={17} /> {credits}/10 FICHAS</span>
+          <button type="button" className="halloween-save-nav" onClick={() => setPanel("save")}><Save size={17} /> PARTIDA</button>
           <button type="button" onClick={() => { stopNpcSound(); setPanel("jukebox"); }}><Radio size={17} /> ROCKOLA</button>
           <button type="button" className={`halloween-ambient-toggle${ambientEnabled ? " is-ambient-on" : ""}`} onClick={toggleAmbient}
             aria-pressed={ambientEnabled} aria-label={ambientEnabled ? "Silenciar música ambiental Freezer" : "Activar música ambiental Freezer"}
@@ -1182,7 +1148,10 @@ export default function HalloweenStoreApp() {
         <InteractionPrompt className="halloween-prompt" disabled={gameOver || ready !== true} onClick={() => { touchInput("KeyE", true); touchInput("KeyE", false); }}>{nearPrompt}</InteractionPrompt>
         {nearby?.kind === "glasses" && realityChest.open && <button type="button" className="halloween-chest-close" disabled={gameOver || ready !== true} onClick={() => onInteract({ kind: "glassesChest" })}>Cerrar caja</button>}
       </div>}
-      {phoneRinging && !panel && <div className="halloween-phone-ring" role="status">TEL&Eacute;FONO 1999 / LLAMADA {Math.min(phoneCallIndexRef.current + 1, PHONE_LINES.length)}/{PHONE_LINES.length} <span>Suena junto al mostrador. Acercate y presion&aacute; E.</span></div>}
+      {phoneRinging && !panel && <div className={nativeAndroid ? "halloween-phone-ring is-android" : "halloween-phone-ring"} role="status">
+        {nativeAndroid && <Phone size={17} aria-hidden="true" />}
+        <div><strong>TELÉFONO 1999 / LLAMADA {Math.min(phoneCallIndexRef.current + 1, PHONE_LINES.length)}/{PHONE_LINES.length}</strong><span>{nativeAndroid ? "Mostrador · acercate y tocá E" : "Suena junto al mostrador. Acercate y presioná E."}</span></div>
+      </div>}
       {coinNotice && !panel && <div className="halloween-coin-notice" role="status"><Coins size={18} /> {coinNotice}</div>}
       {sequence && sequence.index < sequence.lines.length && <div className="halloween-ambient-subtitle" role="status" aria-live="polite"><strong>{sequence.lines[sequence.index].speaker.toUpperCase()}</strong><span>{sequence.lines[sequence.index].text}</span>{!sequence.kind.startsWith("judge-") && <button type="button" onClick={() => { if (sequence.kind === "anniversary") finishAnniversary(); setSequence(null); }} aria-label="Omitir charla"><X size={15} /></button>}</div>}
       {anniversaryMessage && <div className="halloween-anniversary" role="status"><strong>NEONBOY — 4 AÑOS</strong><span>Gracias por escuchar y ser parte de esta historia.</span><small>2022 — 2026</small></div>}
@@ -1203,7 +1172,7 @@ export default function HalloweenStoreApp() {
       <span>Intentando recuperar el escenario...</span>
       <button type="button" onClick={() => window.location.reload()}>Recargar la tienda</button>
     </div>}
-    {gameOver && <div className="halloween-game-over" role="alertdialog" aria-modal="true"><strong>GAME OVER</strong><span>NEONBOY HA SIDO DERROTADO</span><small>Reiniciando el encuentro...</small></div>}
+    {gameOver && <div className="halloween-game-over" role="alertdialog" aria-modal="true"><strong>GAME OVER</strong><span>NEONBOY HA SIDO DERROTADO</span><small>Podés volver al último guardado o elegir otra partida.</small><div className="halloween-game-over-actions"><button type="button" onClick={onRetry}>REINTENTAR</button><button type="button" onClick={onExit}>IR AL INICIO</button></div></div>}
     {ready === null && <div className="halloween-loading-screen">
       <div className="halloween-loading-card">
         <div className="halloween-loading-brand"><img src={NEONBOY_LOGO} alt="NeonBoy" /><small>MUSIC / HALLOWEEN</small></div>
@@ -1218,8 +1187,8 @@ export default function HalloweenStoreApp() {
       </div>
     </div>}
     {panel && <div className="halloween-panel-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
-      <section className={`halloween-panel${panel === "npc" ? " halloween-conversation-panel" : ""}${panel === "npc" && !npc?.topics.length ? " is-quiet-conversation" : ""}${panel === "phone" ? " halloween-phone-dialog" : ""}`} role="dialog" aria-modal="true" aria-labelledby={panel === "npc" ? "halloween-dialogue-title" : undefined} aria-label={panel === "album" ? "Discograf\u00eda" : panel === "npc" ? "Conversaci\u00f3n" : panel === "jukebox" ? "Rockola" : panel === "phone" ? "Llamada telef\u00f3nica" : panel === "mirror" ? "Espejo de las almas" : panel === "vhs" ? "Archivo VHS" : panel === "anniversary-vinyl" ? "Vinilo del cuarto aniversario" : panel === "secret-vinyl" ? "Vinilo rosa de los secretos" : panel === "reality-key" ? "Llave de la realidad" : "Personajes"}>
-        {panel !== "npc" && <div className="halloween-panel-top"><div><small>NEONBOY MUSIC / HALLOWEEN</small><h2>{panel === "album" ? "LOS DISCOS" : panel === "npc" ? npc?.name : panel === "jukebox" ? "LA ROCKOLA" : panel === "phone" ? "LLAMADA DESCONOCIDA" : panel === "mirror" ? "EL ESPEJO DE LAS ALMAS" : panel === "vhs" ? "ARCHIVO VHS" : panel === "anniversary-vinyl" ? "VINILO DEL CUARTO ANIVERSARIO" : panel === "secret-vinyl" ? "VINILO ROSA / ARCHIVO COMPLETO" : panel === "reality-key" ? "LA LLAVE DE LA REALIDAD" : "LA GENTE DE LA TIENDA"}</h2></div><button onClick={close} aria-label="Cerrar"><X size={22} /></button></div>}
+      <section className={`halloween-panel${panel === "npc" ? " halloween-conversation-panel" : ""}${panel === "npc" && !npc?.topics.length ? " is-quiet-conversation" : ""}${panel === "phone" ? " halloween-phone-dialog" : ""}`} role="dialog" aria-modal="true" aria-labelledby={panel === "npc" ? "halloween-dialogue-title" : undefined} aria-label={panel === "album" ? "Discograf\u00eda" : panel === "npc" ? "Conversaci\u00f3n" : panel === "jukebox" ? "Rockola" : panel === "phone" ? "Llamada telef\u00f3nica" : panel === "mirror" ? "Espejo de las almas" : panel === "vhs" ? "Archivo VHS" : panel === "anniversary-vinyl" ? "Vinilo del cuarto aniversario" : panel === "secret-vinyl" ? "Vinilo rosa de los secretos" : panel === "reality-key" ? "Llave de la realidad" : panel === "save" ? "Partida guardada" : "Personajes"}>
+        {panel !== "npc" && <div className="halloween-panel-top"><div><small>NEONBOY MUSIC / HALLOWEEN</small><h2>{panel === "album" ? "LOS DISCOS" : panel === "npc" ? npc?.name : panel === "jukebox" ? "LA ROCKOLA" : panel === "save" ? "TU PARTIDA" : panel === "phone" ? "LLAMADA DESCONOCIDA" : panel === "mirror" ? "EL ESPEJO DE LAS ALMAS" : panel === "vhs" ? "ARCHIVO VHS" : panel === "anniversary-vinyl" ? "VINILO DEL CUARTO ANIVERSARIO" : panel === "secret-vinyl" ? "VINILO ROSA / ARCHIVO COMPLETO" : panel === "reality-key" ? "LA LLAVE DE LA REALIDAD" : "LA GENTE DE LA TIENDA"}</h2></div><button onClick={close} aria-label="Cerrar"><X size={22} /></button></div>}
         {panel === "album" && <div className="halloween-album-layout">
           <div className="halloween-album-catalog">
             <div className="halloween-album-groups" role="group" aria-label="Tipo de discos">
@@ -1243,6 +1212,17 @@ export default function HalloweenStoreApp() {
           onGreeting={() => { setTopicIndex(null); playDialogueId(npc.introId); }}
           onReplay={replayNpcSound} onToggleVoice={toggleNpcSound} onInsist={tryJason} onAmbient={startAmbient} onClose={close}
         />}
+        {panel === "save" && <div className="halloween-save-panel">
+          <div className="halloween-save-disc" aria-hidden="true"><Disc3 size={48} /></div>
+          <small>ESPACIO {String(saveSlot + 1).padStart(2, "0")} / GUARDADO LOCAL</small>
+          <h3>Tu historia sigue acá</h3>
+          <p>Se guarda automáticamente cada 15 segundos en este dispositivo. También podés guardar ahora o volver a la pantalla de inicio.</p>
+          <div className="halloween-save-actions">
+            <button type="button" onClick={() => { if (saveNowRef.current?.(true)) setPanel(null); }}><Save size={18} /> GUARDAR AHORA</button>
+            <button type="button" onClick={() => { if (saveNowRef.current?.(true)) onExit(); }}>GUARDAR Y VOLVER AL INICIO</button>
+          </div>
+          <small>Si guardás durante el combate final, el encuentro vuelve a empezar al cargar.</small>
+        </div>}
         {panel === "reality-key" && <div className="halloween-secret-panel halloween-key-panel">
           <HalloweenRealityKey />
           <button type="button" onClick={close}>Volver a la tienda</button>
@@ -1258,7 +1238,7 @@ export default function HalloweenStoreApp() {
             <div className="halloween-phone-status"><span className="halloween-phone-live" /> L&Iacute;NEA CONECTADA <span className="halloween-phone-year">BUENOS AIRES / 1999</span></div>
             <div className="halloween-phone-message"><span>VOZ DESCONOCIDA</span><p>{phoneLine}</p></div>
             <div className={`halloween-phone-wave${voicePlaying ? " is-playing" : ""}`} aria-hidden="true">{Array.from({ length: 32 }, (_, index) => <i key={index} style={{ height: `${8 + (index * 17 + index * index * 3) % 34}px` }} />)}</div>
-            <div className="halloween-phone-bottom"><span>LLAMADA {Math.min(phoneCallIndexRef.current, PHONE_LINES.length)} DE {PHONE_LINES.length} <b>?</b> SE?AL INTERCEPTADA</span><button type="button" onClick={close}><PhoneOff size={17} aria-hidden="true" /> Colgar</button></div>
+            <div className="halloween-phone-bottom"><span>LLAMADA {Math.min(phoneCallIndexRef.current, PHONE_LINES.length)} DE {PHONE_LINES.length} <b>·</b> SEÑAL INTERCEPTADA</span><button type="button" onClick={close}><PhoneOff size={17} aria-hidden="true" /> Colgar</button></div>
           </div>
         </div>}
         {panel === "mirror" && <div className="halloween-secret-panel halloween-mirror-panel">
@@ -1271,13 +1251,13 @@ export default function HalloweenStoreApp() {
         {panel === "anniversary-vinyl" && <div className="halloween-secret-panel halloween-vinyl-panel">
           <Disc3 size={82} aria-hidden="true" /><strong>NEONBOY</strong><h3>4 A&Ntilde;OS</h3><span>2022 &mdash; 2026</span>
           <p>Gracias por acompa&ntilde;ar estos cuatro a&ntilde;os de NeonBoy. Cada disco y cada historia existen gracias a quienes estuvieron ah&iacute;.</p>
-          <div className="halloween-vinyl-actions"><button type="button" onClick={close}>SEGUIR EXPLORANDO</button><button type="button" onClick={() => window.location.reload()}>REINICIAR JUEGO</button></div>
+          <div className="halloween-vinyl-actions"><button type="button" onClick={close}>SEGUIR EXPLORANDO</button><button type="button" onClick={goToMenu}>VOLVER AL INICIO</button></div>
         </div>}
         {panel === "secret-vinyl" && <div className="halloween-secret-panel halloween-vinyl-panel halloween-secret-vinyl-panel">
           <div className="halloween-pink-record" aria-hidden="true"><span>NEONBOY</span></div>
           <strong>ARCHIVO COMPLETO</strong><h3>&iexcl;FELICITACIONES!</h3>
           <p>Descubriste todos los secretos de NeonBoy.</p>
-          <div className="halloween-vinyl-actions"><button type="button" onClick={close}>SEGUIR EXPLORANDO</button><button type="button" onClick={() => window.location.reload()}>REINICIAR JUEGO</button></div>
+          <div className="halloween-vinyl-actions"><button type="button" onClick={close}>SEGUIR EXPLORANDO</button><button type="button" onClick={goToMenu}>VOLVER AL INICIO</button></div>
         </div>}
         {panel === "jukebox" && <div className="halloween-jukebox">
           <div className="halloween-jukebox-screen">{video ? <><HalloweenYouTubePlayer key={video.videoId} videoId={video.videoId} title={video.title} onPlaybackChange={(playing) => setMusicPlayback({ key: `jukebox:${video.videoId}`, playing })} /><strong>{video.title}</strong><a href={video.url} target="_blank" rel="noopener noreferrer">Abrir en YouTube <ExternalLink size={13} /></a></> : <div className="halloween-jukebox-idle"><Disc3 size={68} /><strong>NEONBOY VISION</strong><span>Insertá una ficha para empezar.</span></div>}</div>

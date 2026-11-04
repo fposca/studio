@@ -84,7 +84,7 @@ export function createHalloweenDemonEncounter(scene) {
     }
     actions.idle?.play();
     forms.push({ body, mixer, actions, current: "idle" });
-    body.visible = forms.length === 1;
+    body.visible = !defeatedHidden && forms.length === 1;
     return [walk.scene, attack?.scene, death?.scene].filter(Boolean);
   }
   function setPose(form, walking, attacking) {
@@ -122,6 +122,15 @@ export function createHalloweenDemonEncounter(scene) {
       }
     }
     return health;
+  }
+  function restoreHealth(value) {
+    health = Math.min(3, Math.max(0, Number.isFinite(value) ? Math.trunc(value) : 3));
+    deathRemaining = 0;
+    hideRequested = defeatedHidden = health === 0;
+    telegraph = attackRecovery = 0;
+    pulse.visible = false;
+    shield.setDisabled(health === 0);
+    if (defeatedHidden) forms.forEach((form) => { form.body.visible = false; form.mixer.stopAllAction(); });
   }
   function hideDefeated() {
     if (health !== 0) return;
@@ -185,7 +194,7 @@ export function createHalloweenDemonEncounter(scene) {
     }
   }
   return {
-    root, glasses, mountForm, mountGlasses, setVision, collect, setChestOpen, hit, update,
+    root, glasses, mountForm, mountGlasses, setVision, collect, setChestOpen, hit, update, restoreHealth,
     getOrbTarget() {
       if (!revealed || health <= 0) return null;
       orbTarget.position.set(root.position.x, 1.35, root.position.z);

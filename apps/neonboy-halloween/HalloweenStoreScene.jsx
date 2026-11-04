@@ -79,10 +79,10 @@ function inPlaceClip(source, name) {
   return clip;
 }
 
-export default function HalloweenStoreScene({ albums, vision, damageActive, locked, credits, onSelectAlbum, onInteract, onNearby, onReady, onProgress, onViewChange, lightingEvent, reduceFlashing, onAmbientOpportunity, touchRun, touchMoveRef, onOrbStatus, glassesCollected, chestOpen, realityKeyOwned, belfegorAttempts, visionActivation, hideDefeatedDemon, onDemonApproach, onDemonHit, onDemonTaunt, onDemonShieldHit, onPlayerDamage, judgePhase, onJudgeHit, onJudgeEvent, onJudgeDeathComplete, vhsCollected, anniversaryUnlocked, secretVinylUnlocked, phoneRinging, onSecretDiscovered, onMirrorWhisper, onContextChange }) {
+export default function HalloweenStoreScene({ initialSave, onPlayerPosition, albums, vision, damageActive, locked, credits, onSelectAlbum, onInteract, onNearby, onReady, onProgress, onViewChange, lightingEvent, reduceFlashing, onAmbientOpportunity, touchRun, touchMoveRef, onOrbStatus, glassesCollected, chestOpen, realityKeyOwned, belfegorAttempts, visionActivation, hideDefeatedDemon, onDemonApproach, onDemonHit, onDemonTaunt, onDemonShieldHit, onPlayerDamage, judgePhase, onJudgeHit, onJudgeEvent, onJudgeDeathComplete, vhsCollected, anniversaryUnlocked, secretVinylUnlocked, phoneRinging, onSecretDiscovered, onMirrorWhisper, onContextChange }) {
   const canvasRef = useRef(null);
   const propsRef = useRef(null);
-  propsRef.current = { vision, locked, credits, onSelectAlbum, onInteract, onNearby, onReady, onProgress, onViewChange, lightingEvent, reduceFlashing, onAmbientOpportunity, touchRun, touchMoveRef, onOrbStatus, glassesCollected, chestOpen, realityKeyOwned, belfegorAttempts, visionActivation, hideDefeatedDemon, onDemonApproach, onDemonHit, onDemonTaunt, onDemonShieldHit, onPlayerDamage, judgePhase, onJudgeHit, onJudgeEvent, onJudgeDeathComplete, vhsCollected, anniversaryUnlocked, secretVinylUnlocked, phoneRinging, onSecretDiscovered, onMirrorWhisper, onContextChange };
+  propsRef.current = { initialSave, onPlayerPosition, vision, locked, credits, onSelectAlbum, onInteract, onNearby, onReady, onProgress, onViewChange, lightingEvent, reduceFlashing, onAmbientOpportunity, touchRun, touchMoveRef, onOrbStatus, glassesCollected, chestOpen, realityKeyOwned, belfegorAttempts, visionActivation, hideDefeatedDemon, onDemonApproach, onDemonHit, onDemonTaunt, onDemonShieldHit, onPlayerDamage, judgePhase, onJudgeHit, onJudgeEvent, onJudgeDeathComplete, vhsCollected, anniversaryUnlocked, secretVinylUnlocked, phoneRinging, onSecretDiscovered, onMirrorWhisper, onContextChange };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -225,6 +225,7 @@ export default function HalloweenStoreScene({ albums, vision, damageActive, lock
     }
     const npcActors = createRecordStoreNpcActors(scene, { loadAsync: loadModel }, shop.clickable, disposeObjects, { deferLoad: true, npcs });
     const demon = createHalloweenDemonEncounter(scene);
+    if (propsRef.current.initialSave) demon.restoreHealth(propsRef.current.initialSave.demonHealth);
     const glassesChest = createHalloweenGlassesChest(scene);
     const realityKey = createHalloweenRealityKeyPickup(scene);
     codeVision.register(glassesChest.root);
@@ -346,9 +347,9 @@ export default function HalloweenStoreScene({ albums, vision, damageActive, lock
     }).catch(() => { if (alive) propsRef.current.onReady?.(false); });
 
     const camera = new THREE.PerspectiveCamera(63, 1, .05, 75);
-    const player = { x: 0, y: 0, z: STORE_LAYOUT.spawnZ, yaw: Math.PI, speed: 0, grounded: true, running: false, velocityY: 0, landing: 0, raiseArmsOnJump: true };
-    const view = { yaw: 0, pitch: .34, firstPitch: 0, distance: 4.5, firstPerson: false };
-    const firstMotion = createFirstPersonMotion();
+    const player = { x: propsRef.current.initialSave?.player?.x ?? 0, y: 0, z: propsRef.current.initialSave?.player?.z ?? STORE_LAYOUT.spawnZ, yaw: propsRef.current.initialSave?.player?.yaw ?? Math.PI, speed: 0, grounded: true, running: false, velocityY: 0, landing: 0, raiseArmsOnJump: true };
+    const view = { yaw: (propsRef.current.initialSave?.player?.yaw ?? Math.PI) - Math.PI, pitch: .34, firstPitch: 0, distance: 4.5, firstPerson: propsRef.current.initialSave?.firstPerson ?? false };
+    const firstMotion = createFirstPersonMotion(view.yaw);
     const held = new Set();
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
@@ -360,6 +361,7 @@ export default function HalloweenStoreScene({ albums, vision, damageActive, lock
     const judgeCameraReturnLook = new THREE.Vector3();
     const judgePlayerLook = new THREE.Vector3();
     let judgeCameraMode = "inactive", judgeCameraStartTime = 0;
+    let nextSavePosition = 0;
     let previousFrameTime = performance.now();
     let dragging = null, nearKey = "", nearInteraction = null, nearPairKey = null, nextAmbientScan = 0, frameId = 0, elapsed = 0, nextResourceScan = 0;
     let lastMirrorWhisperActivation = -1;
@@ -374,6 +376,8 @@ export default function HalloweenStoreScene({ albums, vision, damageActive, lock
         const position = npcActors.getPosition(id);
         return position && Math.hypot(x - position.x, z - position.z) < .73;
       });
+    if (!canMove(player.x, player.z)) { player.x = 0; player.z = STORE_LAYOUT.spawnZ; }
+    propsRef.current.onPlayerPosition?.({ x: player.x, z: player.z, yaw: player.yaw });
     // Lightweight collision proxies keep the original orb from flying through displays.
     // They are not added to the scene, so they cannot alter the shop or Matrix vision.
     const orbColliderMaterial = new THREE.MeshBasicMaterial({ side: THREE.DoubleSide });
@@ -568,6 +572,10 @@ export default function HalloweenStoreScene({ albums, vision, damageActive, lock
       player.running = speed > 4;
       if (view.firstPerson) player.yaw = Math.PI + view.yaw;
       else if (player.speed > .2) player.yaw = Math.atan2(player.x - px, player.z - pz);
+      if (elapsed >= nextSavePosition) {
+        nextSavePosition = elapsed + .75;
+        propsRef.current.onPlayerPosition?.({ x: player.x, z: player.z, yaw: player.yaw });
+      }
       if (!player.grounded) {
         player.velocityY -= 18 * dt;
         player.y = Math.max(0, player.y + player.velocityY * dt);
