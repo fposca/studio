@@ -9,7 +9,7 @@ const archiveItems = [
   { flag: "newBornInfo", title: "New Born", text: "Hugo participó con guitarras." }
 ];
 
-export default function StudioWorkbench({ mode, albumId = null, progress, masterTape, onClose, onExplore, paused = false }) {
+export default function StudioWorkbench({ mode, albumId = null, progress, masterTape, onClose, onExplore, signalAvailable = false, onAnalyzeSignal, signalContextText, paused = false }) {
   const [selected, setSelected] = useState(null);
   const [activeAlbumId, setActiveAlbumId] = useState(albumId);
   const [trackIndex, setTrackIndex] = useState(null);
@@ -52,7 +52,13 @@ export default function StudioWorkbench({ mode, albumId = null, progress, master
         <small>{showAlbums ? (computer ? "PC / HUGO MENDEZ / DISCOGRAFÍA" : "GALERÍA / HUGO MENDEZ / DISCOGRAFÍA") :
           computer ? "PC / ARCHIVO DE SESIONES" : consoleMode ? "CONSOLA / CANALES" : "DOCUMENTOS DESBLOQUEADOS"}</small>
         <h3>{showAlbums ? "Hugo Mendez · Discografía" : title}</h3>
+        {computer && signalAvailable && <div className="studio-signal-file" role="note">
+          <div><small>ARCHIVO RECUPERADO / 09</small><strong>F09_SIGNAL.WAV</strong>
+            <p>{signalContextText || "El programa de análisis está listo. La señal hallada en la tienda figura como una entrada desconocida. Hugo puede ayudarte a aislarla."}</p></div>
+          <button type="button" onClick={onAnalyzeSignal}>Analizar señal</button>
+        </div>}
         {computer && !showAlbums && <p>Una reconstrucción informativa del trabajo en el estudio. No son archivos de sesión ni pistas de audio reales.</p>}
+        {consoleMode && progress.impossibleRecordingStarted && <p className="studio-signal-context">{progress.studioAnomalySeen ? "La consola todavía registra una frecuencia extraña." : "Tenemos que aislar la señal."}</p>}
         {consoleMode && masterTape?.phase === "review" && <p className="master-tape-console-progress">El máster perdido · Revisá guitarra, bajo y batería ({masterTape.reviewed.length}/3). Guitarra rítmica o solista cuentan como guitarra.</p>}
         {consoleMode && <p>Seleccioná un canal para entender su función. No hay stems disponibles para reproducir instrumentos por separado.</p>}
         {mode === "archive" ? <>

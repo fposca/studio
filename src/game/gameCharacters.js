@@ -7,10 +7,11 @@ import { ATTACKS, attackEnvelope, GRAVITY, JUMP_SPEED, RUN_SPEED } from "./gameR
 import { createWeaponModel } from "./gameWeapons.js";
 import { createHandGrip } from "./gameGrip.js";
 import { landingCompression } from "./gameLocomotion.js";
+import { createHolographicGroundRing } from "./holographicGroundRing.js";
 
 const idleUrl = new URL("../assets/neonboy-animaciones/neon-inactivo-hd.glb", import.meta.url).href;
 const walkUrl = new URL("../assets/neonboy-animaciones/neonboy-new-walk.anim.glb", import.meta.url).href;
-const runUrl = new URL("../assets/neonboy-animaciones/run.glb", import.meta.url).href;
+const runUrl = new URL("../assets/neonboy-animaciones/neonboy-running.anim.glb", import.meta.url).href;
 const jumpUrl = new URL("../assets/neonboy-animaciones/neonboy-new-jump.anim.glb", import.meta.url).href;
 const kickUrl = new URL("../assets/neonboy-animaciones/patada.glb", import.meta.url).href;
 const fistUrl = new URL("../assets/neonboy-animaciones/neon-fist.glb", import.meta.url).href;
@@ -343,11 +344,9 @@ export function createGameCharacter(asset, hostile = false, { boss = false } = {
     bone.quaternion.slerp(desiredQuaternion, weight);
   }
 
-  const ringMaterial = new THREE.MeshBasicMaterial({ color: hostile ? 0xf36555 : 0x62edcb, transparent: true,
-    opacity: hostile ? 0.5 : 0.35, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
-  const ring = new THREE.Mesh(new THREE.RingGeometry(boss ? 1.05 : hostile ? 0.46 : 0.37, boss ? 1.12 : hostile ? 0.5 : 0.4, 48), ringMaterial);
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.035;
+  const ringVisual = createHolographicGroundRing({ radius: boss ? 1.12 : hostile ? .53 : .48,
+    color: hostile ? 0xf0649f : 0x59dfca, secondary: hostile ? 0xffc0e2 : 0xb9faff, opacity: .8 });
+  const ring = ringVisual.mesh;
   root.add(ring);
   const healthGroup = new THREE.Group();
   const healthBack = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.075), new THREE.MeshBasicMaterial({ color: 0x181e20, depthWrite: false }));
@@ -559,8 +558,9 @@ export function createGameCharacter(asset, hostile = false, { boss = false } = {
       }
       ring.visible = actor.health > 0 && actor.grounded && !actor.presentation;
       ring.scale.setScalar(hostile && actor.attack ? 1 + attackEnvelope(actor.attack.kind, actor.attack.elapsed) * 1.4 : 1);
-      ringMaterial.opacity = hostile && actor.attack ? 0.9 : hostile ? 0.5 : 0.35;
-      if (boss) ringMaterial.color.set(actor.attack ? 0xff754d : 0xbb4d35);
+      ringVisual.update(dt, { opacity: hostile && actor.attack ? .95 : .8,
+        color: hostile ? (actor.attack ? 0xff634f : 0xe866b6) : 0x59dfca,
+        alert: hostile && actor.attack ? 1 : 0 });
       healthGroup.visible = hostile && !boss && actor.health > 0;
       if (healthGroup.visible) {
         camera.getWorldQuaternion(worldQuaternion);

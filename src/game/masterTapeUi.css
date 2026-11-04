@@ -1,8 +1,5 @@
-.master-tape-hud { position: absolute; z-index: 4; left: 22px; top: 272px; display: grid; gap: 4px; width: min(360px, calc(100% - 44px)); padding: 10px 13px; border: 1px solid #d295c5; border-left: 3px solid #e668be; border-radius: 4px; background: #170e21e8; color: #f8e9d5; box-shadow: 0 8px 28px #0008; font-family: var(--store-font); pointer-events: none; }
+.master-tape-hud { position: absolute; z-index: 4; left: 22px; top: 272px; width: min(360px, calc(100% - 44px)); }
 .master-tape-hud--studio { top: 205px; }
-.master-tape-hud strong { color: #f3a8dc; font-size: 10px; letter-spacing: .12em; }
-.master-tape-hud span { font-size: 11px; font-weight: 700; line-height: 1.35; }
-.master-tape-hud small { color: #e1c4ae; font-size: 9px; line-height: 1.4; }
 .neon-record-store .record-store-arcade-hud .neon-sessions-trigger { border-color: #e199cc; background: #4b2552; color: #fff0de; }
 .neon-sessions-archive { align-self: center; width: min(700px, 100%); max-height: min(84vh, 750px); overflow-y: auto; padding: 22px; border: 2px solid #db8bc7; border-radius: 8px; background: linear-gradient(135deg, #29172f, #100d1c); color: #fff1dc; box-shadow: 0 0 0 5px #130b1b, 0 28px 75px #000d; font-family: var(--store-font); }
 .neon-sessions-archive header small { color: #f4a5ce; font-size: 10px; font-weight: 800; letter-spacing: .15em; }

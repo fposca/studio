@@ -34,9 +34,16 @@ test("FREQUENCY 09 absorbs NeonBoy, reveals the future and returns with saved pr
   await expect(arcade.locator(".frequency-intake")).toBeVisible();
   await page.getByRole("dialog", { name: /pausa/i }).getByRole("button", { name: "Continuar" }).click();
   await page.keyboard.press("e");
+  await page.waitForTimeout(1600);
+  await page.screenshot({ path: testInfo.outputPath("frequency-intake.png") });
   await expect(page.getByRole("region", { name: "Interior de FREQUENCY 09" })).toBeVisible({ timeout: 12_000 });
   const realm = page.getByRole("region", { name: "Interior de FREQUENCY 09" });
   await expect(realm.locator(".record-store-3d")).toHaveAttribute("data-ready", "true", { timeout: 90_000 });
+  await expect(realm.locator("canvas")).toHaveAttribute("data-ghost-loaded", "true");
+  await expect(realm.locator(".frequency-arrival")).toBeAttached();
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: testInfo.outputPath("frequency-arrival.png") });
+  await page.waitForTimeout(2800);
   await expect(realm.getByText("0/2 ecos encontrados")).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("frequency-realm.png") });
   const walk = async (duration) => {
@@ -65,11 +72,28 @@ test("FREQUENCY 09 absorbs NeonBoy, reveals the future and returns with saved pr
   })).toBe(true);
   await page.keyboard.press("e");
   await expect(arcade.locator(".frequency-intake")).toHaveCount(0);
+  const replayButton = arcade.getByRole("button", { name: "Repetir secuencia (prueba)" });
+  await expect(replayButton).toBeVisible();
+  const savedProgress = await page.evaluate(() => JSON.parse(localStorage.getItem("neonboy.universe.saves.v1")).slots.autosave.data.arcadeProgress);
+  await replayButton.click();
+  await expect(arcade.locator(".frequency-intake")).toBeVisible();
+  await expect(realm).toBeVisible({ timeout: 12_000 });
+  await expect(realm.locator(".record-store-3d")).toHaveAttribute("data-ready", "true", { timeout: 90_000 });
+  await walk(2200); await page.keyboard.press("e");
+  await expect(realm.getByText("1/2 ecos encontrados")).toBeVisible();
+  await walk(1900); await page.keyboard.press("e");
+  await expect(realm.getByText("2/2 ecos encontrados")).toBeVisible();
+  await walk(2000); await page.keyboard.press("e");
+  await expect(arcade).toBeVisible({ timeout: 20_000 });
+  await expect(arcade.getByText(/Ya conozco lo que hay del otro lado/)).toBeVisible();
+  await page.waitForTimeout(900);
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("neonboy.universe.saves.v1")).slots.autosave.data.arcadeProgress)).toEqual(savedProgress);
   await arcade.getByRole("button", { name: "MAPA" }).click();
   const map = page.getByRole("dialog", { name: "Mapa de NeonBoy Universe" });
   await map.getByRole("button", { name: /Entrar a la Tienda de Discos/ }).click();
   const store = page.getByRole("region", { name: "Tienda de discos Neonboy" });
-  await expect(store.getByText("La tienda sigue intacta... por ahora.")).toBeVisible();
+  await expect(store.locator("canvas")).toHaveAttribute("data-ghost-loaded", "true", { timeout: 90_000 });
+  await expect(store.getByText("EL REGRESO")).toBeVisible();
   await expect.poll(() => page.evaluate(() => {
     const save = JSON.parse(localStorage.getItem("neonboy.universe.saves.v1"));
     return save.slots.autosave.data.arcadeProgress.recordStoreRevisitedAfterVision;

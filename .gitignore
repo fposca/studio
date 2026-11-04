@@ -9,3 +9,14 @@ playwright-report/
 *.log
 
 dist-discografia/
+
+dist-halloween/
+# Standalone Halloween Android build outputs
+/dist-halloween-android/
+/apps/neonboy-halloween/android/.gradle/
+/apps/neonboy-halloween/android/.idea/
+/apps/neonboy-halloween/android/local.properties
+/apps/neonboy-halloween/android/captures/
+/apps/neonboy-halloween/android/**/build/
+/apps/neonboy-halloween/android/app/src/main/assets/public/
+/apps/neonboy-halloween/android/app/src/main/assets/capacitor.config.json

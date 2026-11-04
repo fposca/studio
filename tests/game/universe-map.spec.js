@@ -8,6 +8,7 @@ test("the universe map keeps the 3D store mounted and only enters the record sho
   const shop = page.getByRole("region", { name: "Tienda de discos Neonboy" });
   const scene = shop.locator(".record-store-3d");
   await expect(scene).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+  await shop.getByRole("tab", { name: "Discos" }).click();
   await shop.getByRole("button", { name: "Disco Gloom", exact: true }).click();
   await page.evaluate(() => { window.__storeCanvasBeforeMap = document.querySelector(".record-store-3d canvas"); });
 
@@ -26,7 +27,7 @@ test("the universe map keeps the 3D store mounted and only enters the record sho
 
   await page.keyboard.press("Escape");
   await expect(map).toHaveCount(0);
-  await expect(shop.getByRole("button", { name: "Disco Gloom", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(shop.getByRole("heading", { name: "Gloom", exact: true })).toBeVisible();
   expect(await page.evaluate(() => window.__storeCanvasBeforeMap === document.querySelector(".record-store-3d canvas"))).toBe(true);
 
   await page.keyboard.press("m");

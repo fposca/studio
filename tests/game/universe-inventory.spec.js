@@ -57,10 +57,10 @@ test("I opens the same mission inventory in store, studio and club without a loa
 
 test("collected coins appear as the live rockola balance and decrease when a video plays", async ({ page }) => {
   test.setTimeout(120_000);
-  await page.route("https://www.youtube.com/embed/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<title>Mock YouTube</title>" }));
   await page.goto("/discografia/?direct=1");
   const store = page.getByRole("region", { name: "Tienda de discos Neonboy" });
   await expect(store.locator(".record-store-3d")).toHaveAttribute("data-ready", "true", { timeout: 90_000 });
+  await page.route("https://www.youtube.com/embed/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<title>Mock YouTube</title>" }));
   await page.keyboard.press("i");
   const inventory = page.getByRole("dialog", { name: "Inventario — NeonBoy" });
   await expect(inventory.getByRole("button", { name: /Monedas \/ fichas de rockola/ })).toHaveCount(0);

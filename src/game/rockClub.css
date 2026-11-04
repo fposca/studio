@@ -11,15 +11,9 @@
 .neon-rock-club .record-store-loading-vinyl { filter: hue-rotate(-32deg); }
 @media (max-width: 700px) { .neon-rock-club .studio-header h2 { font-size: 23px; } }
 
-.club-show-hud { position: absolute; z-index: 4; left: 22px; top: 375px; display: grid; gap: 5px;
-  width: min(360px, calc(100% - 44px)); padding: 10px 13px; border: 1px solid #bd789d;
-  border-left: 3px solid #e86cad; border-radius: 4px; background: #170e21e8;
-  color: #f8e9d5; box-shadow: 0 8px 28px #0008; font-family: var(--store-font); pointer-events: none; }
+.club-show-hud { position: absolute; z-index: 4; left: 22px; top: 375px; width: min(360px, calc(100% - 44px)); }
 .club-show-hud--studio { top: 305px; }
 .club-show-hud--club { top: 165px; }
-.club-show-hud strong { color: #f4a9d4; font-size: 10px; letter-spacing: .12em; }
-.club-show-hud span { font-size: 11px; font-weight: 700; line-height: 1.4; }
-.club-show-hud small { color: #e5c8ae; font-size: 9px; }
 .club-unlock-notice { position: absolute; z-index: 8; right: 22px; bottom: 58px; display: flex; align-items: center; gap: 16px;
   max-width: min(430px, calc(100% - 44px)); padding: 12px 14px; border: 1px solid #e4a0ca;
   background: #26142feb; color: #fff0dd; box-shadow: 0 12px 30px #0009; font-family: var(--store-font); font-size: 12px; }

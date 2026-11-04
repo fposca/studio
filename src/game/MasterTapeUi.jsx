@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { masterTapeInventory, masterTapeObjective } from "./masterTapeQuest.js";
+import UniverseMissionCard from "./UniverseMissionCard.jsx";
 
 const SECTIONS = [
   ["Demos", "Bocetos y primeras versiones"],
@@ -12,12 +13,14 @@ const SECTIONS = [
 export function MasterTapeHud({ progress, scene }) {
   if (progress.phase === "new") return null;
   const inventory = masterTapeInventory(progress);
-  return <aside className={"master-tape-hud master-tape-hud--" + scene} aria-label="Misión El máster perdido">
-    <strong>EL MÁSTER PERDIDO</strong>
-    <span>{masterTapeObjective(progress)}</span>
-    {inventory.length > 0 && <small>INVENTARIO · {inventory.join(" · ")}</small>}
-    <small>FICHAS DE ESTUDIO · {progress.studioTokens}</small>
-  </aside>;
+  const complete = progress.phase === "complete";
+  return <UniverseMissionCard className={"master-tape-hud master-tape-hud--" + scene}
+    title="El máster perdido" kind="tape" complete={complete}
+    objective={complete ? "Neon Sessions disponible en la tienda." : masterTapeObjective(progress)}
+    details={[
+      inventory.length > 0 && `Inventario · ${inventory.join(" · ")}`,
+      `Fichas de estudio · ${progress.studioTokens}`,
+    ]} />;
 }
 
 export function NeonSessionsArchive({ progress, onClose }) {

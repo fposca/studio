@@ -1,14 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Archive, Backpack, CassetteTape, Coins, Disc3, IdCard, Ticket, X } from "lucide-react";
+import { Archive, Backpack, CassetteTape, CircleDot, Coins, Disc3, IdCard, Ticket, X } from "lucide-react";
 import { INVENTORY_CATEGORIES } from "./universeInventory.js";
 import "./universeInventory.css";
 
 const ICONS = {
   tape: CassetteTape, master: Disc3, badge: IdCard,
-  "studio-token": Ticket, coin: Coins, archive: Archive,
+  "studio-token": Ticket, coin: Coins, archive: Archive, orb: CircleDot,
 };
 const TYPE_LABELS = {
-  mission: "OBJETO DE MISIÓN", access: "ACCESO", collectible: "COLECCIONABLE",
+  mission: "OBJETO DE MISIÓN", access: "ACCESO", collectible: "COLECCIONABLE", ability: "HABILIDAD",
 };
 
 function ItemIcon({ item, size = 28 }) {

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">NeonBoy Music Halloween</string>
+    <string name="title_activity_main">NeonBoy Music Halloween</string>
+    <string name="package_name">ar.com.neonboy.halloween</string>
+    <string name="custom_url_scheme">ar.com.neonboy.halloween</string>
+</resources>

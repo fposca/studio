@@ -34,6 +34,7 @@ export const STUDIO_EXAMINE = [
   { id: "hugo-album:voodoo-women-blues", label: "Disco", x: 9.5, z: -1.6, reach: 2.05 },
   { id: "console", label: "Consola", x: 0, z: -2.1, reach: 3.9, text: "Esta consola tiene más canales que una televisión por cable." },
   { id: "guitar", label: "Guitarra", x: 8.65, z: 3.1, reach: 2.4, text: "Una guitarra preparada para grabar el próximo solo." },
+  { id: "monitors", label: "Monitores", x: -3.0, z: -4.45, reach: 2.25, text: "Los monitores est\u00e1n en silencio. No hay una fuente de audio activa." },
   { id: "computer", label: "Computadora", x: 5.0, z: -4.44, reach: 2.4, text: "Tecnología de última generación... para 1999." },
   { id: "microphone", label: "Micrófono", x: 2.55, z: -14.15, reach: 2.35, text: "Acá empiezan las canciones que después terminan en los discos." },
 ];

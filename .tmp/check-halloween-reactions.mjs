@@ -1,0 +1,48 @@
+import { chromium } from "@playwright/test";
+const browser = await chromium.launch({ headless: true, channel: "chrome", args: ["--enable-unsafe-swiftshader"] });
+try {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
+  await page.route("**/reaction-check", route => route.fulfill({ contentType: "text/html", body: "<html><body></body></html>" }));
+  await page.goto("http://127.0.0.1:5175/discografia/reaction-check");
+  const result = await page.evaluate(async () => {
+    const codeUrl = "/discografia/halloweenCodeVision.js";
+    const source = await (await fetch(codeUrl)).text();
+    const threePath = source.match(/from "([^"\n]+three[^"\n]+)"/)[1];
+    const THREE = await import(threePath);
+    const { createHalloweenCodeVision } = await import(codeUrl);
+    const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+    renderer.setSize(256, 256);
+    document.body.append(renderer.domElement);
+    const shaderErrors = [];
+    renderer.debug.onShaderError = (gl, program, vs, fs) => shaderErrors.push(gl.getProgramInfoLog(program) + gl.getShaderInfoLog(vs) + gl.getShaderInfoLog(fs));
+    const scene = new THREE.Scene();
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x121212, 2));
+    const demon = new THREE.Mesh(new THREE.SphereGeometry(.8, 24, 24), new THREE.MeshStandardMaterial());
+    scene.add(demon);
+    const camera = new THREE.PerspectiveCamera(50, 1, .1, 20);
+    camera.position.z = 3;
+    const code = createHalloweenCodeVision(scene);
+    code.register(demon, { profile: "demon" });
+    code.setActive(true);
+    code.update(.1, { x: 0, z: 0 }, false, demon);
+    renderer.render(scene, camera);
+    const gl = renderer.getContext();
+    const before = new Uint8Array(256*256*4), after = new Uint8Array(before.length);
+    gl.readPixels(0, 0, 256, 256, gl.RGBA, gl.UNSIGNED_BYTE, before);
+    code.hitDemon();
+    code.update(.01, { x: 0, z: 0 }, false, demon);
+    renderer.render(scene, camera);
+    gl.readPixels(0, 0, 256, 256, gl.RGBA, gl.UNSIGNED_BYTE, after);
+    const changed = after.reduce((n, value, i) => n + (Math.abs(value-before[i]) > 10 ? 1 : 0), 0);
+    const glError = gl.getError();
+    code.setActive(false);
+    renderer.render(scene, camera);
+    code.dispose(); renderer.dispose();
+    return { shaderErrors, changed, glError };
+  });
+  console.log(JSON.stringify({ ...result, errors }));
+  if (errors.length || result.shaderErrors.length || result.glError || result.changed < 1000) throw new Error("WebGL reaction check failed");
+} finally { await browser.close(); }

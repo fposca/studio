@@ -100,3 +100,109 @@ test("club access and sound-check progress survive a slot without bypassing the 
   assert.equal(arcadeSave.scene, "arcade");
   assert.equal(arcadeSave.positions.arcade.z, -16.3);
 });
+
+test("the impossible recording survives save slots and cannot start without the store ghost", () => {
+  const storage = memoryStorage();
+  const game = createNewUniverseGame();
+  game.scene = "studio";
+  game.masterTape.phase = "tape";
+  game.arcadeProgress.recordStoreFutureVisionSeen = true;
+  game.arcadeProgress.recordStoreGhostSeen = true;
+  Object.assign(game.studioProgress, {
+    impossibleRecordingStarted: true, signalComputerExamined: true,
+    signalAnalysisCompleted: true, reversedSignalDecoded: true,
+    studioAnomalySeen: true, rooftopClueKnown: true,
+  });
+  assert.equal(writeUniverseSave("slot-1", game, storage, 600).ok, true);
+  const loaded = readUniverseSaves(storage)["slot-1"].data;
+  assert.equal(loaded.studioProgress.rooftopClueKnown, true);
+  assert.equal(loaded.studioProgress.studioAnomalySeen, true);
+  assert.equal(loaded.studioProgress.impossibleRecordingStarted, true);
+  game.arcadeProgress.recordStoreGhostSeen = false;
+  assert.equal(writeUniverseSave("slot-2", game, storage, 601).ok, true);
+  assert.equal(readUniverseSaves(storage)["slot-2"].data.studioProgress.impossibleRecordingStarted, false);
+  assert.equal(readUniverseSaves(storage)["slot-2"].data.studioProgress.rooftopClueKnown, false);
+});
+
+
+test("lost ship checkpoints survive save and load without unlocking it early", () => {
+  const storage = memoryStorage();
+  const game = createNewUniverseGame();
+  game.scene = "lost-ship";
+  game.arcadeProgress.recordStoreFutureVisionSeen = true;
+  game.arcadeProgress.recordStoreGhostSeen = true;
+  Object.assign(game.studioProgress, {
+    impossibleRecordingStarted: true, signalComputerExamined: true,
+    signalAnalysisCompleted: true, reversedSignalDecoded: true,
+    studioAnomalySeen: true, rooftopClueKnown: true,
+  });
+  Object.assign(game.rooftopProgress, {
+    introSeen: true, explored: true, panelExamined: true,
+    switches: ["luna", "rayo", "antena"], bearing: -34,
+    antennaAligned: true, frequency: 9, frequencyDecoded: true,
+    safeReached: true, anomalySeen: true, transmissionCollected: true,
+  });
+  Object.assign(game.lostShipProgress, {
+    hugoBriefed: true, signalSegments: [0, 1, 2], signalDecoded: true, linkActivated: true,
+    accessLog: true, accessSymbols: ["pulse", "coil", "gate"], accessGranted: true,
+    reactorExamined: true, moduleTaken: true,
+  });
+  game.positions["lost-ship"] = { x: 7, z: -6, yaw: Math.PI, viewYaw: .4 };
+  assert.equal(writeUniverseSave("slot-1", game, storage, 700).ok, true);
+  const restored = readUniverseSaves(storage)["slot-1"].data;
+  assert.equal(restored.scene, "lost-ship");
+  assert.equal(restored.lostShipProgress.moduleTaken, true);
+  assert.equal(restored.lostShipProgress.accessGranted, true);
+  assert.equal(restored.positions["lost-ship"].x, 7);
+  assert.equal(restored.mapUnlocks.includes("lost-ship"), true);
+  game.lostShipProgress.linkActivated = false;
+  assert.equal(writeUniverseSave("slot-2", game, storage, 701).ok, true);
+  assert.equal(readUniverseSaves(storage)["slot-2"].data.mapUnlocks.includes("lost-ship"), false);
+  assert.equal(readUniverseSaves(storage)["slot-2"].data.scene, "rooftop");
+  Object.assign(game.lostShipProgress, {
+    linkActivated: true, moduleInstalled: true, circuitPath: ["internal", "life", "bridge"],
+    powerRestored: true, lockerClues: ["log", "sign", "monitor"],
+    lockerSymbols: ["triangle", "moon", "wave"], lockerOpened: true,
+    regulators: [2, 1, 2], lifeStable: true, bridgeCardUsed: true,
+    navigationClues: ["reactor", "storage", "bridge"],
+    navigationValues: ["09", "01", "temple"], navigationRestored: true,
+    memoryTaken: true, memoryInstalled: true, travelerMet: true, archiveRecovered: true,
+    orbAnnouncementSeen: true, orbNodes: [true, true, true],
+    orbEnemyHealth: 0, orbReceiverActivated: true,
+  });
+  assert.equal(writeUniverseSave("slot-3", game, storage, 702).ok, true);
+  const orbSave = readUniverseSaves(storage)["slot-3"].data.lostShipProgress;
+  assert.equal(orbSave.orbUnlocked, true);
+  assert.deepEqual(orbSave.orbNodes, [true, true, true]);
+  assert.equal(orbSave.orbEnemyDefeated, true);
+  assert.equal(orbSave.orbReceiverActivated, true);
+  game.scene = "parthenon";
+  game.parthenonProgress = {
+    entered: true, hopliteAwake: true, hopliteHealth: 0,
+    guardianClueSeen: true, guardianSequence: ["owl", "serpent", "sun"],
+    mirrors: [true, true], reflectionPuzzleCompleted: true,
+    sealClues: ["court", "reflector", "sanctuary"], sealSequence: ["time", "gate", "witness"],
+    medusaFirstEncounterSeen: true, altarRead: true,
+    cursedHopliteAwake: true, cursedHopliteHealth: 0,
+    medusaEncounterSeen: true, medusaBossDefeated: true,
+    frequencyFragment02Collected: true, frequencyFragment02Analyzed: true,
+  };
+  assert.equal(writeUniverseSave("slot-3", game, storage, 703).ok, true);
+  const chapter = readUniverseSaves(storage)["slot-3"].data.parthenonProgress;
+  assert.equal(chapter.guardianPuzzleCompleted, true);
+  assert.equal(chapter.medusaBossDefeated, true);
+  assert.equal(chapter.frequencyFragment02Collected, true);
+  assert.equal(chapter.frequencyFragment02Analyzed, true);
+});
+
+test("forged Puerta 02 save cannot strand an old game in a locked ship", () => {
+  const storage = memoryStorage();
+  const game = createNewUniverseGame();
+  game.scene = "parthenon";
+  game.parthenonProgress = { entered: true, hopliteHealth: 0, altarRead: true };
+  assert.equal(writeUniverseSave("slot-1", game, storage, 500).ok, true);
+  const loaded = readUniverseSaves(storage)["slot-1"].data;
+  assert.equal(loaded.scene, "store");
+  assert.equal(loaded.parthenonProgress.entered, false);
+  assert.equal(loaded.parthenonProgress.altarRead, false);
+});

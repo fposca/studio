@@ -1,0 +1,82 @@
+.neon-lost-ship {
+  --ship-bg: #09101f;
+  --ship-border: #a862b2;
+  color: #f2e8da;
+  background: #080c15;
+}
+.neon-lost-ship .lost-ship-mission { position: absolute; top: 166px; left: 22px; width: min(380px, 34vw); z-index: 4; pointer-events: none; }
+.neon-lost-ship .studio-header { z-index: 5; }
+.lost-ship-backdrop {
+  position: absolute; inset: 0; z-index: 45;
+  display: grid; place-items: center; padding: 20px;
+  background: #02030bdc; backdrop-filter: blur(5px);
+}
+.lost-ship-panel {
+  width: min(780px, 95vw); max-height: min(88vh, 830px);
+  overflow: auto; padding: 25px 29px; border: 1px solid #c876d0;
+  border-radius: 8px; background: linear-gradient(140deg,#13172a 0%,#09101d 75%);
+  box-shadow: 0 0 0 3px #25122c, 0 25px 80px #000b, 0 0 42px #99339435;
+  font-family: "Bahnschrift", "Segoe UI", sans-serif;
+}
+.lost-ship-panel header, .lost-ship-panel footer, .lost-ship-actions, .lost-ship-choice { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.lost-ship-panel header small, .lost-ship-panel footer { color: #d9a9d5; font-size: 11px; letter-spacing: .16em; font-weight: 700; }
+.lost-ship-panel h2 { margin: 10px 0 16px; font-size: clamp(22px, 3.2vw, 35px); letter-spacing: .045em; color: #ffe7ce; }
+.lost-ship-panel p { line-height: 1.52; color: #eadce6; }
+.lost-ship-panel button { color: #ffe8d8; background: #261b32; border: 1px solid #a76b9d; padding: 10px 13px; border-radius: 3px; cursor: pointer; font: inherit; font-weight: 700; }
+.lost-ship-panel button:hover:not(:disabled), .lost-ship-panel button:focus-visible { background: #623366; border-color: #f38dcd; outline: 2px solid #e879d6; outline-offset: 2px; }
+.lost-ship-panel button:disabled { opacity: .48; cursor: not-allowed; }
+.lost-ship-panel header button { width: 36px; height: 36px; padding: 0; font-size: 25px; }
+.lost-ship-panel .lost-ship-primary { margin: 18px 0 7px; width: 100%; background: linear-gradient(90deg,#8c4283,#aa4d98); border-color: #efa0da; }
+.lost-ship-panel footer { margin-top: 20px; border-top: 1px solid #765d79; padding-top: 14px; }
+.lost-ship-panel footer button { font-size: 12px; }
+.lost-ship-log-row { display: grid; grid-template-columns: 110px 1fr; gap: 12px; border-left: 2px solid #b96bb6; background: #ffffff0b; padding: 10px 12px; margin: 8px 0; line-height: 1.45; }
+.lost-ship-log-row strong { color: #f0a2d5; font-size: 12px; }
+.lost-ship-log-row span { color: #f4ebea; }
+.lost-ship-signal-grid, .lost-ship-options, .lost-ship-slots { display: flex; gap: 8px; flex-wrap: wrap; margin: 15px 0; }
+.lost-ship-signal-grid button { flex: 1 1 160px; display: grid; justify-items: center; gap: 6px; min-height: 115px; }
+.lost-ship-signal-grid strong { color: #65dbe6; font-size: 32px; text-shadow: 0 0 15px #39dbd9; }
+.lost-ship-signal-grid small, .lost-ship-signal-grid span { font-size: 10px; letter-spacing: .07em; }
+.lost-ship-options button { flex: 1 1 130px; }
+.lost-ship-slots span { flex: 1; text-align: center; padding: 14px 8px; border: 1px solid #75bfc8; background: #071e2b; color: #a2e8ea; min-width: 100px; }
+.lost-ship-feedback, .lost-ship-success, .lost-ship-error { padding: 12px 14px; border-left: 3px solid #78b9c7; background: #162b37; }
+.lost-ship-success { border-color: #8cf0c7; color: #baf6d7; background: #11322f; }
+.lost-ship-error { border-color: #ff7e89; color: #ffd7df; background: #3c1929; }
+.lost-ship-meters { display: grid; gap: 13px; margin: 18px 0; }
+.lost-ship-meters > div { padding: 10px; background: #1a2735; }
+.lost-ship-meters label { display: block; }
+.lost-ship-meters strong { color: #8ff0f1; }
+.lost-ship-meters input { width: 100%; accent-color: #e174c8; }
+.lost-ship-nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0; }
+.lost-ship-nav label { display: grid; gap: 8px; color: #e6a9d8; font-size: 11px; font-weight: 700; }
+.lost-ship-nav select { max-width: 100%; padding: 10px 7px; background: #101b2d; color: #fff0df; border: 1px solid #9a75a6; }
+.lost-ship-hint { margin-top: 22px; padding: 12px; border: 1px dashed #9a75a6; background: #34203b; }
+.lost-ship-hint p { margin: 8px 0 0; }
+.lost-ship-hologram { display: grid; place-items: center; gap: 14px; min-height: 180px; margin: 20px 0; padding: 18px; color: #e8c7ed; text-align: center; border: 1px solid #b24ebd; background: radial-gradient(ellipse at center,#743e8555,#0a132b 70%); text-shadow: 0 0 12px #eb6eec; }
+.lost-ship-hologram strong { font-size: 24px; color: #ffa4b3; }
+.lost-ship-journal { max-height: 56vh; overflow-y: auto; }
+.lost-ship-transition { position: absolute; inset: 0; z-index: 42; display: grid; place-items: center; pointer-events: auto; color: #ffe4fb; text-align: center; background: radial-gradient(circle,#a140b688,#070919ef 64%); animation: ship-arrival .9s ease-out; }
+.lost-ship-transition strong { font-size: clamp(26px,5vw,64px); letter-spacing: .16em; text-shadow: 0 0 25px #f252dc; }
+.lost-ship-transition span { display: block; margin-top: 16px; letter-spacing: .27em; }
+@keyframes ship-arrival { from { filter: hue-rotate(90deg) blur(10px); opacity: 0; } to { filter: none; opacity: 1; } }
+@media (max-width: 700px) {
+  .lost-ship-panel { padding: 17px; }
+  .lost-ship-nav { grid-template-columns: 1fr; }
+  .neon-lost-ship .lost-ship-mission { width: min(320px, 65vw); }
+  .lost-ship-log-row { grid-template-columns: 1fr; gap: 3px; }
+}
+
+.lost-ship-star-map { position: relative; overflow: hidden; margin: 18px 0 12px; border: 1px solid #477783; background: radial-gradient(circle at 52% 43%, #284e6655, transparent 39%), linear-gradient(145deg, #07131e, #14132b); box-shadow: inset 0 0 35px #02151e; }
+.lost-ship-star-map::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(to bottom, transparent 0 3px, #91deff09 4px 5px); }
+.lost-ship-star-map svg { display: block; width: 100%; height: min(30vh, 220px); }
+.lost-ship-star-map svg text { fill: #b3d9de; font: 700 11px monospace; letter-spacing: 2px; }
+.lost-ship-grid { fill: none; stroke: #84a8c217; stroke-width: 1; }
+.lost-ship-orbit { fill: none; stroke: #b474d94e; stroke-width: 1.4; stroke-dasharray: 4 7; }
+.lost-ship-route { fill: none; stroke: #6b8298; stroke-width: 2; stroke-dasharray: 5 7; }
+.lost-ship-route.is-aligned { stroke: #83ece3; stroke-width: 3; stroke-dasharray: none; filter: drop-shadow(0 0 6px #6ddbd6); }
+.lost-ship-node { fill: #f0abd9; filter: drop-shadow(0 0 7px #ec69c3); }
+.lost-ship-star-map > span { display: block; padding: 7px 12px 10px; border-top: 1px solid #477783; color: #90cfd7; font: 700 10px monospace; letter-spacing: .15em; }
+
+@media (min-width: 1101px) {
+  .universe-game-root:has(.neon-lost-ship) > .universe-pause-trigger { top: 20px; right: 354px; }
+  .neon-lost-ship .studio-header > div:first-child { max-width: calc(100% - 470px); }
+}

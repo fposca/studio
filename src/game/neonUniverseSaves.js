@@ -1,6 +1,7 @@
 import { DISCOGRAPHY_ALBUMS } from "./discographyCatalog.js";
 import { INITIAL_STORE_PROGRESS, STORE_DIALOGUE_SAVE_KEY, loadStoreProgress } from "./recordStoreDialogue.js";
 import { INITIAL_STUDIO_PROGRESS, STUDIO_PROGRESS_KEY, loadStudioProgress } from "./studioDialogue.js";
+import { normalizeImpossibleRecording } from "./studioImpossibleRecording.js";
 import { INITIAL_MASTER_TAPE_PROGRESS, MASTER_TAPE_SAVE_KEY, loadMasterTapeProgress } from "./masterTapeQuest.js";
 import { CLUB_SHOW_SAVE_KEY, INITIAL_CLUB_SHOW_QUEST, loadClubShowQuest, normalizeClubShowQuest } from "./clubShowQuest.js";
 import { INITIAL_RIKY_PROGRESS, RIKY_SAVE_KEY, canDiscoverRikyClue, loadRikyProgress, normalizeRikyProgress } from "./rockClubRiky.js";
@@ -10,14 +11,23 @@ import { STUDIO_LAYOUT } from "./studioLayout.js";
 import { ROCK_CLUB_LAYOUT } from "./rockClubLayout.js";
 import { ARCADE_LAYOUT } from "./arcadeLayout.js";
 import { INITIAL_ARCADE_PROGRESS, normalizeArcadeProgress } from "./arcadeProgress.js";
+import { ROOFTOP_LAYOUT } from "./rooftopLayout.js";
+import { INITIAL_ROOFTOP_PROGRESS, normalizeRooftopProgress } from "./rooftopQuest.js";
+import { LOST_SHIP_LAYOUT } from "./lostShipLayout.js";
+import { INITIAL_LOST_SHIP_PROGRESS, normalizeLostShipProgress } from "./lostShipQuest.js";
+import { PARTHENON_LAYOUT } from "./parthenonLayout.js";
+import { PARTHENON_INITIAL, normalizeParthenonProgress } from "./parthenonQuest.js";
+import {MATRIX_LAYOUT} from "./matrixLayout.js";
+import {MATRIX_INITIAL,normalizeMatrixProgress} from "./matrixQuest.js";
+import { STORE_INVASION_INITIAL, normalizeStoreInvasionProgress } from "./storeInvasionQuest.js";
 
 export const UNIVERSE_SAVES_KEY = "neonboy.universe.saves.v1";
 export const UNIVERSE_SAVE_SLOTS = ["autosave", "slot-1", "slot-2", "slot-3"];
-const SCENES = ["store", "studio", "club", "arcade"];
-const LAYOUTS = { store: STORE_LAYOUT, studio: STUDIO_LAYOUT, club: ROCK_CLUB_LAYOUT, arcade: ARCADE_LAYOUT };
+const SCENES = ["store", "studio", "club", "arcade", "rooftop", "lost-ship", "parthenon", "matrix"];
+const LAYOUTS = { store: STORE_LAYOUT, studio: STUDIO_LAYOUT, club: ROCK_CLUB_LAYOUT, arcade: ARCADE_LAYOUT, rooftop: ROOFTOP_LAYOUT, "lost-ship": LOST_SHIP_LAYOUT, parthenon: PARTHENON_LAYOUT, matrix: MATRIX_LAYOUT };
 const ALBUM_IDS = new Set(DISCOGRAPHY_ALBUMS.map((album) => album.id));
 const GROUPS = new Set(["instrumental", "band"]);
-const UNLOCKS = new Set(["recording-studio", "rock-club", "arcade-1999"]);
+const UNLOCKS = new Set(["recording-studio", "rock-club", "arcade-1999", "neonboy-rooftop", "lost-ship", "parthenon", "matrix"]);
 
 export function createNewUniverseGame() {
   return {
@@ -29,7 +39,10 @@ export function createNewUniverseGame() {
     rikyProgress: { ...INITIAL_RIKY_PROGRESS, topics: [] },
     friendsProgress: { ...INITIAL_FRIENDS_PROGRESS, met: [], topics: [] },
     arcadeProgress: { ...INITIAL_ARCADE_PROGRESS, met: [] },
-    mapUnlocks: [], positions: { store: null, studio: null, club: null, arcade: null },
+    rooftopProgress: { ...INITIAL_ROOFTOP_PROGRESS, switches: [] },
+    lostShipProgress: { ...INITIAL_LOST_SHIP_PROGRESS },
+    parthenonProgress: { ...PARTHENON_INITIAL }, matrixProgress: { ...MATRIX_INITIAL }, storeInvasionProgress: { ...STORE_INVASION_INITIAL }, combatHearts: 3,
+    mapUnlocks: [], positions: { store: null, studio: null, club: null, arcade: null, rooftop: null, "lost-ship": null, parthenon: null, matrix: null },
   };
 }
 
@@ -56,29 +69,49 @@ export function normalizeUniverseGame(data) {
   const phase = validatedProgress(loadMasterTapeProgress, MASTER_TAPE_SAVE_KEY, data.masterTape);
   const clubQuest = normalizeClubShowQuest(data.clubQuest, phase);
   const rikyProgress = normalizeRikyProgress(data.rikyProgress);
+  const arcadeProgress = normalizeArcadeProgress(data.arcadeProgress);
+  const studioProgress = normalizeImpossibleRecording(
+    validatedProgress(loadStudioProgress, STUDIO_PROGRESS_KEY, data.studioProgress),
+    arcadeProgress.recordStoreGhostSeen,
+  );
+  const rooftopProgress = normalizeRooftopProgress(data.rooftopProgress, studioProgress.rooftopClueKnown);
+  const lostShipProgress = normalizeLostShipProgress(data.lostShipProgress, rooftopProgress.missionCompleted);
+  const parthenonProgress = normalizeParthenonProgress(data.parthenonProgress, lostShipProgress.orbReceiverActivated);
+  const matrixProgress = normalizeMatrixProgress(data.matrixProgress, parthenonProgress.frequencyFragment02Analyzed);
+  const storeInvasionProgress = normalizeStoreInvasionProgress(data.storeInvasionProgress, matrixProgress.archiveRead && (matrixProgress.returnedHome || data.scene === "store"));
   const narrativeUnlocks = [
     ...(phase.phase === "new" ? [] : ["recording-studio"]),
     ...(clubQuest.credentialGranted ? ["rock-club"] : []),
     ...(clubQuest.anomalySeen ? ["arcade-1999"] : []),
+    ...(studioProgress.rooftopClueKnown ? ["neonboy-rooftop"] : []),
+    ...(lostShipProgress.linkActivated ? ["lost-ship"] : []),
+    ...(lostShipProgress.orbReceiverActivated ? ["parthenon"] : []),
+    ...(parthenonProgress.frequencyFragment02Analyzed ? ["matrix"] : []),
   ];
   return {
-    scene: data.scene,
+    scene: data.scene === "matrix" && !parthenonProgress.frequencyFragment02Analyzed ? "lost-ship" : data.scene === "parthenon" && !lostShipProgress.orbReceiverActivated
+      ? (lostShipProgress.linkActivated ? "lost-ship" : rooftopProgress.missionCompleted ? "rooftop" : "store")
+      : data.scene === "lost-ship" && !lostShipProgress.linkActivated
+        ? (rooftopProgress.missionCompleted ? "rooftop" : "store") : data.scene,
     credits: Number.isInteger(data.credits) ? Math.max(0, Math.min(10, data.credits)) : 0,
     selectedId,
     activeGroup: GROUPS.has(data.activeGroup) ? data.activeGroup : album.group,
     storyProgress: validatedProgress(loadStoreProgress, STORE_DIALOGUE_SAVE_KEY, data.storyProgress),
-    studioProgress: validatedProgress(loadStudioProgress, STUDIO_PROGRESS_KEY, data.studioProgress),
+    studioProgress,
+    rooftopProgress,
+    lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress,
+    combatHearts: Number.isInteger(data.combatHearts) ? Math.max(0, Math.min(3, data.combatHearts)) : 3,
     masterTape: phase,
     clubQuest,
     friendsProgress: normalizeFriendsProgress(data.friendsProgress),
-    arcadeProgress: normalizeArcadeProgress(data.arcadeProgress),
+    arcadeProgress,
     rikyProgress: {
       ...rikyProgress,
       signalKnown: phase.phase === "complete" && rikyProgress.topics.includes("paranormal") && rikyProgress.signalKnown,
       rikyFrequencyClueKnown: canDiscoverRikyClue(rikyProgress, phase) && rikyProgress.rikyFrequencyClueKnown,
       postShowSeen: clubQuest.anomalySeen && rikyProgress.postShowSeen,
     },
-    mapUnlocks: [...new Set([...(Array.isArray(data.mapUnlocks) ? data.mapUnlocks.filter((id) => UNLOCKS.has(id) && (id !== "rock-club" || clubQuest.credentialGranted) && (id !== "arcade-1999" || clubQuest.anomalySeen)) : []), ...narrativeUnlocks])],
+    mapUnlocks: [...new Set([...(Array.isArray(data.mapUnlocks) ? data.mapUnlocks.filter((id) => UNLOCKS.has(id) && (id !== "rock-club" || clubQuest.credentialGranted) && (id !== "arcade-1999" || clubQuest.anomalySeen) && (id !== "neonboy-rooftop" || studioProgress.rooftopClueKnown) && (id !== "lost-ship" || lostShipProgress.linkActivated) && (id !== "parthenon" || lostShipProgress.orbReceiverActivated) && (id !== "matrix" || parthenonProgress.frequencyFragment02Analyzed)) : []), ...narrativeUnlocks])],
     positions: Object.fromEntries(SCENES.map((scene) => [scene, safePosition(data.positions?.[scene], LAYOUTS[scene])])),
   };
 }

@@ -5,6 +5,8 @@ export const INITIAL_ARCADE_PROGRESS = Object.freeze({
   met: [], bestScore: 0, lastScore: null, gamesPlayed: 0,
   beatNico: false, signalSeen: false,
   frequency09EventSeen: false, recordStoreFutureVisionSeen: false, recordStoreRevisitedAfterVision: false,
+  recordStoreAlteredIntroSeen: false, recordStoreTitoInterviewed: false, recordStoreJukeboxAnomalySeen: false,
+  recordStoreStrangeRecordSeen: false, recordStoreReverseClueKnown: false, recordStoreGhostSeen: false,
   records: { pixel: { bestScore: 0, plays: 0, wins: 0 }, brawl: { bestScore: 0, bestRounds: 0, plays: 0, wins: 0 }, jungle: { bestScore: 0, bestAccuracy: 0, bestCombo: 0, plays: 0, wins: 0 } },
 });
 
@@ -30,6 +32,10 @@ export function normalizeArcadeProgress(value) {
     frequency09EventSeen: value?.frequency09EventSeen === true,
     recordStoreFutureVisionSeen: value?.recordStoreFutureVisionSeen === true,
     recordStoreRevisitedAfterVision: value?.recordStoreFutureVisionSeen === true && value?.recordStoreRevisitedAfterVision === true,
+    ...Object.fromEntries([
+      "recordStoreAlteredIntroSeen", "recordStoreTitoInterviewed", "recordStoreJukeboxAnomalySeen",
+      "recordStoreStrangeRecordSeen", "recordStoreReverseClueKnown", "recordStoreGhostSeen",
+    ].map((key) => [key, value?.recordStoreFutureVisionSeen === true && value?.[key] === true])),
     records: Object.fromEntries(Object.keys(INITIAL_ARCADE_PROGRESS.records).map((id) => [id, normalizeRecord(value?.records?.[id], id)])),
   };
 }

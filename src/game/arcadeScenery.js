@@ -3,19 +3,10 @@ import { ARCADE_PROPS, arcadeObstacleFor, defaultArcadeTransform } from "./arcad
 import { ARCADE_COLORS, arcadeCanvas, arcadeFloorMaterial, arcadeWallMaterial, arcadeGlowTexture, arcadePoster, arcadeLaminateMaterial, drawArcadeScreen, curvedCrtGeometry } from "./arcadeVisuals.js";
 import { dressArcadeRoom, decorateArcadeCounter } from "./arcadeDressing.js";
 import { batchArcadeDetails } from "./arcadeGeometryBatch.js";
+import { createVenueSign } from "./venueSignage.js";
 
 const PALETTE = ARCADE_COLORS;
 const canvasTexture = arcadeCanvas;
-
-function labelTexture(title, subtitle, accent = "#e47fbb") {
-  return canvasTexture(512, 128, (ctx, w, h) => {
-    ctx.fillStyle = "#100e1a"; ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = accent; ctx.lineWidth = 5; ctx.strokeRect(8, 8, w - 16, h - 16);
-    ctx.textAlign = "center"; ctx.fillStyle = "#fff0d4";
-    ctx.font = "900 43px Arial"; ctx.fillText(title.toUpperCase(), w / 2, 67, w - 32);
-    ctx.fillStyle = accent; ctx.font = "700 18px Arial"; ctx.fillText(subtitle.toUpperCase(), w / 2, 101, w - 30);
-  }).texture;
-}
 
 export function buildArcade(scene, altered = false) {
   const geometry = new Map();
@@ -61,8 +52,12 @@ export function buildArcade(scene, altered = false) {
     return mesh;
   }
   function sign(parent, name, title, subtitle, w, h, x, y, z, accent) {
-    const tex = labelTexture(title, subtitle, accent);
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }));
+    const hero = name === "back wall arcade sign" || name === "arcade entrance sign";
+    const mesh = createVenueSign(title, w, h, {
+      subtitle, accent, hero, symbol: "arcade", kicker: "FICHINES / BUENOS AIRES",
+      badgeKicker: "INSERT", badgeText: "COIN",
+      pixelWidth: hero ? 2048 : w >= 2 ? 1024 : 512,
+    });
     mesh.name = name; mesh.position.set(x, y, z); parent.add(mesh); return mesh;
   }
   function slot(prop) {
@@ -248,7 +243,7 @@ export function buildArcade(scene, altered = false) {
   }
   box(scene, "arcade entrance wall", 22.1, 4.65, .25, 0, 2.32, 9.48, materials.wall, true);
   box(scene, "arcade back wall", 22.1, 4.65, .25, 0, 2.32, -21.88, materials.wall, true);
-  sign(scene, "back wall arcade sign", "ARCADE 1999", "ESTA NOCHE / OTRA PARTIDA", 6.0, .85, 0, 3.56, -21.56, "#ec72c2");
+  sign(scene, "back wall arcade sign", "ARCADE 1999", "ESTA NOCHE / OTRA PARTIDA", 6.8, 1.08, 0, 3.62, -21.56, "#ec72c2");
   for (const x of [-5.1, 5.1]) {
     sign(scene, "back wall scores", x < 0 ? "RANKING 99" : "NUEVA PARTIDA", x < 0 ? "TOP SCORE / 99999" : "PULSA START", 2.8, .78, x, 2.65, -21.68, x < 0 ? "#6daee0" : "#a3d68b");
     box(scene, "back wall neon column", .08, 3.65, .08, x < 0 ? -6.85 : 6.85, 2.35, -21.66, x < 0 ? materials.blue : materials.pink);
@@ -256,7 +251,7 @@ export function buildArcade(scene, altered = false) {
   box(scene, "arcade low ceiling", 22.1, .2, 31.5, 0, 4.72, -6.2, materials.trim);
   box(scene, "front entrance frame", 3.0, 3.18, .14, 0, 1.58, 9.28, materials.steel);
   box(scene, "front entrance glazed door", 2.68, 2.86, .08, 0, 1.48, 9.15, materials.glass);
-  sign(scene, "arcade entrance sign", "ARCADE 1999", "FICHINES · NUEVA PARTIDA", 4.4, .71, 0, 3.67, 9.1, "#ee7fbb");
+  sign(scene, "arcade entrance sign", "ARCADE 1999", "FICHINES · NUEVA PARTIDA", 4.8, .86, 0, 3.67, 9.1, "#ee7fbb");
   sign(scene, "exit prompt sign", "SALIDA", "VOLVER A LA CIUDAD", 1.85, .40, 0, 2.2, 8.99, "#91d8de");
   interactions.push({ id: "exit", label: "Salida al mapa", x: 0, z: 7.65, reach: 1.55 });
   sign(scene, "token counter prices", "CAMBIO DE FICHAS", "CONSULTÁ PRECIOS EN MOSTRADOR", 3.2, .62, -7.3, 3.35, 9.05, "#ecb48d");

@@ -1,0 +1,5 @@
+node_modules/
+release-assets/*.zip
+release-assets/*.aab
+release-assets/*.apk
+android-signing/

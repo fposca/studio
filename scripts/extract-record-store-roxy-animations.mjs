@@ -14,7 +14,7 @@ function extractAnimation(name) {
   if (input.readUInt32LE(binaryHeader + 4) !== 0x004e4942) throw new Error(`Falta BIN: ${name}`);
   const binaryStart = binaryHeader + 8;
   const animations = structuredClone(gltf.animations || []);
-  if (name === "neonboy-new-walk" || name === "neonboy-new-jump") {
+  if (name === "neonboy-new-walk" || name === "neonboy-new-jump" || name === "neonboy-running") {
     const idle = readFileSync(assetDirectory + "neon-inactivo-hd.glb");
     const idleJsonLength = idle.readUInt32LE(12);
     const idleGltf = JSON.parse(idle.toString("utf8", 20, 20 + idleJsonLength));

@@ -86,3 +86,21 @@ test("old and new save slots derive their own inventory without an extra mutable
   assert.equal(byId(secondItems, "jukebox-coins"), undefined);
   assert.deepEqual(newlyObtainedInventoryItems(new Set(firstItems.map((item) => item.id)), firstItems), []);
 });
+
+test("the orb is a persistent ability entry without an inventory use action", () => {
+  assert.equal(byId(getUniverseInventory({ lostShipProgress: { orbUnlocked: false } }), "neon-orb"), undefined);
+  const orb = byId(getUniverseInventory({ lostShipProgress: { orbUnlocked: true } }), "neon-orb");
+  assert.equal(orb.category, "ability");
+  assert.equal(orb.status, "unlocked");
+  assert.equal(getUniverseInventoryAction(orb, { scene: "lost-ship" }), null);
+});
+
+test("Medusa fragment appears only after collection and becomes analyzed in the ship", () => {
+  const before = getUniverseInventory({ parthenonProgress: { medusaBossDefeated: true, frequencyFragment02Collected: false } });
+  assert.equal(byId(before, "frequency-fragment-02"), undefined);
+  const carried = byId(getUniverseInventory({ parthenonProgress: { frequencyFragment02Collected: true } }), "frequency-fragment-02");
+  assert.equal(carried.category, "mission");
+  assert.equal(carried.status, "available");
+  const analyzed = byId(getUniverseInventory({ parthenonProgress: { frequencyFragment02Collected: true, frequencyFragment02Analyzed: true } }), "frequency-fragment-02");
+  assert.equal(analyzed.status, "used");
+});

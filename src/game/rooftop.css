@@ -1,0 +1,31 @@
+.neon-rooftop .studio-header {z-index:20}
+.rooftop-puzzle-backdrop{position:absolute;inset:0;z-index:80;display:grid;place-items:center;background:rgba(3,8,17,.66);backdrop-filter:blur(4px);padding:20px}
+.rooftop-puzzle{width:min(540px,100%);max-height:min(82vh,760px);overflow:auto;background:linear-gradient(145deg,#161b29,#0c101c);border:1px solid #a74c83;box-shadow:0 20px 70px #000c,0 0 30px #b93c7560;color:#f5e9d6;padding:20px;font-family:inherit}
+.rooftop-puzzle header,.rooftop-puzzle footer{display:flex;justify-content:space-between;align-items:center;color:#dd92b5;font-size:11px;letter-spacing:2px}
+.rooftop-puzzle header button{background:none;border:1px solid #bc7b9f;color:#fff;cursor:pointer;font-size:22px;line-height:1;padding:3px 10px}
+.rooftop-puzzle h3{font-size:26px;margin:18px 0 8px;color:#fff}
+.rooftop-puzzle p{line-height:1.5;color:#d6c9ce}
+.rooftop-puzzle-clue{display:grid;gap:7px;padding:14px;margin:18px 0;background:#273041;border-left:3px solid #e49bc0;color:#e8e6e3;line-height:1.55}
+.rooftop-switches{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:16px 0}
+.rooftop-switches button{min-height:72px;background:#222d3b;border:1px solid #6e7a8b;color:#f6e9da;cursor:pointer;font-weight:bold}
+.rooftop-switches button span{display:block;color:#a0aab5;font-size:10px;margin-top:8px}
+.rooftop-switches .is-on{border-color:#81ddc0;background:#21453f}
+.rooftop-puzzle label{display:grid;gap:8px;margin:20px 0;font-weight:700}
+.rooftop-puzzle label strong{color:#e8a1c6}
+.rooftop-puzzle input[type=range]{width:100%;accent-color:#e778ac;cursor:pointer}
+.rooftop-meters{display:grid;gap:10px;margin:16px 0}
+.rooftop-meters span{display:block;background:#222a38;border:1px solid #566173;padding:8px;font-size:10px;letter-spacing:1px;overflow:hidden}
+.rooftop-meters b{float:right;color:#edb8d1}
+.rooftop-meters i{display:block;height:5px;background:linear-gradient(90deg,#707be3,#e16da7);margin-top:12px;transition:width .15s}
+.rooftop-primary{background:#ae4d81;border:1px solid #f0a5c9;color:white;font-weight:800;padding:10px 16px;cursor:pointer;margin:12px 0}
+.rooftop-primary:disabled{opacity:.48;cursor:default}
+.rooftop-puzzle footer{border-top:1px solid #5e4265;padding-top:12px;margin-top:14px}
+.rooftop-cinematic{position:absolute;z-index:40;left:50%;bottom:9%;transform:translateX(-50%);width:min(760px,88vw);padding:20px 28px;text-align:center;background:linear-gradient(90deg,#0a0e1dcc,#19111ecc,#0a0e1dcc);border-block:1px solid #d874a8;color:#fff;text-shadow:0 2px 8px #000;pointer-events:none}
+.rooftop-cinematic strong{display:block;color:#ffe6cf;font-size:clamp(22px,3vw,40px);margin:4px}
+.rooftop-cinematic span{color:#e8a3c6;font-size:11px;letter-spacing:3px}
+.rooftop-cinematic p{font-size:clamp(15px,1.6vw,20px);margin:10px 0}
+.rooftop-danger{position:absolute;inset:auto 0 12%;z-index:30;margin:auto;width:max-content;max-width:90%;padding:14px 22px;background:#51192add;border:1px solid #ff8290;color:white;font-weight:bold;box-shadow:0 0 25px #e84b6266}
+@media(max-width:700px){.rooftop-puzzle-backdrop{padding:8px}.rooftop-puzzle{padding:14px}.rooftop-switches{grid-template-columns:1fr}.rooftop-switches button{min-height:48px}}
+
+.neon-rooftop .rooftop-mission{position:absolute;z-index:22;left:24px;top:168px;width:min(360px,calc(100vw - 48px));pointer-events:none}
+@media(max-height:620px){.neon-rooftop .rooftop-mission{top:142px;max-width:280px;transform:scale(.9);transform-origin:top left}}

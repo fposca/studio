@@ -29,7 +29,7 @@ function inPlaceClip(source) {
   return clip;
 }
 
-export function createRecordStoreNpcActors(scene, loader, clickable, disposeLoaded, { deferLoad = false } = {}) {
+export function createRecordStoreNpcActors(scene, loader, clickable, disposeLoaded, { deferLoad = false, placements = {}, npcs = STORE_NPCS } = {}) {
   const actors = new Map();
   const pending = [];
   let alive = true;
@@ -133,11 +133,12 @@ export function createRecordStoreNpcActors(scene, loader, clickable, disposeLoad
     } catch { /* El personaje conserva la animación de espera. */ }
   }
 
-  for (const npc of STORE_NPCS) {
+  for (const npc of npcs) {
     const root = new THREE.Group();
     root.name = npc.name;
-    root.position.set(npc.x, 0, npc.z);
-    root.rotation.y = npc.yaw;
+    const placement = placements[npc.id];
+    root.position.set(placement?.x ?? npc.x, 0, placement?.z ?? npc.z);
+    root.rotation.y = placement?.yaw ?? npc.yaw;
     scene.add(root);
 
     const marker = new THREE.Mesh(new THREE.CapsuleGeometry(0.33, 0.88, 8, 12),
@@ -148,9 +149,9 @@ export function createRecordStoreNpcActors(scene, loader, clickable, disposeLoad
     marker.userData.npcId = npc.id;
     root.add(marker);
     clickable.push(marker);
-    const prompt = createInteractionPromptSprite(npc.id === "jason" ? "[E] INSISTIR" : "[E] HABLAR");
+    const prompt = createInteractionPromptSprite(npc.id === "jason" ? "Insistir" : "Hablar", { subject: npc.name });
     root.add(prompt);
-    const actor = { npc, root, marker, prompt, model: null, mixer: null, actions: {}, currentAction: null,
+    const actor = { npc, placement, root, marker, prompt, model: null, mixer: null, actions: {}, currentAction: null,
       patrol: npc.id === "roxy" ? createRoxyPatrol() : GUEST_WALK_URLS[npc.id] ? createGuestPatrol(npc.id) : null,
       lookTime: 0, state: "idle" };
     actors.set(npc.id, actor);
@@ -189,8 +190,12 @@ export function createRecordStoreNpcActors(scene, loader, clickable, disposeLoad
 
   function update(dt, player, activeNpc, nearbyNpc, musicPlaying = false, dancingSkeleton = null) {
     for (const actor of actors.values()) {
-      let desired = actor.npc.yaw;
-      if (actor.npc.id === "roxy") {
+      let desired = actor.placement?.yaw ?? actor.npc.yaw;
+      if (actor.placement) {
+        actor.state = activeNpc === actor.npc.id ? "talking" : "idle";
+        setActorAction(actor, "idle");
+        if (activeNpc === actor.npc.id || nearbyNpc === actor.npc.id) desired = Math.atan2(player.x - actor.root.position.x, player.z - actor.root.position.z);
+      } else if (actor.npc.id === "roxy") {
         const previousX = actor.root.position.x;
         const previousZ = actor.root.position.z;
         actor.patrol = advanceRoxyPatrol(actor.patrol, dt, player, musicPlaying, activeNpc === "roxy");

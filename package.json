@@ -19,7 +19,11 @@
     "dist:win": "corepack pnpm run build && node desktop/build-windows.js",
     "dev:discografia": "vite --config apps/neonboy-discografia/vite.config.js --host 127.0.0.1 --port 5174 --strictPort",
     "build:discografia": "vite build --config apps/neonboy-discografia/vite.config.js --configLoader runner",
-    "preview:discografia": "vite preview --config apps/neonboy-discografia/vite.config.js --host 127.0.0.1 --port 4174 --strictPort"
+    "preview:discografia": "vite preview --config apps/neonboy-discografia/vite.config.js --host 127.0.0.1 --port 4174 --strictPort",
+    "dev:halloween": "vite --config apps/neonboy-halloween/vite.config.js --host 127.0.0.1 --port 5175 --strictPort",
+    "build:halloween": "vite build --config apps/neonboy-halloween/vite.config.js --configLoader runner",
+    "optimize:halloween-models": "node scripts/optimize-halloween-models.mjs",
+    "preview:halloween": "vite preview --config apps/neonboy-halloween/vite.config.js --host 127.0.0.1 --port 4175 --strictPort"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "^0.21.0",
@@ -40,6 +44,7 @@
     "vite": "^7.1.4"
   },
   "devDependencies": {
+    "@gltf-transform/cli": "4.5.1",
     "@playwright/test": "^1.64.0",
     "electron": "^38.1.2",
     "electron-builder": "^26.0.12",

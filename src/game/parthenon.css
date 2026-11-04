@@ -1,0 +1,44 @@
+.neon-parthenon .lost-ship-mission{position:absolute;top:166px;left:22px;width:min(380px,34vw);z-index:4;pointer-events:none}
+.neon-parthenon .studio-header{z-index:5}
+.neon-parthenon .studio-header h2{color:#f8e7d7}
+.parthenon-modal-backdrop,.parthenon-fallen{position:absolute;inset:0;z-index:40;background:#080911cf;backdrop-filter:blur(9px);display:grid;place-items:center;padding:20px}
+.parthenon-panel,.parthenon-fallen-card{width:min(690px,100%);max-height:calc(100vh - 40px);overflow:auto;padding:28px;color:#f4e8df;background:linear-gradient(145deg,#151421,#100f1d);border:1px solid #b468a8;box-shadow:0 22px 70px #000c,0 0 32px #b748a739;border-radius:9px}
+.parthenon-panel header,.parthenon-panel footer{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.parthenon-panel header small,.parthenon-panel footer span{color:#d895c8;letter-spacing:.09em;font-size:11px}
+.parthenon-panel h2{font-size:clamp(24px,4vw,35px);margin:25px 0 16px;text-transform:uppercase}
+.parthenon-panel p{line-height:1.6;color:#efe2e4;font-size:15px}
+.parthenon-panel button,.parthenon-fallen button,.parthenon-dev button{background:#241a2d;color:#f9e8ef;border:1px solid #b66b9e;border-radius:3px;padding:9px 13px;cursor:pointer}
+.parthenon-panel button:hover,.parthenon-fallen button:hover{background:#6c365c}
+.parthenon-panel button:disabled{opacity:.5;cursor:default}
+.parthenon-panel footer{border-top:1px solid #6b4569;margin-top:25px;padding-top:15px}
+.parthenon-hints{padding:15px;background:#40213a55;border:1px solid #8e618d;margin-top:20px}
+.parthenon-warning{color:#f0a9ba!important}
+.parthenon-primary{margin-top:12px;font-weight:800}
+.parthenon-hearts{position:absolute;top:210px;right:23px;z-index:18;color:#f5a1cb;background:#130d1dcc;border:1px solid #b45f91;padding:8px 12px;letter-spacing:.14em}
+.parthenon-damage{pointer-events:none;position:absolute;inset:0;z-index:27;box-shadow:inset 0 0 120px 30px #ed335d9e;animation:parthenon-hurt .65s forwards}
+@keyframes parthenon-hurt{to{opacity:0}}
+.parthenon-fallen-card{text-align:center}
+.parthenon-fallen-card h2{font-size:clamp(32px,7vw,58px);margin:7px 0;color:#f5a7bf}
+.parthenon-fallen-card p{line-height:1.5}
+.parthenon-fallen-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+.parthenon-dev{position:absolute;z-index:18;right:20px;top:270px;background:#110f21df;border:1px solid #a96794;color:#f3dce9;padding:11px;font-size:12px}
+.parthenon-dev label{display:grid;grid-template-columns:75px 140px 28px;gap:6px;align-items:center}
+@media(max-width:800px){.parthenon-hearts{top:175px;right:12px}.parthenon-dev{top:auto;bottom:135px}}
+
+.parthenon-dev summary{cursor:pointer;font-weight:700;color:#f7d7e9}
+.parthenon-dev[open] label{display:grid;margin-top:7px}
+@media(max-width:800px){.neon-parthenon .lost-ship-mission{width:min(320px,65vw)}}
+
+.neon-parthenon .parthenon-boss-mission{position:absolute;top:166px;left:22px;width:min(380px,34vw);z-index:4;pointer-events:none}
+.parthenon-boss-hud{position:absolute;top:145px;left:50%;transform:translateX(-50%);z-index:8;width:min(350px,34vw);min-width:230px;padding:10px 13px;color:#ffe5ef;background:#140d1ddf;border:1px solid #d668a8;box-shadow:0 0 26px #da3d9744;text-align:center;pointer-events:none}
+.parthenon-boss-hud strong{display:flex;justify-content:space-between;align-items:center;letter-spacing:.12em}
+.parthenon-boss-hud strong small{color:#efa7ca;font-size:10px}
+.parthenon-boss-hud>small{display:block;font-size:10px;letter-spacing:.07em;margin:7px 0}
+.parthenon-boss-health,.parthenon-petrify{height:8px;margin-top:7px;background:#443044;border:1px solid #9b628b;overflow:hidden}
+.parthenon-boss-health span,.parthenon-petrify span{display:block;height:100%;background:linear-gradient(90deg,#8f2e7d,#f169ba);transition:width .15s}
+.parthenon-petrify{height:5px;background:#233238}
+.parthenon-petrify span{background:linear-gradient(90deg,#8fcdd0,#d5f8ff)}
+.parthenon-boss-intro{position:absolute;z-index:16;bottom:15%;left:50%;transform:translateX(-50%);width:min(560px,85vw);padding:20px 24px;color:#ffe6ed;background:#130b20e8;border:1px solid #d96ba9;box-shadow:0 0 55px #c6339066;text-align:center;pointer-events:none}
+.parthenon-boss-intro strong{font-size:24px;letter-spacing:.12em}
+.parthenon-boss-intro p{margin:8px 0;font-size:14px}
+@media(max-width:800px){.neon-parthenon .parthenon-boss-mission{left:12px;width:min(310px,62vw)}.parthenon-boss-hud{top:210px;right:10px;left:auto;transform:none;width:230px;min-width:0}}

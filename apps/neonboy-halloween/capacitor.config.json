@@ -1,0 +1,8 @@
+{
+  "appId": "ar.com.neonboy.halloween",
+  "appName": "NeonBoy Music Halloween",
+  "webDir": "../../dist-halloween-android",
+  "server": {
+    "androidScheme": "https"
+  }
+}

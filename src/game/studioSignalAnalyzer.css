@@ -1,0 +1,66 @@
+/* A small late-90s audio editor over the existing studio scene. */
+.studio-signal-overlay { z-index: 30; align-items: center; padding: 18px; }
+.studio-signal-analyzer {
+  width: min(960px, 100%); max-height: min(91vh, 850px); overflow: auto;
+  border: 2px solid #9b6f91; border-radius: 5px; background: #bab5ac;
+  box-shadow: 0 0 0 5px #160d20, 0 32px 90px #000e;
+  color: #241b27; font-family: var(--store-font);
+}
+.studio-signal-titlebar, .studio-signal-analyzer footer {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 10px 15px; background: linear-gradient(90deg, #3a2146, #894b78); color: #fff0da;
+}
+.studio-signal-titlebar div { display: grid; gap: 3px; }
+.studio-signal-titlebar small { color: #f0b6d7; font-size: 9px; letter-spacing: .15em; }
+.studio-signal-titlebar strong { font-size: 17px; letter-spacing: .08em; }
+.neon-recording-studio .studio-signal-analyzer button {
+  min-width: 0; min-height: 0; padding: 8px 12px; border: 1px solid #6d516d;
+  border-radius: 2px; background: #28212e; color: #ffe9d1;
+  font: 800 11px var(--store-font); cursor: pointer;
+}
+.neon-recording-studio .studio-signal-analyzer button:hover:not(:disabled),
+.neon-recording-studio .studio-signal-analyzer button:focus-visible:not(:disabled) {
+  border-color: #f4a5cf; background: #63365c; outline: 2px solid #f5bfdc;
+}
+.neon-recording-studio .studio-signal-analyzer button:disabled { cursor: default; opacity: .5; }
+.studio-signal-titlebar button { font-size: 20px !important; padding: 3px 10px !important; }
+.studio-signal-menubar { display: flex; justify-content: space-between; padding: 5px 13px; border-bottom: 1px solid #7d7377; background: #d8d1c3; color: #423943; font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+.studio-signal-menubar span { color: #7b3d70; }
+.studio-signal-body { display: grid; gap: 12px; padding: 14px; background: repeating-linear-gradient(0deg, #bdb8ae, #bdb8ae 3px, #c5c0b6 4px); }
+.studio-signal-screen { overflow: hidden; border: 7px solid #29262b; border-radius: 3px; background: #091814; box-shadow: inset 0 0 30px #020c0a, 0 3px 6px #0008; color: #84e4b3; }
+.studio-signal-screen-top, .studio-signal-screen-bottom { display: flex; justify-content: space-between; gap: 10px; padding: 6px 10px; font: 700 10px monospace; letter-spacing: .06em; }
+.studio-signal-screen svg { display: block; width: 100%; height: clamp(125px, 20vh, 180px); background: repeating-linear-gradient(0deg, transparent, transparent 23px, #25513e4f 24px), repeating-linear-gradient(90deg, transparent, transparent 39px, #25513e45 40px); }
+.studio-signal-centerline { stroke: #a9bd9a65; stroke-width: 1; }
+.studio-signal-wave, .studio-signal-wave-mirror { fill: none; stroke: #9df6bc; stroke-width: 1.5; filter: drop-shadow(0 0 4px #6becb1); }
+.studio-signal-wave-mirror { opacity: .42; }
+.studio-signal-playhead { stroke: #f896cf; stroke-width: 2; }
+.studio-signal-transport { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.studio-signal-transport span { color: #4b4149; font-size: 10px; font-weight: 700; }
+.studio-signal-console { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, .9fr); gap: 12px; }
+.studio-signal-console fieldset, .studio-signal-result { margin: 0; min-width: 0; padding: 12px; border: 2px groove #857883; background: #d8d2c8; }
+.studio-signal-console legend, .studio-signal-result > small { color: #552e5e; font-size: 11px; font-weight: 900; letter-spacing: .08em; }
+.studio-signal-console fieldset > p { margin: 2px 0 12px; font-size: 12px; font-weight: 700; line-height: 1.4; }
+.studio-signal-console label { display: grid; grid-template-columns: 63px minmax(0, 1fr) 38px; align-items: center; gap: 9px; margin: 9px 0; font-size: 12px; font-weight: 800; }
+.studio-signal-console input[type="range"] { width: 100%; accent-color: #af508c; }
+.studio-signal-console output { font: 800 12px monospace; text-align: right; }
+.studio-signal-hint { min-height: 67px; padding-top: 8px; border-top: 1px solid #9f939b; }
+.studio-signal-hint p { margin: 0 0 5px; color: #5d345f; font-size: 11px; font-weight: 700; }
+.studio-signal-result { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+.studio-signal-result > strong { font-size: 12px; letter-spacing: .04em; }
+.studio-signal-meter { height: 16px; padding: 2px; border: 1px inset #544457; background: #160e21; }
+.studio-signal-meter i { display: block; height: 100%; background: linear-gradient(90deg, #89daa7, #e9b056, #d54879); transition: width .15s; }
+.neon-recording-studio .studio-signal-result button:last-of-type { border-color: #cf65a7; background: #6d345f; }
+.studio-signal-decoded { padding: 10px; border: 1px solid #ba5b95; background: #221629; color: #f7dfc9; }
+.studio-signal-decoded small { color: #eca3ca; font-size: 10px; font-weight: 800; }
+.studio-signal-decoded p { margin: 8px 0; font: 800 12px monospace; }
+.studio-signal-decoded strong { display: block; color: #ffc0e5; font: 800 15px monospace; }
+.studio-signal-decoded span { display: block; margin-top: 8px; font-size: 10px; line-height: 1.4; }
+.studio-signal-analyzer footer { padding: 8px 14px; background: #2b2031; font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+@media (max-width: 700px) {
+  .studio-signal-overlay { padding: 8px; }
+  .studio-signal-console { grid-template-columns: 1fr; }
+  .studio-signal-menubar span, .studio-signal-analyzer footer span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .studio-signal-meter i { transition: none; }
+}

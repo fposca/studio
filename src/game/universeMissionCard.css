@@ -1,0 +1,55 @@
+/* Shared mission cards. Scene styles own placement; this file owns appearance. */
+.universe-mission-card {
+  --mission-accent: #f09dce;
+  --mission-tint: #df71ba16;
+  --mission-edge: #d486bd48;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid var(--mission-edge);
+  border-radius: 12px;
+  background: linear-gradient(125deg, #281c30fa, #110e1bf7 78%);
+  box-shadow: inset 0 1px 0 #fff5e310, 0 8px 24px #05030a55;
+  color: #fff0dd;
+  font-family: var(--store-font, sans-serif);
+  text-align: left;
+  pointer-events: none;
+}
+.universe-mission-card.is-complete {
+  --mission-accent: #dbc69e;
+  --mission-tint: #d8bd8a12;
+  --mission-edge: #cfb68c36;
+  background: linear-gradient(125deg, #242027f7, #13101bf7 78%);
+}
+.universe-mission-card .universe-mission-card__header { display: flex; align-items: center; gap: 10px; }
+.universe-mission-card .universe-mission-card__icon {
+  display: grid; place-items: center; flex: 0 0 34px; height: 34px;
+  border: 1px solid var(--mission-edge); border-radius: 9px;
+  background: var(--mission-tint); color: var(--mission-accent);
+}
+.universe-mission-card .universe-mission-card__heading { min-width: 0; }
+.universe-mission-card .universe-mission-card__status {
+  display: flex; align-items: center; gap: 5px;
+  margin-bottom: 4px; color: var(--mission-accent);
+  font-size: 8px; font-weight: 750; line-height: 1; letter-spacing: .15em;
+}
+.universe-mission-card__status i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; box-shadow: 0 0 6px #f09dce66; }
+.universe-mission-card .universe-mission-card__heading h3 {
+  margin: 0; color: #fff0dd; font-size: 15px; line-height: 1.2; font-weight: 750; letter-spacing: -.015em;
+}
+.universe-mission-card .universe-mission-card__description {
+  margin: 10px 0 0; color: #c5b6cc; font-size: 11px; font-weight: 450; line-height: 1.45;
+}
+.universe-mission-card .universe-mission-card__objective {
+  display: flex; align-items: flex-start; gap: 6px; margin-top: 10px;
+  padding: 8px 9px; border: 1px solid #fff0dd09; border-radius: 6px; background: #fff0dd06;
+}
+.universe-mission-card__objective > svg { flex: none; margin-top: 1px; color: var(--mission-accent); }
+.universe-mission-card .universe-mission-card__objective p { margin: 0; color: #f2e6d8; font-size: 12px; line-height: 1.4; font-weight: 550; }
+.universe-mission-card .universe-mission-card__meta { display: flex; flex-wrap: wrap; gap: 5px 12px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #fff0dd0d; }
+.universe-mission-card .universe-mission-card__meta span { color: #b9aabd; font-size: 10px; line-height: 1.4; font-weight: 500; letter-spacing: .01em; }
+.universe-mission-card.is-complete .universe-mission-card__meta span { color: #cabb9e; }
+@media (max-width: 760px) {
+  .universe-mission-card { padding: 11px 12px; border-radius: 9px; }
+  .universe-mission-card .universe-mission-card__heading h3 { font-size: 14px; }
+  .universe-mission-card .universe-mission-card__objective p { font-size: 11px; }
+}

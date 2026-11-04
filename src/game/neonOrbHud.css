@@ -1,0 +1,30 @@
+.neon-orb-hud {
+  position: absolute; z-index: 18; left: 50%; bottom: 58px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; max-width: calc(100% - 24px);
+  padding: 9px 13px; color: #fff1e9; background: rgba(12, 13, 28, .91);
+  border: 1px solid #b75fa7; box-shadow: 0 0 24px #e044b244, inset 0 1px #ffffff22;
+  border-radius: 7px; font-family: inherit; backdrop-filter: blur(10px);
+}
+.neon-orb-hud-icon { color: #aa739e; display: grid; place-items: center; }
+.neon-orb-hud-icon.is-ready { color: #ff91e7; filter: drop-shadow(0 0 8px #ff57cd); }
+.neon-orb-hud-copy { display: grid; min-width: 98px; line-height: 1.15; }
+.neon-orb-hud-copy strong { font-size: 12px; letter-spacing: .08em; }
+.neon-orb-hud-copy small { color: #eba5d7; font-size: 10px; letter-spacing: .08em; }
+.neon-orb-hud-progress { color: #a9dfe5; font-size: 11px; white-space: nowrap; }
+.neon-orb-hud button { color: #fff1e9; background: #46253f; border: 1px solid #c883bc; border-radius: 3px; padding: 7px 9px; cursor: pointer; white-space: nowrap; }
+.neon-orb-hud button:disabled { opacity: .45; cursor: default; }
+.neon-orb-hud button:not(:disabled):hover { background: #803b70; }
+.neon-orb-hud kbd { font-size: 10px; color: #f0c5e7; }
+.neon-orb-hud-help { color: #ad9aae; font-size: 10px; white-space: nowrap; }
+@media (max-width: 800px) {
+ .neon-orb-hud { flex-wrap: wrap; justify-content: center; width: min(500px, calc(100% - 24px)); gap: 6px; bottom: 45px; }
+ .neon-orb-hud-help { display: none; }
+}
+
+.lost-ship-orb-unlock { text-align: center; }
+.lost-ship-orb-unlock strong { display: block; color: #ffe4f9; letter-spacing: .1em; font-size: 1.25rem; }
+.lost-ship-orb-unlock .lost-ship-log-row { text-align: left; }
+.lost-ship-orb-emblem { width: 95px; height: 95px; margin: 12px auto 18px; display: grid; place-items: center; border: 2px solid #f36bcf; border-radius: 50%; box-shadow: 0 0 20px #ec4cc4, inset 0 0 22px #e64dc8; animation: orb-awaken 2.4s ease-in-out infinite; }
+.lost-ship-orb-emblem span { width: 34px; height: 34px; border-radius: 50%; background: #e9ffff; box-shadow: 0 0 13px #f9ffff, 0 0 35px #f277da; }
+@keyframes orb-awaken { 50% { transform: scale(1.08); box-shadow: 0 0 34px #ec4cc4, inset 0 0 30px #e64dc8; } }
+@media (prefers-reduced-motion: reduce) { .lost-ship-orb-emblem { animation: none; } }

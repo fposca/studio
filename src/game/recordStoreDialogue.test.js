@@ -66,3 +66,16 @@ test("Halloween visitors have their own interactions without advancing the Tito 
     assert.equal(choose(id, "greeting", "bye", progress).changed, false);
   }
 });
+
+test("invasion dialogue preserves Spanish punctuation and earlier Tito options", () => {
+  const progress = { ...INITIAL_STORE_PROGRESS };
+  const context = { storeInvaded: true, storeInvasionProgress: { ghostDefeated: true } };
+  const greeting = getStoreDialogueNode("tito", "greeting", progress, context);
+  assert.equal(greeting.options[0].id, "invasion:tito");
+  assert.ok(greeting.options.some((choice) => choice.id === "topic:tito:discs"));
+  const intro = getStoreDialogueNode("tito", "invasion:tito:intro", progress, context);
+  assert.equal(intro.lines[0].text, "\u00a1Tito! \u00bfQu\u00e9 carajo pas\u00f3 ac\u00e1?");
+  assert.equal(intro.options[3].label, "\u00bfQu\u00e9 es esa se\u00f1al en la pared?");
+  const roxy = getStoreDialogueNode("roxy", "invasion:roxy", progress, context);
+  assert.ok(roxy.lines.some((line) => line.text === "\u00a1\u00bfViste?!"));
+});

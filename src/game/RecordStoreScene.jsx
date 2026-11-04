@@ -7,12 +7,14 @@ import { disposeObjects } from "./disposeGameObjects.js";
 import { createGameParticles } from "./gameParticles.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { buildRecordStore } from "./recordStoreScenery.js";
+import { createAlteredRecordStore, ALTERED_STORE_GHOST_SPOT } from "./recordStoreAlteredScene.js";
 import { COIN_TABLE_POSITION, JUKEBOX_POSITION } from "./recordStoreJukeboxScenery.js";
 import { STORE_LAYOUT, STORE_ALBUM_POSITIONS, STORE_OBSTACLES } from "./recordStoreLayout.js";
 import { createRecordStoreVideoProjection } from "./recordStoreVideoProjection.js";
 import { createRecordStoreNpcActors } from "./recordStoreNpcActors.js";
 import { STORE_NPCS } from "./recordStoreDialogue.js";
 import { buildRecordingStudio } from "./recordingStudioScenery.js";
+import { createStudioSignalEffects } from "./studioSignalEffects.js";
 import { applyStudioAssetTransform, loadStudioAssets } from "./studioAssets.js";
 import { STUDIO_LAYOUT } from "./studioLayout.js";
 import { ROCK_CLUB_LAYOUT, rockClubFloorHeight } from "./rockClubLayout.js";
@@ -28,10 +30,26 @@ import { ARCADE_LAYOUT } from "./arcadeLayout.js";
 import { buildArcade } from "./arcadeScenery.js";
 import { createArcadeActors } from "./arcadeActors.js";
 import { buildFrequency09Realm, FREQUENCY09_LAYOUT } from "./frequency09Realm.js";
+import { createFrequency09Entrance } from "./frequency09Entrance.js";
+import { ROOFTOP_LAYOUT } from "./rooftopLayout.js";
+import { buildRooftop } from "./rooftopScenery.js";
+import { LOST_SHIP_LAYOUT } from "./lostShipLayout.js";
+import { buildLostShip } from "./lostShipScenery.js";
+import { PARTHENON_LAYOUT } from "./parthenonLayout.js";
+import { buildParthenon } from "./parthenonScenery.js";
+import { buildMatrixWorld } from "./matrixScenery.js";
+import { MATRIX_LAYOUT } from "./matrixLayout.js";
+import { canClearMatrixPlatform, matrixPlatformHeight } from "./matrixPlatforms.js";
+import { createNeonOrbAbility } from "./neonOrbAbility.js";
+import { createStoreInvasionScene } from "./storeInvasionScene.js";
+import { INVASION_NPC_PLACEMENTS } from "./recordStoreInvadedLayout.js";
+import { createFirstPersonMotion } from "./firstPersonMotion.js";
 
 const IDLE_URL = new URL("../assets/neonboy-animaciones/neon-inactivo-hd.store.glb", import.meta.url).href;
 const WALK_URL = new URL("../assets/neonboy-animaciones/neonboy-new-walk.anim.glb", import.meta.url).href;
+const RUN_URL = new URL("../assets/neonboy-animaciones/neonboy-running.anim.glb", import.meta.url).href;
 const JUMP_URL = new URL("../assets/neonboy-animaciones/neonboy-new-jump.anim.glb", import.meta.url).href;
+const POWER_URL = new URL("../assets/neonboy-animaciones/neonboy-power.anim.glb", import.meta.url).href;
 const STEP_URLS = [
   new URL("../assets/neonboy-animaciones/step-1.mp3", import.meta.url).href,
   new URL("../assets/neonboy-animaciones/step-2.mp3", import.meta.url).href
@@ -58,20 +76,26 @@ function inPlaceClip(source, name) {
   return clip;
 }
 
-export default function RecordStoreScene({ scenario = "store", albums, onSelect, onNearby, onOpenJukebox, onTakeCoins, onNpcInteract, onHugoInteract, onExamine, onViewChange, onJumpChange, credits = 0, activeNpc = null, roxyPlaying = false, dancingSkeleton = null, interactionLocked = false, projectionPaused = false, paused = false, firstPerson = false, outsideVideo = null, playbackApiRef, playerSnapshotRef, studioTransformsRef, studioAssetApiRef, clubTransformsRef, clubAssetApiRef, arcadeTransformsRef, arcadeAssetApiRef, arcadeAltered = false, onArcadeEvent, frequencyPhase = "idle", onConcertStart, concertReady = false, concertActive = false, concertEffectRef, concertTransformsRef, concertMotionRef, concertPoseRef, motionPlaybackOffsetsRef, motionRecordingId = null, concertCameraMode = "auto", concertEditor = null, onPoseGizmoChange }) {
+export default function RecordStoreScene({ scenario = "store", albums, onSelect, onNearby, onOpenJukebox, onTakeCoins, onNpcInteract, onHugoInteract, onExamine, onViewChange, onJumpChange, onSceneReady, storeAltered = false, storeClueUnlocked = false, storeGhostPending = false, storeEventRef, storeInvaded = false, storeInvasionProgress = null, storeInvasionCrateHeld = false, onStoreInvasionEvent, onStoreInvasionCrateToggle, credits = 0, activeNpc = null, roxyPlaying = false, dancingSkeleton = null, interactionLocked = false, projectionPaused = false, paused = false, firstPerson = false, outsideVideo = null, playbackApiRef, playerSnapshotRef, studioTransformsRef, studioAssetApiRef, studioAnomalyRef, studioChapterSeen = false, clubTransformsRef, clubAssetApiRef, arcadeTransformsRef, arcadeAssetApiRef, arcadeAltered = false, onArcadeEvent, rooftopTransformsRef, rooftopAssetApiRef, lostShipTransformsRef, lostShipAssetApiRef, lostShipProgress = null, lostShipEffectRef, orbApiRef, onOrbHit, onOrbStatus, orbStatus, parthenonProgress, onParthenonEvent, onParthenonOrbHit, onParthenonBossStatus, parthenonBossApiRef, parthenonTransformsRef, onCombatDamage, matrixProgress, onMatrixEvent, onMatrixStatus, onMatrixBossScreen, matrixTransformsRef, matrixAssetApiRef, rooftopPhase = "idle", rooftopPhaseAge = 0, rooftopProgress = null, frequencyPhase = "idle", onConcertStart, concertReady = false, concertActive = false, concertEffectRef, concertTransformsRef, concertMotionRef, concertPoseRef, motionPlaybackOffsetsRef, motionRecordingId = null, concertCameraMode = "auto", concertEditor = null, onPoseGizmoChange }) {
   const isStudio = scenario === "studio";
   const isClub = scenario === "rock-club";
   const isArcade = scenario === "arcade";
   const isRealm = scenario === "frequency-09";
-  const isInterior = isStudio || isClub || isArcade || isRealm;
+  const isRooftop = scenario === "rooftop";
+  const isShip = scenario === "lost-ship";
+  const isParthenon = scenario === "parthenon";
+  const isMatrix = scenario === "matrix";
+  const isStoreInvasion = scenario === "store" && storeInvaded;
+  const isOrbScene = isShip || isParthenon || isMatrix || isStoreInvasion;
+  const isInterior = isStudio || isClub || isArcade || isRealm || isRooftop || isShip || isParthenon || isMatrix;
   const canvasRef = useRef(null);
   const [sceneReady, setSceneReady] = useState(false);
   const [webglError, setWebglError] = useState(false);
   const [rendererVersion, setRendererVersion] = useState(0);
-  const callbacks = useRef({ onSelect, onNearby, onOpenJukebox, onTakeCoins, onNpcInteract, onHugoInteract, onExamine, onViewChange, onJumpChange, credits, activeNpc, roxyPlaying, dancingSkeleton, interactionLocked, projectionPaused, paused, outsideVideo, arcadeAltered, onArcadeEvent, frequencyPhase, onConcertStart, concertReady, concertActive, concertEffectRef, concertCameraMode, concertEditor, motionRecordingId, onPoseGizmoChange });
+  const callbacks = useRef({ onSelect, onNearby, onOpenJukebox, onTakeCoins, onNpcInteract, onHugoInteract, onExamine, onViewChange, onJumpChange, credits, activeNpc, roxyPlaying, dancingSkeleton, interactionLocked, projectionPaused, paused, outsideVideo, arcadeAltered, storeClueUnlocked, onArcadeEvent, frequencyPhase, onConcertStart, concertReady, concertActive, concertEffectRef, concertCameraMode, concertEditor, motionRecordingId, onPoseGizmoChange });
   const actions = useRef({});
   const keys = useRef(new Set());
-  callbacks.current = { onSelect, onNearby, onOpenJukebox, onTakeCoins, onNpcInteract, onHugoInteract, onExamine, onViewChange, onJumpChange, credits, activeNpc, roxyPlaying, dancingSkeleton, interactionLocked, projectionPaused, paused, outsideVideo, arcadeAltered, onArcadeEvent, frequencyPhase, onConcertStart, concertReady, concertActive, concertEffectRef, concertCameraMode, concertEditor, motionRecordingId, onPoseGizmoChange };
+  callbacks.current = { storeInvasionProgress, storeInvasionCrateHeld, onStoreInvasionEvent, onStoreInvasionCrateToggle, rooftopPhase, rooftopPhaseAge, rooftopProgress, lostShipProgress, onOrbHit, onOrbStatus, parthenonProgress, onParthenonEvent, onParthenonOrbHit, onParthenonBossStatus, onCombatDamage, matrixProgress, onMatrixEvent, onMatrixStatus, onMatrixBossScreen, studioChapterSeen, onSelect, onNearby, onOpenJukebox, onTakeCoins, onNpcInteract, onHugoInteract, onExamine, onViewChange, onJumpChange, credits, activeNpc, roxyPlaying, dancingSkeleton, interactionLocked, projectionPaused, paused, outsideVideo, arcadeAltered, storeClueUnlocked, onArcadeEvent, frequencyPhase, onConcertStart, concertReady, concertActive, concertEffectRef, concertCameraMode, concertEditor, motionRecordingId, onPoseGizmoChange };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -91,24 +115,47 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     canvas.addEventListener("webglcontextrestored", onContextRestored);
     renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.25));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.shadowMap.type = isParthenon || isMatrix ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.06;
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(isClub ? 0x0e0b12 : isArcade ? 0x130d1a : isStudio ? 0x15121b : 0x120d18);
-    scene.fog = new THREE.Fog(isClub ? 0x211319 : isArcade ? 0x241829 : isStudio ? 0x17111e : 0x211824, isClub ? 18 : 20, 48);
-    scene.add(new THREE.HemisphereLight(0xd7cfe3, 0x554234, isClub ? 0.95 : isArcade || isRealm ? 0.34 : isStudio ? 0.88 : 1.04));
+    const alteredLighting = !isInterior && storeAltered;
+    scene.background = new THREE.Color(isParthenon ? 0x180d19 : isShip ? 0x070c17 : isRooftop ? 0x0d1422 : isClub ? 0x0e0b12 : isArcade ? 0x130d1a : isStudio ? 0x15121b : alteredLighting ? 0x21090f : 0x120d18);
+    scene.fog = new THREE.Fog(isParthenon ? 0x351c2a : isShip ? 0x14203a : isRooftop ? 0x1a2432 : isClub ? 0x211319 : isArcade ? 0x241829 : isStudio ? 0x17111e : alteredLighting ? 0x36121a : 0x211824, isRooftop ? 42 : isParthenon ? 14 : isShip ? 12 : isClub ? 18 : 20, isRooftop ? 155 : isParthenon ? 64 : isShip ? 46 : 48);
+    scene.add(new THREE.HemisphereLight(alteredLighting ? 0xee7971 : isParthenon ? 0xb889a0 : isShip ? 0x7ba5ce : isRooftop ? 0x9fb5d6 : isParthenon ? 0x9bb7de : 0xd7cfe3, alteredLighting ? 0x3d1018 : isParthenon ? 0x24202c : 0x554234,
+      isMatrix ? .35 : isParthenon ? .48 : isShip ? .54 : isRooftop ? 0.58 : isClub ? 0.95 : isArcade || isRealm ? 0.34 : isStudio ? 0.88 : alteredLighting ? 0.66 : 1.04));
+    if (isStoreInvasion) {
+      scene.background.setHex(0x110c18);
+      scene.fog.color.setHex(0x251521);
+      const ambient = scene.children.find(object => object.isHemisphereLight);
+      ambient.color.setHex(0xaaa0bc); ambient.groundColor.setHex(0x241321); ambient.intensity = .48;
+    }
     const pmrem = new THREE.PMREMGenerator(renderer);
     const room = new RoomEnvironment();
     const environment = pmrem.fromScene(room, 0.04);
     scene.environment = environment.texture;
-    scene.environmentIntensity = isArcade ? 0.18 : 0.3;
+    scene.environmentIntensity = isParthenon ? .16 : isRooftop ? 0.2 : isArcade ? 0.18 : alteredLighting ? 0.16 : 0.3;
     room.dispose(); pmrem.dispose();
     const shop = isInterior ? null : buildRecordStore(scene, albums, STORE_ALBUM_POSITIONS, STORE_OBSTACLES);
+    const alteredStore = shop && storeAltered ? createAlteredRecordStore(shop, { invaded: isStoreInvasion }) : null;
+    const invasion = isStoreInvasion && shop ? createStoreInvasionScene(shop, { onEvent: (event,value) => callbacks.current.onStoreInvasionEvent?.(event,value), onDamage: (amount) => callbacks.current.onCombatDamage?.(amount) }) : null;
+    if (alteredStore) { shop.keyLight.intensity = 0.9; shop.keyLight.color.setHex(0xff5c50); }
     const studio = isStudio ? buildRecordingStudio(scene) : null;
+    const studioSignalEffects = studio ? createStudioSignalEffects(scene, studio) : null;
     const club = isClub ? buildRockClub(scene) : null;
     const arcade = isArcade ? buildArcade(scene, callbacks.current.arcadeAltered) : null;
     const realm = isRealm ? buildFrequency09Realm(scene) : null;
+    const rooftop = isRooftop ? buildRooftop(scene) : null;
+    const ship = isShip ? buildLostShip(scene, { onCombatDamage: () => callbacks.current.onCombatDamage?.() }) : null;
+    const temple = isParthenon ? buildParthenon(scene, { onEvent: (event) => callbacks.current.onParthenonEvent?.(event), onDamage: (amount) => callbacks.current.onCombatDamage?.(amount), onStatus: (status) => callbacks.current.onParthenonBossStatus?.(status) }) : null;
+    const matrix = isMatrix ? buildMatrixWorld(scene, { onEvent: (event, value) => callbacks.current.onMatrixEvent?.(event, value), onDamage: (amount) => callbacks.current.onCombatDamage?.(amount), onStatus: (status) => callbacks.current.onMatrixStatus?.(status) }) : null;
+    if (matrix) for (const [id, transform] of Object.entries(matrixTransformsRef?.current || {})) matrix.applyTransform(id, transform);
+    if (matrix && matrixAssetApiRef) matrixAssetApiRef.current = { apply: matrix.applyTransform, teleport: (x, z) => { player.x=x; player.z=z; player.y=0; player.velocityY=0; player.grounded=true; keys.current.clear(); } };
+    if (temple) for (const [id, transform] of Object.entries(parthenonTransformsRef?.current || {})) temple.applyTransform(id, transform);
+    if (ship) for (const [id, transform] of Object.entries(lostShipTransformsRef?.current || {})) ship.applyTransform(id, transform);
+    if (ship && lostShipAssetApiRef) lostShipAssetApiRef.current = { apply: ship.applyTransform };
+    if (rooftop) for (const [id, transform] of Object.entries(rooftopTransformsRef?.current || {})) rooftop.applyTransform(id, transform);
+    const frequencyEntrance = arcade ? createFrequency09Entrance(arcade.slots.get("frequency09Cabinet")) : null;
     if (arcade) for (const [id, transform] of Object.entries(arcadeTransformsRef?.current || {})) arcade.applyTransform(id, transform);
     if (arcade && arcadeAssetApiRef) arcadeAssetApiRef.current = { apply: (id, transform) => arcade.applyTransform(id, transform) };
     if (club) for (const [id, transform] of Object.entries(clubTransformsRef?.current || {}))
@@ -117,17 +164,20 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     const coinParticles = isInterior ? null : createGameParticles(scene);
     const videoProjection = isInterior ? null : createRecordStoreVideoProjection(canvas.parentElement, shop.jukebox, shop.standbyLabel);
     if (playbackApiRef && videoProjection) playbackApiRef.current = { getSnapshot: videoProjection.getSnapshot };
-    for (const [x, z, color] of (isInterior ? [] : [[0, -9, 0xffe2b9], [-7, -1, 0xcba9e1], [7, 4, 0xffcd9b], [0, 11, 0xffddb1]])) {
-      const light = new THREE.PointLight(color, 24, 15, 2);
+    const storeFills = storeAltered
+      ? [[0, -9, 0xff3748], [-7, -1, 0xff654e], [7, 4, 0xf52d4b], [0, 11, 0xff6b57]]
+      : [[0, -9, 0xffe2b9], [-7, -1, 0xcba9e1], [7, 4, 0xffcd9b], [0, 11, 0xffddb1]];
+    for (const [x, z, color] of (isInterior ? [] : storeFills)) {
+      const light = new THREE.PointLight(color, storeAltered ? 27 : 24, 15, 2);
       light.position.set(x, 4.3, z);
       scene.add(light);
     }
-    const camera = new THREE.PerspectiveCamera(63, 1, 0.05, 75);
-    const layout = isStudio ? STUDIO_LAYOUT : isClub ? ROCK_CLUB_LAYOUT : isArcade ? ARCADE_LAYOUT : isRealm ? FREQUENCY09_LAYOUT : STORE_LAYOUT;
+    const camera = new THREE.PerspectiveCamera(63, 1, 0.05, isRooftop ? 180 : isParthenon ? 120 : 75);
+    const layout = isStudio ? STUDIO_LAYOUT : isClub ? ROCK_CLUB_LAYOUT : isArcade ? ARCADE_LAYOUT : isRealm ? FREQUENCY09_LAYOUT : isRooftop ? ROOFTOP_LAYOUT : isShip ? LOST_SHIP_LAYOUT : isParthenon ? PARTHENON_LAYOUT : isMatrix ? MATRIX_LAYOUT : STORE_LAYOUT;
     const snapshot = playerSnapshotRef?.current;
     const player = { x: snapshot?.x ?? 0, y: 0, z: snapshot?.z ?? layout.spawnZ, yaw: snapshot?.yaw ?? Math.PI, health: 100, grounded: true, speed: 0,
       running: false, attack: null, stun: 0, equipped: "unarmed", combat: 0, velocityY: 0, landing: 0, jumpAge: 0, raiseArmsOnJump: false };
-    const playerLight = new THREE.PointLight(0xd7bbff, 11, 5, 2);
+    const playerLight = new THREE.PointLight(alteredLighting ? 0xff786b : isParthenon ? 0x9db3e0 : isShip ? 0x7db4e8 : isRooftop ? 0xb0c6da : 0xd7bbff, alteredLighting ? 7.5 : isParthenon ? 4.3 : isShip ? 2.5 : isRooftop ? 3 : 11, 5, 2);
     scene.add(playerLight);
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const stepSounds = STEP_URLS.map((url) => {
@@ -137,11 +187,61 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       return audio;
     });
     let stepTravel = 0.35, nextStep = 0;
-    const view = { yaw: snapshot?.viewYaw ?? 0, pitch: isArcade ? 0.18 : 0.34, firstPitch: 0, firstPerson: false, distance: 4.5, bobPhase: 0, bobWeight: 0 };
+    const view = { yaw: snapshot?.viewYaw ?? 0, pitch: isArcade || isRealm ? 0.18 : 0.34, firstPitch: 0, firstPerson: false, distance: 4.5, bobPhase: 0, bobWeight: 0, eyeY: player.y + 1.68 };
+    const firstPersonMotion = createFirstPersonMotion(view.yaw, view.firstPitch);
     camera.position.set(player.x + Math.sin(view.yaw) * view.distance, 2.7, Math.min(player.z + 4, isInterior ? layout.cameraFrontZ : 15.1));
     camera.lookAt(player.x, player.y + 1.2, player.z);
     let character = null, idleAsset = null, walkAsset = null, jumpAsset = null, alive = true, frame = 0, last = 0, elapsed = 0;
+    const orb = isOrbScene ? createNeonOrbAbility(scene, {
+      getTargets: () => ship ? ship.trial.getTargets(callbacks.current.lostShipProgress) : temple ? temple.getTargets(callbacks.current.parthenonProgress) : matrix ? matrix.getTargets(callbacks.current.matrixProgress) : invasion.getTargets(callbacks.current.storeInvasionProgress),
+      getColliders: () => ship ? ship.colliders : temple ? temple.colliders : matrix ? matrix.colliders : invasion.colliders,
+      getMaxRange: () => invasion ? 33 : temple?.getBossStatus().phase === "active" ? 40 : undefined,
+      onHit: (target) => {
+        if (ship) { ship.trial.registerImpact(target); callbacks.current.onOrbHit?.(target); }
+        else if (temple) { temple.registerImpact(target); callbacks.current.onParthenonOrbHit?.(target); }
+        else if (matrix) matrix.registerImpact(target);
+        else return invasion.registerImpact(target);
+        return target.reflect ? { reflect: true } : null;
+      },
+      onStatus: (status) => callbacks.current.onOrbStatus?.(status),
+    }) : null;
+    const firstPersonEye = new THREE.Vector3();
+    const getFirstPersonEye = () => {
+      const sway = Math.sin(view.bobPhase) * 0.012 * view.bobWeight;
+      const rise = Math.cos(view.bobPhase * 2) * 0.018 * view.bobWeight;
+      return firstPersonEye.set(player.x + Math.cos(view.yaw) * sway, view.eyeY + rise,
+        player.z - Math.sin(view.yaw) * sway);
+    };
+    const heldWalkingYaw = () => {
+      const held = keys.current;
+      const forward = Number(held.has("KeyW") || held.has("ArrowUp")) - Number(held.has("KeyS") || held.has("ArrowDown"));
+      const right = Number(held.has("KeyD") || held.has("ArrowRight")) - Number(held.has("KeyA") || held.has("ArrowLeft"));
+      if (!forward && !right) return null;
+      return Math.atan2(right * Math.cos(view.yaw) - forward * Math.sin(view.yaw),
+        -right * Math.sin(view.yaw) - forward * Math.cos(view.yaw));
+    };
+    const fireOrb = () => {
+      if (!orb || !callbacks.current.lostShipProgress?.orbUnlocked || callbacks.current.interactionLocked || callbacks.current.paused || temple?.locksPlayer()) return false;
+      const launchYaw = view.firstPerson ? Math.PI + view.yaw : heldWalkingYaw() ?? player.yaw;
+      const pitch = view.firstPerson ? view.firstPitch : 0;
+      if (!orb.fire(player, launchYaw, pitch, view.firstPerson ? getFirstPersonEye() : null)) return false;
+      player.yaw = launchYaw;
+      character?.playPower();
+      return true;
+    };
+    if (temple && parthenonBossApiRef) parthenonBossApiRef.current = {
+      start: () => temple.startBoss(callbacks.current.parthenonProgress),
+      retry: () => { player.x = 0; player.z = -28; player.yaw = Math.PI; keys.current.clear(); temple.resetBoss("active"); },
+      reset: () => { player.x = 0; player.z = -28; keys.current.clear(); temple.resetBoss("idle"); },
+      apply: temple.applyTransform,
+    };
+    if (orbApiRef && orb) orbApiRef.current = {
+      fire: fireOrb,
+      recall: () => orb.recall(),
+    };
     let dragging = null, nearKey = null, nearInteraction = null;
+    let readyForArrival = false, realmArrivalAge = 0, arrivalCameraFinished = false;
+    const arrivalCamera = new THREE.Vector3(), arrivalLook = new THREE.Vector3();
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
     const resize = () => {
@@ -157,7 +257,13 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     resize();
 
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
-    const npcActors = isInterior ? null : createRecordStoreNpcActors(scene, loader, shop.clickable, disposeObjects, { deferLoad: true });
+    if (rooftop) void rooftop.loadDemon(loader, () => alive);
+    const shipReady = ship ? ship.loadAssets(loader, lostShipTransformsRef?.current, () => alive).then(loaded => { if (alive) canvas.dataset.shipModels = loaded.join(","); }) : Promise.resolve();
+    const templeReady = temple ? temple.loadAssets(loader, () => alive, callbacks.current.parthenonProgress).then(loaded => { if (alive) canvas.dataset.templeModels = loaded.join(","); }) : Promise.resolve();
+    const matrixReady = matrix ? matrix.loadAssets(loader, () => alive).then(loaded => { if (alive) canvas.dataset.matrixModels = loaded.join(","); }) : Promise.resolve();
+    if (invasion) void invasion.loadAssets(loader, () => alive).then(status => { if (alive) canvas.dataset.invasionModels = JSON.stringify(status); });
+    const ghostReady = (alteredStore && storeGhostPending ? alteredStore.loadGhost(loader, () => alive) : null) || realm?.loadGhost(loader, () => alive) || Promise.resolve(false);
+    const npcActors = isInterior ? null : createRecordStoreNpcActors(scene, loader, shop.clickable, disposeObjects, { deferLoad: true, placements: isStoreInvasion ? INVASION_NPC_PLACEMENTS : {} });
     const clubActors = club ? createRockClubActors(scene, club, loader, () => clubTransformsRef?.current || {}, () => alive, () => concertTransformsRef?.current || {}) : null;
     const arcadeActors = arcade ? createArcadeActors(arcade, loader, () => alive) : null;
     let concertClipsPromise = null, concertProps = null, poseController = null, concertWasActive = false, concertPerforming = false, savedConcertPlayer = null, motionClock = 0;
@@ -213,20 +319,24 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
         }, waitForAudienceIdle);
       });
     }).catch(() => { /* Procedural props and NPC markers remain usable. */ }) : Promise.resolve();
-    const playerReady = Promise.all([loader.loadAsync(IDLE_URL), loader.loadAsync(WALK_URL), loader.loadAsync(JUMP_URL)]).then(([idle, walk, jump]) => {
+    const playerLoads = [loader.loadAsync(IDLE_URL), loader.loadAsync(WALK_URL), loader.loadAsync(JUMP_URL), loader.loadAsync(RUN_URL).catch(() => null)];
+    if (isOrbScene) playerLoads.push(loader.loadAsync(POWER_URL).catch(() => null));
+    const playerReady = Promise.all(playerLoads).then(([idle, walk, jump, run, power]) => {
       idleAsset = idle;
       walkAsset = walk;
       jumpAsset = jump;
 
-      if (!alive) { disposeObjects([idle.scene, walk.scene, jump.scene]); return; }
+      if (!alive) { disposeObjects([idle.scene, walk.scene, jump.scene, run?.scene, power?.scene].filter(Boolean)); return; }
       const idleClip = inPlaceClip(idle.animations.find((clip) => clip.duration > 0.25), "idle");
       const walkClip = inPlaceClip(walk.animations.find((clip) => clip.duration > 0.25), "walk");
       const jumpClip = inPlaceClip(jump.animations.find((clip) => clip.duration > 0.25), "jump");
+      const runClip = inPlaceClip(run?.animations.find((clip) => clip.duration > 0.25), "run");
+      const powerClip = inPlaceClip(power?.animations.find((clip) => clip.duration > 0.25), "power");
 
       if (!idleClip || !walkClip || !jumpClip) return;
-      character = createRecordStoreCharacter({ scene: idle.scene, idleClip, walkClip, jumpClip });
+      character = createRecordStoreCharacter({ scene: idle.scene, idleClip, walkClip, runClip, jumpClip, powerClip });
       scene.add(character.root);
-      disposeObjects([walk.scene, jump.scene]);
+      disposeObjects([walk.scene, jump.scene, run?.scene, power?.scene].filter(Boolean));
       walkAsset = null;
       jumpAsset = null;
 
@@ -258,9 +368,12 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
         spinner.add(coin);
       }
     }).catch(() => { /* Gold fallback coins remain on the table. */ });
-    Promise.all([playerReady, coinReady, studioReady, clubReady, shop?.ready || Promise.resolve()]).then(() => {
+    Promise.all([playerReady, coinReady, studioReady, clubReady, shop?.ready || Promise.resolve(), ghostReady, shipReady, templeReady, matrixReady]).then((ready) => {
       if (!alive) return;
+      if (alteredStore || realm) canvas.dataset.ghostLoaded = String(ready[5] === true);
       setSceneReady(true);
+      onSceneReady?.({ ghostLoaded: ready[5] === true });
+      readyForArrival = true;
       npcActors?.load();
       if (arcadeActors) void arcadeActors.load().then((loaded) => { if (alive) canvas.dataset.arcadeActors = loaded.join(","); });
     });
@@ -295,30 +408,54 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     };
     const toggleView = () => {
       view.firstPerson = !view.firstPerson;
+      firstPersonMotion.reset(view.yaw, view.firstPitch);
+      view.bobWeight = 0; view.eyeY = player.y + 1.68;
+      dragging = null;
       if (!view.firstPerson && document.pointerLockElement === canvas) document.exitPointerLock();
       callbacks.current.onViewChange(view.firstPerson);
     };
     const jump = () => {
       if (!player.grounded) return;
       player.grounded = false;
-      player.velocityY = 6.4;
+      player.velocityY = matrix ? 7.8 : 6.4;
       player.jumpAge = 0;
       player.landing = 0;
       callbacks.current.onJumpChange(true);
     };
     actions.current = { toggleView, jump, interact: () => interact(nearInteraction) };
     const onKeyDown = (event) => {
+      if (ship && !event.repeat) ship.audio.start();
       if (callbacks.current.interactionLocked || isField(event.target)) return;
+      if (isStoreInvasion && event.code === "KeyC" && !event.repeat) { event.preventDefault(); callbacks.current.onStoreInvasionEvent?.("vision-toggle"); return; }
+      if (isStoreInvasion && callbacks.current.storeInvasionCrateHeld && (event.code === "KeyW" || event.code === "KeyS") && !event.repeat) { event.preventDefault(); callbacks.current.onStoreInvasionEvent?.("crate-step", event.code === "KeyW" ? 1 : -1); return; }
+      if (isMatrix && event.code === "KeyC" && !event.repeat) { event.preventDefault(); callbacks.current.onMatrixEvent?.("vision-toggle"); return; }
       if (event.code === "KeyV" && !event.repeat) { event.preventDefault(); toggleView(); return; }
       if (event.code === "Space" && !event.repeat) { event.preventDefault(); jump(); return; }
-      if (event.code === "KeyE" && !event.repeat) { event.preventDefault(); interact(nearInteraction); return; }
+      if (event.code === "KeyE" && !event.repeat) { event.preventDefault(); if (isStoreInvasion && callbacks.current.storeInvasionCrateHeld) callbacks.current.onStoreInvasionCrateToggle?.(false); else interact(nearInteraction); return; }
+      if (isOrbScene && event.code === "KeyF" && !event.repeat && callbacks.current.lostShipProgress?.orbUnlocked) { event.preventDefault(); fireOrb(); return; }
+      if (isOrbScene && event.code === "KeyR" && !event.repeat && callbacks.current.lostShipProgress?.orbUnlocked) { event.preventDefault(); orb?.recall(); return; }
       if (["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight", "KeyQ"].includes(event.code)) {
         event.preventDefault();
         keys.current.add(event.code);
       }
     };
     const onKeyUp = (event) => keys.current.delete(event.code);
-    const onBlur = () => keys.current.clear();
+    const clearInput = () => {
+      keys.current.clear(); dragging = null;
+      firstPersonMotion.reset(view.yaw, view.firstPitch);
+    };
+    const onBlur = () => {
+      clearInput();
+      if (document.pointerLockElement === canvas) document.exitPointerLock();
+    };
+    let pointerLocked = false, skipLockMove = false;
+    const onPointerLockChange = () => {
+      const locked = document.pointerLockElement === canvas;
+      if (pointerLocked && !locked) clearInput();
+      if (!pointerLocked && locked) skipLockMove = true;
+      pointerLocked = locked;
+    };
+    document.addEventListener("pointerlockchange", onPointerLockChange);
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
@@ -332,30 +469,46 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
         interact(nearInteraction);
         return true;
       }
-      if (isClub || isArcade || isRealm) return false;
+      if (!shop) return false;
       const hit = raycaster.intersectObjects(shop.clickable, false)[0];
       if (hit?.object.userData.albumId) interact({ kind: "album", id: hit.object.userData.albumId });
       else if (hit?.object.userData.shopAction) interact({ kind: hit.object.userData.shopAction, id: hit.object.userData.npcId });
       return Boolean(hit);
     };
     const onPointerDown = (event) => {
-      if (poseController?.isGizmoActive() || callbacks.current.interactionLocked || selectAt(event)) return;
-      dragging = { id: event.pointerId, x: event.clientX, y: event.clientY };
-      if (view.firstPerson && event.pointerType === "mouse" && canvas.requestPointerLock) canvas.requestPointerLock().catch(() => {});
-      else canvas.setPointerCapture(event.pointerId);
+      ship?.audio.start();
+      if (poseController?.isGizmoActive() || callbacks.current.interactionLocked) return;
+      if (isStoreInvasion) canvas.focus({ preventScroll: true });
+      if (!(isStoreInvasion && event.button === 0 && callbacks.current.storeInvasionProgress?.visionActive) && selectAt(event)) return;
+      dragging = { id: event.pointerId, x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY, button: event.button, moved: false, distance: 0 };
+      if (document.pointerLockElement !== canvas) {
+        canvas.setPointerCapture(event.pointerId);
+        if (view.firstPerson && event.pointerType === "mouse" && canvas.requestPointerLock)
+          Promise.resolve(canvas.requestPointerLock()).catch(() => { /* Drag-to-look remains available. */ });
+      }
     };
     const onPointerMove = (event) => {
       if (callbacks.current.interactionLocked) return;
       const locked = document.pointerLockElement === canvas;
       if (!locked && (!dragging || dragging.id !== event.pointerId)) return;
+      if (locked && skipLockMove) { skipLockMove = false; return; }
       const deltaX = locked ? event.movementX : event.clientX - dragging.x;
       const deltaY = locked ? event.movementY : event.clientY - dragging.y;
-      view.yaw -= deltaX * 0.004;
-      if (view.firstPerson) view.firstPitch = THREE.MathUtils.clamp(view.firstPitch + deltaY * 0.003, -0.95, 0.95);
-      else view.pitch = THREE.MathUtils.clamp(view.pitch + deltaY * 0.003, 0.12, 0.75);
+      if (dragging) { dragging.distance += Math.hypot(deltaX, deltaY); if (dragging.distance > 6) dragging.moved = true; }
+      if (view.firstPerson) firstPersonMotion.look(deltaX, deltaY);
+      else {
+        view.yaw -= deltaX * 0.004;
+        view.pitch = THREE.MathUtils.clamp(view.pitch + deltaY * 0.003, 0.12, 0.75);
+      }
       if (!locked) { dragging.x = event.clientX; dragging.y = event.clientY; }
     };
-    const onPointerUp = () => { dragging = null; };
+    const onPointerUp = (event) => {
+      if (isOrbScene && dragging?.id === event.pointerId && dragging.button === 0 && !dragging.moved
+        && !callbacks.current.interactionLocked && callbacks.current.lostShipProgress?.orbUnlocked)
+        fireOrb();
+      dragging = null;
+    };
+    const onPointerCancel = () => { dragging = null; };
     const onWheel = (event) => {
       if (callbacks.current.interactionLocked) return;
       event.preventDefault();
@@ -364,17 +517,37 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     canvas.addEventListener("pointerdown", onPointerDown);
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerup", onPointerUp);
-    canvas.addEventListener("pointercancel", onPointerUp);
+    canvas.addEventListener("pointercancel", onPointerCancel);
     canvas.addEventListener("wheel", onWheel, { passive: false });
     canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
-    const obstacles = studio?.obstacles || club?.obstacles || arcade?.obstacles || realm?.obstacles || STORE_OBSTACLES;
+    const obstacles = studio?.obstacles || club?.obstacles || arcade?.obstacles || realm?.obstacles || rooftop?.obstacles || ship?.obstacles || temple?.obstacles || matrix?.obstacles || invasion?.obstacles || STORE_OBSTACLES;
+    if (rooftop && rooftopAssetApiRef) rooftopAssetApiRef.current = { apply: rooftop.applyTransform, teleport: (x,z) => { player.x=x;player.z=z;player.y=0;player.velocityY=0;player.grounded=true; } };
     const canMove = (x, z) => Math.abs(x) < layout.playerLimitX && z > layout.playerBackZ && z < layout.playerFrontZ &&
-      !obstacles.some((obstacle) => Math.abs(x - obstacle.x) < obstacle.hx + 0.46 && Math.abs(z - obstacle.z) < obstacle.hz + 0.46) &&
+      !obstacles.some((obstacle) => {
+        if (matrix && canClearMatrixPlatform(obstacle, player.y)) return false;
+        if (obstacle.radius) {
+          const limit = obstacle.radius + 0.46;
+          const nextDistance = Math.hypot(x - obstacle.x, z - obstacle.z);
+          if (nextDistance >= limit) return false;
+          const currentDistance = Math.hypot(player.x - obstacle.x, player.z - obstacle.z);
+          // An existing save can place NeonBoy inside the platform: let him walk out.
+          return currentDistance >= limit || nextDistance <= currentDistance + 0.0001;
+        }
+        const nextX = Math.abs(x - obstacle.x), nextZ = Math.abs(z - obstacle.z);
+        const limitX = obstacle.hx + 0.46, limitZ = obstacle.hz + 0.46;
+        if (nextX >= limitX || nextZ >= limitZ) return false;
+        const currentX = Math.abs(player.x - obstacle.x), currentZ = Math.abs(player.z - obstacle.z);
+        // A save or a moving prop can leave the player inside a collider; allow an exit.
+        return currentX >= limitX || currentZ >= limitZ ||
+          (nextX <= currentX + 0.0001 && nextZ <= currentZ + 0.0001);
+      }) &&
       (isInterior || !["roxy", "freddy", "jason"].some((id) => {
         const position = npcActors.getPosition(id);
         return position && Math.hypot(x - position.x, z - position.z) < 0.88;
       }));
+    const storeCameraTarget = new THREE.Vector3();
+    const storeCameraPosition = new THREE.Vector3();
     const lookAt = new THREE.Vector3();
     const desiredCamera = new THREE.Vector3();
     const concertCamera = createConcertCamera(camera, (id, target) => {
@@ -399,20 +572,32 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     }, reducedMotion);
     const cameraRay = new THREE.Raycaster();
     const cameraDirection = new THREE.Vector3();
+    const bossMarkerPosition = new THREE.Vector3();
     function animate(now) {
       if (!alive) return;
       const frameSeconds = Math.max(0, (now - (last || now)) / 1000);
       const dt = Math.min(frameSeconds, 0.05);
       last = now;
-      if (arcade && callbacks.current.paused) {
+      if (callbacks.current.interactionLocked || callbacks.current.paused) {
+        clearInput();
+        if (document.pointerLockElement === canvas) document.exitPointerLock();
+      }
+      if ((arcade || realm || rooftop || ship) && callbacks.current.paused) {
+        ship?.audio.setPaused(true);
         keys.current.clear();
         frame = requestAnimationFrame(animate);
         return;
       }
       elapsed += dt;
+      ship?.audio.setPaused(false);
       const held = keys.current;
       if (held.size || dragging) lastPlayerActivity = now;
       if (callbacks.current.interactionLocked) held.clear();
+      if (realm && readyForArrival) {
+        realmArrivalAge += dt;
+        if (held.size || dragging || view.firstPerson || !player.grounded || reducedMotion) arrivalCameraFinished = true;
+      }
+      const frequencyIntake = arcade && callbacks.current.frequencyPhase === "intake";
       if (club && concertWasActive !== callbacks.current.concertActive) {
         concertWasActive = callbacks.current.concertActive;
         canvas.dataset.concert = concertWasActive ? "live" : "idle";
@@ -448,28 +633,48 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
             view.yaw = savedConcertPlayer.viewYaw;
             view.pitch = savedConcertPlayer.viewPitch;
             view.firstPerson = savedConcertPlayer.firstPerson;
+            firstPersonMotion.reset(view.yaw, view.firstPitch);
+            view.eyeY = player.y + 1.68;
             callbacks.current.onViewChange?.(view.firstPerson);
           }
           savedConcertPlayer = null;
         }
       }
-      const forward = Number(held.has("KeyW") || held.has("ArrowUp")) - Number(held.has("KeyS") || held.has("ArrowDown"));
-      const right = Number(held.has("KeyD") || held.has("ArrowRight")) - Number(held.has("KeyA") || held.has("ArrowLeft"));
-      if (held.has("KeyQ")) view.yaw += dt * 1.8;
+      const movementLocked = callbacks.current.interactionLocked || callbacks.current.paused || temple?.locksPlayer();
+      if (movementLocked) firstPersonMotion.reset(view.yaw, view.firstPitch);
+      const forward = movementLocked ? 0 : Number(held.has("KeyW") || held.has("ArrowUp")) - Number(held.has("KeyS") || held.has("ArrowDown"));
+      const right = movementLocked ? 0 : Number(held.has("KeyD") || held.has("ArrowRight")) - Number(held.has("KeyA") || held.has("ArrowLeft"));
+      if (!movementLocked && held.has("KeyQ")) {
+        if (view.firstPerson) firstPersonMotion.turn(dt * 1.4);
+        else view.yaw += dt * 1.8;
+      }
       const length = Math.hypot(forward, right) || 1;
       const speed = held.has("ShiftLeft") || held.has("ShiftRight") ? 5 : 2.8;
       const previousX = player.x, previousZ = player.z;
       // Large NPCs can stall one render frame while their GLB is decoded.
       // Catch up a bounded amount of held-key travel in collision-safe slices.
-      const movementDt = club && (forward || right) ? Math.min(frameSeconds, 0.24) : dt;
-      const dx = (right * Math.cos(view.yaw) - forward * Math.sin(view.yaw)) / length * speed * movementDt;
-      const dz = (-right * Math.sin(view.yaw) - forward * Math.cos(view.yaw)) / length * speed * movementDt;
+      const movementDt = club && !view.firstPerson && (forward || right) ? Math.min(frameSeconds, 0.24) : dt;
+      let dx, dz;
+      if (view.firstPerson) {
+        const motion = firstPersonMotion.update(movementDt, forward, right, speed);
+        view.yaw = motion.yaw; view.firstPitch = motion.pitch;
+        dx = motion.dx; dz = motion.dz;
+      } else {
+        dx = (right * Math.cos(view.yaw) - forward * Math.sin(view.yaw)) / length * speed * movementDt;
+        dz = (-right * Math.sin(view.yaw) - forward * Math.cos(view.yaw)) / length * speed * movementDt;
+      }
       const slices = club ? Math.max(1, Math.ceil(movementDt / 0.04)) : 1;
       for (let slice = 0; slice < slices; slice += 1) {
         if (canMove(player.x + dx / slices, player.z)) player.x += dx / slices;
         if (canMove(player.x, player.z + dz / slices)) player.z += dz / slices;
       }
       if (club && player.grounded) player.y = rockClubFloorHeight(player.x, player.z);
+      if (matrix && player.grounded && player.y > 0.05 &&
+          matrixPlatformHeight(player.x, player.z, player.y, player.y, obstacles) < player.y - .05) {
+        player.grounded = false;
+        player.velocityY = 0;
+        callbacks.current.onJumpChange(true);
+      }
       const moved = Math.hypot(player.x - previousX, player.z - previousZ);
       player.speed = moved / Math.max(movementDt, 0.001);
       player.running = speed > 4;
@@ -492,8 +697,10 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       if (!player.grounded) {
         player.jumpAge += dt;
         player.velocityY -= 18 * dt;
-        const groundY = club ? rockClubFloorHeight(player.x, player.z) : 0;
-        player.y = Math.max(groundY, player.y + player.velocityY * dt);
+        const nextY = player.y + player.velocityY * dt;
+        const groundY = club ? rockClubFloorHeight(player.x, player.z) :
+          matrix && player.velocityY < 0 ? matrixPlatformHeight(player.x, player.z, player.y, nextY, obstacles) : 0;
+        player.y = Math.max(groundY, nextY);
         if (player.y === groundY && player.velocityY < 0) {
           player.velocityY = 0;
           player.grounded = true;
@@ -502,23 +709,55 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
         }
       }
       player.landing = Math.max(0, player.landing - dt);
-      const bobTarget = view.firstPerson && player.grounded && player.speed > 0.1 && !reducedMotion ? Math.min(1.3, player.speed / 2.8) : 0;
+      const bobTarget = view.firstPerson && player.grounded && player.speed > 0.1 && !reducedMotion ? Math.min(1, player.speed / 2.8) : 0;
       view.bobWeight = THREE.MathUtils.damp(view.bobWeight, bobTarget, 10, dt);
-      if (bobTarget > 0) view.bobPhase += player.speed * dt * 2.75;
-      const nextFov = concertWasActive ? camera.fov : view.firstPerson ? 76 : 63;
-      if (camera.fov !== nextFov) { camera.fov = nextFov; camera.updateProjectionMatrix(); }
-      if (concertWasActive) {
-        // The director updates after the animated bones and props below.
-      } else if (view.firstPerson) {
-        const headY = player.y + 1.68;
-        const sway = Math.sin(view.bobPhase) * 0.058 * view.bobWeight;
-        const rise = Math.cos(view.bobPhase * 2) * 0.072 * view.bobWeight;
-        const eyeX = player.x + Math.cos(view.yaw) * sway;
-        const eyeZ = player.z - Math.sin(view.yaw) * sway;
-        camera.position.set(eyeX, headY + rise, eyeZ);
-        lookAt.set(eyeX - Math.sin(view.yaw) * 10, headY + rise - Math.tan(view.firstPitch) * 10, eyeZ - Math.cos(view.yaw) * 10);
+      if (bobTarget > 0) view.bobPhase += moved * 2.75;
+      view.eyeY = THREE.MathUtils.damp(view.eyeY, player.y + 1.68, player.grounded ? 22 : 35, dt);
+      const nextFov = concertWasActive || frequencyIntake ? camera.fov : view.firstPerson ? 76 : 63;
+      if (camera.fov !== nextFov) {
+        camera.fov = Math.abs(camera.fov - nextFov) < .01 ? nextFov : THREE.MathUtils.damp(camera.fov, nextFov, 14, dt);
+        camera.updateProjectionMatrix();
+      }
+      if (studio && studioAnomalyRef?.current?.phase === "active" && !reducedMotion) {
+        const age = studioAnomalyRef.current.age;
+        storeCameraPosition.set(player.x + 1.9 + Math.sin(age * .7) * .3, player.y + 2.4, player.z + 3.8);
+        storeCameraTarget.set(age < 5 ? 0 : 5, 1.6, age < 5 ? -2 : -4.5);
+        camera.position.lerp(storeCameraPosition, Math.min(1, dt * 2));
+        lookAt.lerp(storeCameraTarget, Math.min(1, dt * 2));
         camera.lookAt(lookAt);
-        camera.rotateZ(Math.sin(view.bobPhase) * 0.018 * view.bobWeight);
+      } else if (rooftop && ["intro","anomaly"].includes(callbacks.current.rooftopPhase) && !reducedMotion) {
+        const age = callbacks.current.rooftopPhaseAge;
+        const intro = callbacks.current.rooftopPhase === "intro";
+        storeCameraPosition.set(intro ? 2.5 + Math.min(4,age*.35) : 2.4, intro ? 4.5 : 3.6, intro ? 7.5 : -1.5);
+        storeCameraTarget.set(intro ? 0 : 3, intro ? 5.5 : 16, intro ? -35 : -37);
+        camera.position.lerp(storeCameraPosition, Math.min(1,dt*1.5));
+        lookAt.lerp(storeCameraTarget,Math.min(1,dt*1.6));
+        camera.lookAt(lookAt);
+      } else if (concertWasActive) {
+        // The director updates after the animated bones and props below.
+      } else if (frequencyIntake) {
+        frequencyEntrance.update(dt, camera, reducedMotion);
+      } else if (alteredStore && storeEventRef?.current?.type && !reducedMotion) {
+        const event = storeEventRef.current;
+        if (event.type === "invasion") {
+          storeCameraPosition.set(event.age < 3.2 ? 2.7 : -3.4, 2.8, event.age < 3.2 ? 5.5 : .2);
+          storeCameraTarget.set(event.age < 3.2 ? 7.7 : -5.9, 1.35, event.age < 3.2 ? -6.6 : -11.4);
+        } else if (event.type === "intro") {
+          storeCameraPosition.set(1.4, 3.2, 1.4);
+          storeCameraTarget.set(8.6, 1.15, -7.7);
+        } else {
+          storeCameraPosition.set(player.x + 1.2, player.y + 2.5, Math.min(14.5, player.z + 3.4));
+          storeCameraTarget.set(event.type === "ghost" ? ALTERED_STORE_GHOST_SPOT.x : .2, 1.5, event.type === "ghost" ? ALTERED_STORE_GHOST_SPOT.z : -11.9);
+        }
+        camera.position.lerp(storeCameraPosition, Math.min(1, dt * 1.8));
+        lookAt.lerp(storeCameraTarget, Math.min(1, dt * 2.3));
+        camera.lookAt(lookAt);
+      } else if (view.firstPerson) {
+        const eye = getFirstPersonEye();
+        camera.position.copy(eye);
+        lookAt.set(eye.x - Math.sin(view.yaw) * 10, eye.y - Math.tan(view.firstPitch) * 10,
+          eye.z - Math.cos(view.yaw) * 10);
+        camera.lookAt(lookAt);
       } else {
         lookAt.set(player.x, player.y + 1.2, player.z);
         desiredCamera.set(player.x + Math.sin(view.yaw) * view.distance * Math.cos(view.pitch),
@@ -526,22 +765,22 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
           player.z + Math.cos(view.yaw) * view.distance * Math.cos(view.pitch));
         desiredCamera.x = THREE.MathUtils.clamp(desiredCamera.x, isInterior ? -layout.cameraLimitX : -10.35, isInterior ? layout.cameraLimitX : 10.35);
         desiredCamera.z = THREE.MathUtils.clamp(desiredCamera.z, isInterior ? layout.cameraBackZ : -13.2, isInterior ? layout.cameraFrontZ : 15.1);
-        if (studio || club || arcade || realm) {
+        if (studio || club || arcade || realm || rooftop || ship || temple || matrix) {
           const rayLength = cameraDirection.copy(desiredCamera).sub(lookAt).length();
           cameraRay.set(lookAt, cameraDirection.normalize());
           cameraRay.far = rayLength;
-          const hit = cameraRay.intersectObjects((studio || club || arcade || realm).colliders, false)[0];
+          const hit = cameraRay.intersectObjects(matrix ? matrix.colliders.filter(mesh => mesh.visible) : (studio || club || arcade || realm || rooftop || ship || temple).colliders, false)[0];
           if (hit) desiredCamera.copy(lookAt).addScaledVector(cameraDirection, Math.max(0.55, hit.distance - 0.28));
         }
-        camera.position.lerp(desiredCamera, Math.min(1, dt * 10));
-        camera.lookAt(lookAt);
-      }
-      if (arcade && callbacks.current.frequencyPhase === "intake") {
-        const machine = arcade.slots.get("frequency09Cabinet");
-        const target = new THREE.Vector3(machine.position.x + .25, 1.6, machine.position.z + 2.65);
-        camera.position.lerp(target, Math.min(1, dt * 1.1));
-        camera.lookAt(machine.position.x, 1.5, machine.position.z);
-        if (!reducedMotion) camera.position.x += Math.sin(elapsed * 24) * .016;
+        if (realm && readyForArrival && realmArrivalAge < 2.8 && !arrivalCameraFinished) {
+          const t = Math.min(1, realmArrivalAge / 2.8), ease = t * t * (3 - 2 * t);
+          arrivalCamera.set(2.7, 3.65, 10.6).lerp(desiredCamera, ease);
+          arrivalLook.set(0, 1.55, 1).lerp(lookAt, ease);
+          camera.position.copy(arrivalCamera); camera.lookAt(arrivalLook);
+        } else {
+          camera.position.lerp(desiredCamera, Math.min(1, dt * 10));
+          camera.lookAt(lookAt);
+        }
       }
       if (realm && callbacks.current.frequencyPhase === "collapse" && !reducedMotion) {
         camera.position.x += Math.sin(elapsed * 27) * .025;
@@ -554,7 +793,8 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       poseController?.clear();
       character?.update(player, posePaused ? 0 : dt, camera, elapsed);
       if (character) {
-        character.root.visible = !view.firstPerson;
+        character.root.visible = !view.firstPerson && !(frequencyIntake &&
+          Math.hypot(camera.position.x - player.x, camera.position.z - player.z) < 1.05);
         character.root.rotation.x = player.grounded ? 0 : -Math.sin(Math.min(1, player.jumpAge / 0.72) * Math.PI) * 0.16;
       }
       let closest = null, distance = Infinity;
@@ -577,9 +817,15 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
         const gap = Math.hypot(player.x - actor.root.position.x, player.z - actor.root.position.z);
         if (gap < actor.reach && gap < distance) { distance = gap; closest = { kind: "club-npc", id: actor.npc.id }; }
       }
-      for (const spot of studio?.interactions || club?.interactions || arcade?.interactions || realm?.interactions || []) {
+      alteredStore?.setClueVisible(callbacks.current.storeClueUnlocked);
+      for (const spot of callbacks.current.storeClueUnlocked ? alteredStore?.interactions || [] : studio?.interactions || club?.interactions || arcade?.interactions || realm?.interactions || rooftop?.interactions || ship?.interactions || temple?.interactions || matrix?.interactions || []) {
         const gap = Math.hypot(player.x - spot.x, player.z - spot.z);
         if (gap < spot.reach && (gap < distance || (spot.id === "friendsTable" && closest?.kind === "club-npc") || (arcade && spot.id === "pixel"))) { distance = gap; closest = { kind: spot.id === "friendsTable" ? "club-friends" : "examine", id: spot.id, label: spot.label }; }
+      }
+      for (const spot of invasion?.interactions || []) {
+        if (spot.x === 999) continue;
+        const gap = Math.hypot(player.x - spot.x, player.z - spot.z);
+        if (gap < spot.reach && (gap < distance || (spot.id === "invasion-jukebox" && closest?.kind === "jukebox"))) { distance = gap; closest = { kind: "examine", id: spot.id, label: spot.label }; }
       }
       if (studio?.hugoInteraction?.enabled) {
         const spot = studio.hugoInteraction;
@@ -620,6 +866,9 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
         canvas.dataset.concertMotion = callbacks.current.motionRecordingId ? "recording" : "playing";
       }
       if (npcActors) {
+        for (const actor of npcActors.actors.values()) {
+          if (actor.marker) actor.marker.visible = !(alteredStore && storeEventRef?.current?.type);
+        }
         const liveRoxyPlaying = callbacks.current.projectionPaused ? callbacks.current.roxyPlaying :
           callbacks.current.outsideVideo ? (videoProjection.getSnapshot()?.playing ?? callbacks.current.roxyPlaying) : false;
         npcActors.update(dt, player, callbacks.current.activeNpc, closest?.kind === "npc" ? closest.id : null, liveRoxyPlaying, callbacks.current.dancingSkeleton);
@@ -639,7 +888,8 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
         spinner.position.y = spinner.userData.baseY + Math.sin(elapsed * 3.2 + index * 0.58) * 0.025;
       });
       coinParticles?.update(dt);
-      shop?.atmosphere.update(elapsed, reducedMotion);
+      shop?.atmosphere.update(elapsed, reducedMotion, storeAltered, storeEventRef?.current?.type === "ghost");
+      alteredStore?.update(callbacks.current.paused ? 0 : dt, elapsed, storeEventRef?.current?.type, storeEventRef?.current?.age || 0, reducedMotion, camera);
       if (club) {
         const effect = callbacks.current.concertEffectRef?.current;
         const anomaly = effect?.phase === "anomaly" ? Math.min(1, effect.elapsed / 1.3, (9 - effect.elapsed) / 1.1) : 0;
@@ -656,7 +906,28 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
         }
         club.atmosphere.update(dt, reducedMotion, callbacks.current.paused, camera);
       }
-      realm?.update(dt, elapsed, callbacks.current.frequencyPhase, reducedMotion);
+      studioSignalEffects?.update(elapsed, studioAnomalyRef?.current?.phase === "active" ? studioAnomalyRef.current.age : null, callbacks.current.studioChapterSeen, reducedMotion, callbacks.current.paused, Math.hypot(player.x, player.z + 2.1) < 3.4);
+      realm?.update(dt, elapsed, callbacks.current.frequencyPhase, reducedMotion, readyForArrival ? realmArrivalAge : 10);
+      rooftop?.update(dt, elapsed, callbacks.current.rooftopPhase, callbacks.current.rooftopPhaseAge, callbacks.current.rooftopProgress, reducedMotion, callbacks.current.paused);
+      ship?.update(dt, elapsed, callbacks.current.lostShipProgress, callbacks.current.paused, lostShipEffectRef?.current?.until > performance.now() ? lostShipEffectRef.current.type : null, player);
+      temple?.update(dt, elapsed, callbacks.current.parthenonProgress, player, callbacks.current.paused, camera, reducedMotion);
+      matrix?.update(dt, elapsed, callbacks.current.matrixProgress, player, callbacks.current.paused, camera, reducedMotion);
+      invasion?.update(dt, callbacks.current.storeInvasionProgress, player, callbacks.current.paused, reducedMotion, storeEventRef?.current?.age || 0, camera);
+      if (matrix) {
+        const boss = matrix.actors.get("neon-evil");
+        const showBoss = callbacks.current.matrixProgress?.bossStarted && !callbacks.current.matrixProgress?.bossDefeated && boss?.group.visible;
+        if (showBoss) {
+          camera.updateMatrixWorld();
+          boss.group.localToWorld(bossMarkerPosition.set(0, 2.05, 0));
+          bossMarkerPosition.project(camera);
+          callbacks.current.onMatrixBossScreen?.({
+            x: (bossMarkerPosition.x + 1) * 50, y: (1 - bossMarkerPosition.y) * 50,
+            visible: bossMarkerPosition.z >= -1 && bossMarkerPosition.z <= 1 &&
+              Math.abs(bossMarkerPosition.x) < 1 && Math.abs(bossMarkerPosition.y) < 1,
+          });
+        } else callbacks.current.onMatrixBossScreen?.({visible:false});
+      }
+      orb?.update(callbacks.current.paused ? 0 : dt, player, elapsed);
       if (arcade?.update(dt, elapsed, callbacks.current.arcadeAltered, player.z, reducedMotion, callbacks.current.paused, callbacks.current.frequencyPhase === "intake")) callbacks.current.onArcadeEvent?.();
       if (shop) shop.glow.intensity = 4.4 + Math.sin(elapsed * 2.4) * 0.6;
       videoProjection?.setVideo(callbacks.current.projectionPaused ? null : callbacks.current.outsideVideo);
@@ -673,14 +944,17 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       keys.current.clear();
       stepSounds.forEach((sound) => sound.pause());
       actions.current = {};
+      if (orbApiRef) orbApiRef.current = null;
+      orb?.dispose();
       if (document.pointerLockElement === canvas) document.exitPointerLock();
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
+      document.removeEventListener("pointerlockchange", onPointerLockChange);
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
-      canvas.removeEventListener("pointercancel", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerCancel);
       canvas.removeEventListener("wheel", onWheel);
       concertProps?.stop();
       poseController?.dispose();
@@ -689,12 +963,24 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       clubActors?.dispose();
       arcadeActors?.dispose();
       if (clubAssetApiRef) clubAssetApiRef.current = null;
+      studioSignalEffects?.dispose();
       studio?.mixers.forEach((mixer) => mixer.stopAllAction());
       club?.mixers.forEach((mixer) => mixer.stopAllAction());
       videoProjection?.dispose();
       if (playbackApiRef) playbackApiRef.current = null;
       if (studioAssetApiRef) studioAssetApiRef.current = null;
       if (arcadeAssetApiRef) arcadeAssetApiRef.current = null;
+      if (rooftopAssetApiRef) rooftopAssetApiRef.current = null;
+      if (lostShipAssetApiRef) lostShipAssetApiRef.current = null;
+      alteredStore?.dispose();
+      invasion?.dispose();
+      ship?.stopAnimations();
+      if (parthenonBossApiRef) parthenonBossApiRef.current = null;
+      temple?.stopAnimations();
+      temple?.dispose();
+      matrix?.dispose();
+      if (matrixAssetApiRef) matrixAssetApiRef.current = null;
+      ship?.audio.dispose();
       disposeObjects([scene]);
       if (idleAsset) disposeObjects([idleAsset.scene]);
       if (walkAsset) disposeObjects([walkAsset.scene]);
@@ -706,11 +992,11 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       renderer.dispose();
       renderer.forceContextLoss();
     };
-  }, [albums, isStudio, isClub, isArcade, isRealm, rendererVersion]);
+  }, [albums, isStudio, isClub, isArcade, isRealm, isRooftop, isShip, isParthenon, isMatrix, isStoreInvasion, storeAltered, rendererVersion]);
 
   const hold = (code, pressed) => { if (pressed) keys.current.add(code); else keys.current.delete(code); };
   return <div className="record-store-3d" data-scenario={scenario} data-view={firstPerson ? "primera" : "tercera"} data-ready={sceneReady} aria-busy={!sceneReady}>
-    <canvas key={`${scenario}-${rendererVersion}`} ref={canvasRef} aria-label={isStudio ? "Neon Recording Studio 3D recorrible" : isClub ? "Club de Rock 1999 3D recorrible" : isArcade ? "Arcade 1999 3D recorrible" : isRealm ? "FREQUENCY 09, dimensión 3D recorrible" : "Disquería 3D recorrible de Neonboy"} />
+    <canvas key={`${scenario}-${rendererVersion}`} ref={canvasRef} tabIndex={isStoreInvasion ? -1 : undefined} aria-label={isMatrix ? "La Realidad Fracturada, Puerta 03 3D recorrible" : isParthenon ? "El Partenón Maldito 3D recorrible" : isShip ? "La Nave Perdida 3D recorrible" : isStudio ? "Neon Recording Studio 3D recorrible" : isClub ? "Club de Rock 1999 3D recorrible" : isArcade ? "Arcade 1999 3D recorrible" : isRealm ? "FREQUENCY 09, dimensión 3D recorrible" : "Disquería 3D recorrible de Neonboy"} />
     {webglError && <div className="record-store-webgl-error" role="alert">
       <div className="record-store-loading-panel">
         <strong>La escena 3D se interrumpi&oacute;</strong>
@@ -720,14 +1006,19 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     </div>}
     {!sceneReady && !webglError && <div className="record-store-loading" role="status" aria-live="polite">
       <div className="record-store-loading-panel">
-        <span className="record-store-loading-label">NEONBOY MUSIC · 199X</span>
-        <span className="record-store-loading-vinyl" aria-hidden="true"><i /></span>
-        <strong>{isClub ? "Preparando el club de rock" : isArcade ? "Preparando Arcade 1999" : isRealm ? "Entrando en FREQUENCY 09" : isStudio ? "Preparando el estudio" : "Preparando la disquería"}</strong>
-        <small>{isClub ? "Cargando escenario, luces y NeonBoy…" : isStudio ? "Cargando sala de control, cabina y NeonBoy…" : "Cargando discos, personajes y escenario…"}</small>
+        <span className="record-store-loading-label">{isParthenon ? "PUERTA 02 · DIMENSIÓN PERDIDA" : isShip ? "PUERTA 01 · DIMENSIÓN PERDIDA" : isRealm ? "F / 09 · TRANSMISIÓN INTERRUMPIDA" : "NEONBOY MUSIC · 199X"}</span>
+        {isRealm ? <span className="frequency-loading-signal" aria-hidden="true">09</span> :
+          <span className="record-store-loading-vinyl" aria-hidden="true"><i /></span>}
+        <strong>{isParthenon ? "Abriendo el Partenón Maldito" : isShip ? "Preparando La Nave Perdida" : isClub ? "Preparando el club de rock" : isArcade ? "Preparando Arcade 1999" : isRealm ? "Entrando en FREQUENCY 09" : isRooftop ? "Subiendo a la azotea" : isStudio ? "Preparando el estudio" : "Preparando la disquería"}</strong>
+        <small>{isParthenon ? "Cargando templo, Orbe Neón y mecanismos…" : isShip ? "Cargando la nave y sus registros…" : isRealm ? "Reconstruyendo una señal que no debería existir…" : isClub ? "Cargando escenario, luces y NeonBoy…" : isStudio ? "Cargando sala de control, cabina y NeonBoy…" : "Cargando discos, personajes y escenario…"}</small>
         <span className="record-store-loading-bars" aria-hidden="true"><i /><i /><i /><i /><i /></span>
       </div>
     </div>}
-    {firstPerson && <span className="record-store-crosshair" aria-hidden="true" />}
+    {isRealm && sceneReady && <div className={"frequency-arrival" + (paused ? " is-paused" : "")} aria-hidden="true">
+      <span>AL OTRO LADO DE LA SEÑAL</span><strong>FREQUENCY <em>09</em></strong>
+      <small>UBICACIÓN DESCONOCIDA · 1999 / ?</small>
+    </div>}
+    {(firstPerson && (!isOrbScene || (orbStatus?.phase === "ready" && lostShipProgress?.orbUnlocked && !interactionLocked && !paused))) && <span className="record-store-crosshair" aria-hidden="true" />}
     <div className="record-store-mobile-move" aria-label="Moverse por la disquería">
       {[["↑", "KeyW"], ["←", "KeyA"], ["↓", "KeyS"], ["→", "KeyD"]].map(([symbol, code]) =>
         <button key={code} type="button" aria-label={`Mover ${symbol}`} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); hold(code, true); }}

@@ -1,0 +1,162 @@
+{
+  "before": {
+    "count": 0
+  },
+  "active": {
+    "count": 15,
+    "faces": 14,
+    "styles": [
+      "demonic",
+      "awakening",
+      "control"
+    ]
+  },
+  "hidden": true,
+  "positions": [
+    {
+      "id": "entry",
+      "text": "NO DEBISTE ENTRAR",
+      "position": [
+        0,
+        3.75,
+        15.26
+      ]
+    },
+    {
+      "id": "logo",
+      "text": "DESPERTÁ",
+      "position": [
+        6.65,
+        3.85,
+        -13.805
+      ]
+    },
+    {
+      "id": "jukebox",
+      "text": "ELEGÍ TU DESTINO",
+      "position": [
+        -9.401001273680864,
+        3.0464000000000007,
+        8.233616847747461
+      ]
+    },
+    {
+      "id": "new-records",
+      "text": "CONSUMÍ",
+      "position": [
+        3.8,
+        0.6,
+        6.723
+      ]
+    },
+    {
+      "id": "promotions",
+      "text": "SOS EL PRODUCTO",
+      "position": [
+        -3.8,
+        0.6,
+        6.723
+      ]
+    },
+    {
+      "id": "rulo",
+      "text": "NO PIENSES",
+      "position": [
+        3.8,
+        0.6,
+        0.823
+      ]
+    },
+    {
+      "id": "advertising",
+      "text": "OBEDECÉ",
+      "position": [
+        -3.8,
+        3.66,
+        1.6960000000000002
+      ]
+    },
+    {
+      "id": "tv-wall",
+      "text": "ABRÍ LOS OJOS",
+      "position": [
+        -10.855,
+        3.74,
+        -2.8
+      ]
+    },
+    {
+      "id": "mirror",
+      "text": "NO CONFÍES EN TUS OJOS",
+      "position": [
+        10.855,
+        3.74,
+        8.55
+      ]
+    },
+    {
+      "id": "phone",
+      "text": "ELLOS ESCUCHAN",
+      "position": [
+        -7.5,
+        3.7,
+        15.26
+      ]
+    },
+    {
+      "id": "vhs",
+      "text": "LA VERDAD FUE GRABADA",
+      "position": [
+        0,
+        3.15,
+        -13.681999999999999
+      ]
+    },
+    {
+      "id": "archive",
+      "text": "EL CÓDIGO NO PUEDE\nBORRARTE",
+      "position": [
+        -10.855,
+        3.74,
+        -11.6
+      ]
+    },
+    {
+      "id": "mask",
+      "text": "LA MÁSCARA MIENTE",
+      "position": [
+        10.855,
+        3.74,
+        -11.6
+      ]
+    },
+    {
+      "id": "freedom",
+      "text": "ELLOS CONTROLAN LA FRECUENCIA.\nVOS CONTROLÁS LA MÚSICA.",
+      "position": [
+        10.855,
+        3.82,
+        -2.8
+      ]
+    }
+  ],
+  "readableIds": [
+    "matrix-message:entry",
+    "matrix-message:logo",
+    "matrix-message:jukebox",
+    "matrix-message:new-records",
+    "matrix-message:promotions",
+    "matrix-message:rulo",
+    "matrix-message:advertising",
+    "matrix-message:tv-wall",
+    "matrix-message:mirror",
+    "matrix-message:phone",
+    "matrix-message:vhs",
+    "matrix-message:archive",
+    "matrix-message:mask",
+    "matrix-message:demon"
+  ],
+  "textures": 189,
+  "glError": 0,
+  "errors": []
+}

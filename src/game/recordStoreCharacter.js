@@ -1,12 +1,14 @@
 ﻿import * as THREE from "three";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import { NEONBOY_NEW_WALK_GAIT_UNITS_PER_SECOND } from "../editors/walkGait.js";
+import { RUN_SPEED } from "./gameRules.js";
+import { createHolographicGroundRing } from "./holographicGroundRing.js";
 
 const clamp = (value) => Math.max(0, Math.min(1, value));
 
-// The record shop needs only NeonBoy's idle, walk and jump poses.
+// The connected scenes share NeonBoy's idle, walk, run and jump poses.
 // Keeping this separate avoids bundling every enemy and weapon from the main game.
-export function createRecordStoreCharacter({ scene, idleClip, walkClip, jumpClip }) {
+export function createRecordStoreCharacter({ scene, idleClip, walkClip, runClip = null, jumpClip, powerClip = null }) {
   const root = new THREE.Group();
   root.name = "Neonboy";
   const visual = new THREE.Group();
@@ -30,11 +32,16 @@ export function createRecordStoreCharacter({ scene, idleClip, walkClip, jumpClip
   const mixer = new THREE.AnimationMixer(model);
   const idleAction = mixer.clipAction(idleClip).play();
   const walkAction = mixer.clipAction(walkClip).play();
+  const runAction = runClip ? mixer.clipAction(runClip).play() : null;
   const jumpAction = mixer.clipAction(jumpClip).play();
   jumpAction.setLoop(THREE.LoopOnce, 1);
   jumpAction.clampWhenFinished = true;
   walkAction.setEffectiveWeight(0);
+  runAction?.setEffectiveWeight(0);
   jumpAction.setEffectiveWeight(0);
+  const powerAction = powerClip ? mixer.clipAction(powerClip) : null;
+  powerAction?.setLoop(THREE.LoopOnce, 1);
+  if (powerAction) powerAction.clampWhenFinished = true;
   mixer.update(0);
 
   const animatedPose = [...bones.values()].map((bone) => ({ bone, quaternion: bone.quaternion.clone(), position: bone.position.clone() }));
@@ -58,19 +65,21 @@ export function createRecordStoreCharacter({ scene, idleClip, walkClip, jumpClip
     bone.quaternion.slerp(desiredQuaternion, weight);
   }
 
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.37, 0.4, 48),
-    new THREE.MeshBasicMaterial({ color: 0x62edcb, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.035;
+  const ringVisual = createHolographicGroundRing({ radius: .48, color: 0x59dfca, secondary: 0xb9faff, opacity: .8 });
+  const ring = ringVisual.mesh;
   root.add(ring);
 
-  let walkWeight = 0, jumpWeight = 0, heavyWalkWeight = 0, showWeight = 0;
-  let wasAirborne = false, showing = false, showAction = null;
+  let walkWeight = 0, runWeight = 0, jumpWeight = 0, heavyWalkWeight = 0, showWeight = 0;
+  let wasAirborne = false, showing = false, showAction = null, powerAge = Infinity;
   return {
     root,
     getBone: (name) => bones.get(name.replace(/[^a-z0-9]/gi, "").replace(/^mixamorig/i, "")) || model.getObjectByName(name),
+    playPower() {
+      if (!powerAction) return false;
+      powerAge = 0;
+      powerAction.reset().setEffectiveWeight(0).play();
+      return true;
+    },
     setConcertClip(clip) {
       if (!clip) return false;
       showAction = mixer.clipAction(clip);
@@ -88,35 +97,50 @@ export function createRecordStoreCharacter({ scene, idleClip, walkClip, jumpClip
     update(actor, dt) {
       root.position.set(actor.x, actor.y, actor.z);
       root.rotation.y = actor.yaw;
+      ring.visible = actor.grounded !== false;
+      ringVisual.update(dt);
       const moving = !showing && actor.grounded && actor.speed > 0.1;
+      const running = moving && actor.running && Boolean(runAction);
       const airborne = !showing && !actor.grounded;
       if (airborne && !wasAirborne) jumpAction.reset();
       wasAirborne = airborne;
-      walkWeight = THREE.MathUtils.damp(walkWeight, moving ? 1 : 0, 14, dt);
-      heavyWalkWeight = THREE.MathUtils.damp(heavyWalkWeight, moving && !actor.running ? 1 : 0, 9, dt);
+      walkWeight = THREE.MathUtils.damp(walkWeight, moving && !running ? 1 : 0, 14, dt);
+      runWeight = THREE.MathUtils.damp(runWeight, running ? 1 : 0, 14, dt);
+      heavyWalkWeight = THREE.MathUtils.damp(heavyWalkWeight, moving && !running ? 1 : 0, 9, dt);
       jumpWeight = THREE.MathUtils.damp(jumpWeight, airborne ? 1 : 0, 18, dt);
       showWeight = THREE.MathUtils.damp(showWeight, showing ? 1 : 0, 8, dt);
-      const total = Math.max(1, walkWeight + jumpWeight + showWeight);
-      showAction?.setEffectiveWeight(showWeight / total);
+      powerAge += dt;
+      if (powerAction && Number.isFinite(powerAge) && powerAge >= powerClip.duration) {
+        powerAction.stop();
+        powerAge = Infinity;
+      }
+      const powerWeight = powerAction && Number.isFinite(powerAge)
+        ? clamp(Math.min(powerAge / 0.06, (powerClip.duration - powerAge) / 0.12)) : 0;
+      powerAction?.setEffectiveWeight(powerWeight);
+      const baseWeight = 1 - powerWeight;
+      const total = Math.max(1, walkWeight + runWeight + jumpWeight + showWeight);
+      showAction?.setEffectiveWeight(showWeight / total * baseWeight);
       if (!showing && showWeight < 0.005 && showAction?.isRunning()) showAction.stop();
-      walkAction.setEffectiveWeight(walkWeight / total);
+      walkAction.setEffectiveWeight(walkWeight / total * baseWeight);
       walkAction.setEffectiveTimeScale(moving ? actor.speed / Math.max(scale * NEONBOY_NEW_WALK_GAIT_UNITS_PER_SECOND, 0.001) : 0);
-      jumpAction.setEffectiveWeight(jumpWeight / total);
+      runAction?.setEffectiveWeight(runWeight / total * baseWeight);
+      runAction?.setEffectiveTimeScale(moving ? actor.speed / RUN_SPEED : 0);
+      jumpAction.setEffectiveWeight(jumpWeight / total * baseWeight);
       jumpAction.setEffectiveTimeScale(jumpClip.duration * 18 / (2 * 6.4));
-      idleAction.setEffectiveWeight(Math.max(0, 1 - (walkWeight + jumpWeight + showWeight) / total));
+      idleAction.setEffectiveWeight(Math.max(0, 1 - (walkWeight + runWeight + jumpWeight + showWeight) / total) * baseWeight);
       for (const pose of animatedPose) { pose.bone.quaternion.copy(pose.quaternion); pose.bone.position.copy(pose.position); }
       mixer.update(dt);
       for (const pose of animatedPose) { pose.quaternion.copy(pose.bone.quaternion); pose.position.copy(pose.bone.position); }
-      visual.rotation.x = airborne ? 0 : heavyWalkWeight * 0.055;
-      if (!airborne && heavyWalkWeight > 0.01) {
-        bones.get("LeftUpLeg") && (bones.get("LeftUpLeg").position.x += 0.025 * heavyWalkWeight);
-        bones.get("RightUpLeg") && (bones.get("RightUpLeg").position.x -= 0.025 * heavyWalkWeight);
+      visual.rotation.x = airborne ? 0 : heavyWalkWeight * baseWeight * 0.055;
+      if (!airborne && heavyWalkWeight * baseWeight > 0.01) {
+        bones.get("LeftUpLeg") && (bones.get("LeftUpLeg").position.x += 0.025 * heavyWalkWeight * baseWeight);
+        bones.get("RightUpLeg") && (bones.get("RightUpLeg").position.x -= 0.025 * heavyWalkWeight * baseWeight);
         for (const [side, sign] of [["Left", 1], ["Right", -1]]) {
-          aim(side + "Arm", side + "ForeArm", [sign * 0.52, -0.82, 0.18], heavyWalkWeight * 0.32);
+          aim(side + "Arm", side + "ForeArm", [sign * 0.52, -0.82, 0.18], heavyWalkWeight * baseWeight * 0.32);
         }
       }
       if (airborne && actor.raiseArmsOnJump) {
-        const lift = jumpWeight * clamp(actor.y / 0.3);
+        const lift = jumpWeight * baseWeight * clamp(actor.y / 0.3);
         for (const [side, sign] of [["Left", 1], ["Right", -1]]) {
           aim(`${side}Arm`, `${side}ForeArm`, [sign * 0.5, 0.8, 0.3], lift);
           aim(`${side}ForeArm`, `${side}Hand`, [sign * 0.22, 0.86, 0.35], lift * 0.9);

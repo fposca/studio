@@ -23,7 +23,10 @@ export const INITIAL_STUDIO_PROGRESS = Object.freeze({
   hugoMet: false, greetingCount: 0,
   studioComputerUnlocked: false, consoleUnlocked: false,
   computerExplored: false, consoleExplored: false, missionComplete: false,
-  wakeUpInfo: false, jesusIsKingInfo: false, newBornInfo: false
+  wakeUpInfo: false, jesusIsKingInfo: false, newBornInfo: false,
+  impossibleRecordingStarted: false, signalComputerExamined: false,
+  signalAnalysisCompleted: false, reversedSignalDecoded: false,
+  studioAnomalySeen: false, rooftopClueKnown: false
 });
 
 export function loadStudioProgress(storage = globalThis.localStorage) {
@@ -151,11 +154,68 @@ const followupGreetings = [
   "¿Venís a escuchar cómo quedó la mezcla?",
   "Sentate y escuchamos un poco."
 ];
-const option = (id, label, next, effect, clubEvent) => ({ id, label, next, effect, clubEvent });
+const option = (id, label, next, effect, clubEvent, chapterEvent) =>
+  ({ id, label, next, effect, clubEvent, chapterEvent });
 const back = option("back", "Seguir preguntando", "root");
 const bye = option("bye", "Terminar conversación", "farewell");
 
-export function getStudioDialogueNode(nodeId, progress, masterTape, clubQuest = {}) {
+export function getStudioDialogueNode(nodeId, progress, masterTape, clubQuest = {}, chapter = {}) {
+  if (chapter.ghostSeen && nodeId === "chapter6:intro" && !progress.impossibleRecordingStarted) return {
+    id: nodeId, kicker: "LA GRABACIÓN IMPOSIBLE",
+    lines: [
+      { speaker: "NEONBOY", text: "¡Hugo! Necesito que escuches algo." },
+      { speaker: "HUGO", text: "¿Qué pasó ahora? ¿Otra guitarra que no termina de afinar?" },
+      { speaker: "NEONBOY", text: "No, esto es mucho peor." },
+      { speaker: "HUGO", text: "Bueno, contame." },
+      { speaker: "NEONBOY", text: "Durante el recital se cortó la música, tembló todo y apareció una señal. Después una máquina de videojuegos me mostró una tienda destruida." },
+      { speaker: "HUGO", text: "Pará, pará... ¿una máquina de videojuegos?" },
+      { speaker: "NEONBOY", text: "¡Sí! Y cuando volví a la tienda, apareció un fantasma." },
+      { speaker: "HUGO", text: "Bueno... empezamos fuerte hoy." },
+      { speaker: "NEONBOY", text: "Encontré una pista. Dice que reproduzca algo al revés." },
+      { speaker: "HUGO", text: "Traé lo que tengas. Vamos a revisarlo con la consola." },
+    ],
+    options: [option("chapter6-start", "Vamos a revisar la señal", "chapter6:ready", undefined, undefined, "talk"), bye],
+  };
+  if (nodeId === "chapter6:ready" && progress.impossibleRecordingStarted) return {
+    id: nodeId, kicker: "LA GRABACIÓN IMPOSIBLE",
+    text: "La computadora está junto a la consola. Abrí el archivo de señal y probá separar lo que es música de lo que no debería estar ahí.",
+    options: [back, bye],
+  };
+  if (chapter.ghostSeen && nodeId === "chapter6:reaction" &&
+      progress.reversedSignalDecoded && !progress.studioAnomalySeen) return {
+    id: nodeId, kicker: "LA GRABACIÓN IMPOSIBLE / 09",
+    lines: [
+      { speaker: "HUGO", text: "Esto no tiene sentido." },
+      { speaker: "NEONBOY", text: "¿Qué encontraste?" },
+      { speaker: "HUGO", text: "El patrón se repite, pero no parece parte de la grabación original." },
+      { speaker: "NEONBOY", text: "¿Puede ser algún efecto?" },
+      { speaker: "HUGO", text: "Un efecto puede explicar muchas cosas, pero esto está apareciendo incluso cuando corto la reproducción." },
+      { speaker: "NEONBOY", text: "¿Cómo que sigue sonando?" },
+      { speaker: "HUGO", text: "Eso es exactamente lo que no entiendo." },
+    ],
+    options: [option("chapter6-anomaly", "Hugo, detené la reproducción", "close", undefined, undefined, "anomaly"), bye],
+  };
+  if (chapter.ghostSeen && nodeId === "chapter6:after" &&
+      progress.studioAnomalySeen && !progress.rooftopClueKnown) return {
+    id: nodeId, kicker: "LA GRABACIÓN IMPOSIBLE / ORIGEN",
+    lines: [
+      { speaker: "HUGO", text: "Esperá... creo que encontré algo." },
+      { speaker: "NEONBOY", text: "¿Qué cosa?" },
+      { speaker: "HUGO", text: "Hay un patrón que parece estar llegando desde afuera del estudio." },
+      { speaker: "NEONBOY", text: "¿Desde dónde?" },
+      { speaker: "HUGO", text: "No puedo determinar el origen exacto con este equipo." },
+      { speaker: "NEONBOY", text: "¿Y cómo lo averiguamos?" },
+      { speaker: "HUGO", text: "Si logramos captar la señal desde un punto alto, quizá podamos investigar mejor de dónde viene." },
+      { speaker: "NEONBOY", text: "¿Una antena?" },
+      { speaker: "HUGO", text: "Podría servir." },
+    ],
+    options: [option("chapter6-rooftop", "Buscar un punto elevado de la ciudad", "chapter6:end", undefined, undefined, "rooftop"), bye],
+  };
+  if (nodeId === "chapter6:end" && progress.rooftopClueKnown) return {
+    id: nodeId, kicker: "LA GRABACIÓN IMPOSIBLE / NUEVA PISTA",
+    text: "La señal llega desde afuera. Necesitamos captar su origen desde un lugar alto; por ahora la azotea sigue sin acceso.",
+    options: [back, bye],
+  };
   if (nodeId.startsWith("master:")) return getMasterTapeDialogueNode("hugo", nodeId, masterTape);
   if (nodeId === "greeting" || nodeId === "root") {
     return {
@@ -164,6 +224,12 @@ export function getStudioDialogueNode(nodeId, progress, masterTape, clubQuest = 
         progress.hugoMet ? followupGreetings[(Math.max(1, progress.greetingCount) - 1) % followupGreetings.length] :
           "¡Eh, apareciste! Justo estaba escuchando las pistas que me trajiste. Hay buenas ideas acá... vamos a ver cómo hacemos para que suenen todavía mejor.",
       options: [
+        ...(chapter.ghostSeen && !progress.impossibleRecordingStarted ?
+          [option("chapter6-start", "Contarle a Hugo sobre el fantasma", "chapter6:intro")] : []),
+        ...(chapter.ghostSeen && progress.reversedSignalDecoded && !progress.studioAnomalySeen ?
+          [option("chapter6-reaction", "Mostrarle el patrón 09 a Hugo", "chapter6:reaction")] : []),
+        ...(chapter.ghostSeen && progress.studioAnomalySeen && !progress.rooftopClueKnown ?
+          [option("chapter6-after", "Preguntarle de dónde viene la señal", "chapter6:after")] : []),
         ...(missionReady(progress) ? [option("complete", "Contarle a Hugo lo que aprendí", "mission-complete")] : []),
         ...(masterTape?.phase === "complete" ? [clubQuest.hugoSuggestedShow
           ? option("club:reminder", "¿Dónde podía tocar en vivo?", "club:reminder")
@@ -203,10 +269,10 @@ export function getStudioDialogueNode(nodeId, progress, masterTape, clubQuest = 
   return null;
 }
 
-export function chooseStudioDialogue(nodeId, optionId, progress, masterTape, clubQuest) {
-  const node = getStudioDialogueNode(nodeId, progress, masterTape, clubQuest);
+export function chooseStudioDialogue(nodeId, optionId, progress, masterTape, clubQuest, chapter = {}) {
+  const node = getStudioDialogueNode(nodeId, progress, masterTape, clubQuest, chapter);
   const choice = node?.options.find((entry) => entry.id === optionId);
   if (!choice) return { nodeId, progress, changed: false };
   const next = choice.effect && !progress[choice.effect] ? { ...progress, [choice.effect]: true } : progress;
-  return { nodeId: choice.next, progress: next, changed: next !== progress, questEvent: choice.questEvent, clubEvent: choice.clubEvent };
+  return { nodeId: choice.next, progress: next, changed: next !== progress, questEvent: choice.questEvent, clubEvent: choice.clubEvent, chapterEvent: choice.chapterEvent };
 }

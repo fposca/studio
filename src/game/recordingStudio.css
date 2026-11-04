@@ -107,3 +107,80 @@
 
 .studio-header > .studio-header-actions { display: flex; align-items: flex-start; gap: 8px; max-width: none; pointer-events: auto; }
 @media (max-width: 700px) { .studio-header > .studio-header-actions { flex-direction: column-reverse; gap: 5px; } .studio-header-actions button { width: 100%; justify-content: center; } }
+
+/* Let mission cards grow with their content without crossing the workbench hint. */
+.studio-mission-stack {
+  position: absolute; z-index: 4; top: 152px; left: 22px;
+  display: flex; flex-direction: column; gap: 10px;
+  width: min(380px, calc(100% - 44px)); max-height: calc(100% - 230px);
+  overflow-y: auto; scrollbar-width: thin; scrollbar-color: #af78a5 transparent;
+}
+.neon-recording-studio .studio-mission-stack > :is(.studio-progress, .master-tape-hud, .club-show-hud) {
+  position: static; inset: auto; flex: none; width: 100%; max-width: none; box-sizing: border-box; margin: 0;
+}
+@media (max-width: 700px) {
+  .studio-mission-stack { top: 143px; left: 10px; width: calc(100% - 20px); max-height: calc(100% - 220px); }
+}
+
+.studio-signal-file {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin: .6rem 0 1rem;
+  padding: .8rem 1rem;
+  border: 1px solid #d75daa;
+  background: linear-gradient(105deg, #211029, #110e20);
+  box-shadow: 0 0 18px #dd4fa72a;
+}
+.studio-signal-file small { display: block; color: #f795cd; font-size: .68rem; letter-spacing: .12em; }
+.studio-signal-file strong { color: #fff1d5; letter-spacing: .08em; }
+.studio-signal-file p { margin: .25rem 0 0; color: #e8d9df; }
+.studio-signal-file button {
+  flex: none; padding: .65rem .85rem; border: 1px solid #e58aba;
+  background: #441d43; color: #fff1dc; cursor: pointer;
+}
+.studio-signal-file button:hover { background: #71305b; }
+.studio-anomaly-overlay {
+  position: absolute; inset: 0; z-index: 30;
+  display: grid; place-items: end center;
+  padding: 1.5rem;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, #320c2712 0 2px, transparent 2px 5px),
+    radial-gradient(ellipse at center, transparent 38%, #13071370 100%);
+}
+.studio-anomaly-overlay__panel {
+  max-width: 42rem; width: min(100%, 42rem);
+  border: 1px solid #ef77c1;
+  padding: 1rem 1.4rem;
+  background: #100b1feb;
+  box-shadow: 0 0 30px #e74ba14d;
+  text-align: center;
+  color: #fff0d8;
+}
+.studio-anomaly-overlay__panel small { display: block; color: #f091c5; letter-spacing: .14em; }
+.studio-anomaly-overlay__panel strong { display: block; margin: .4rem 0; font-size: clamp(1rem, 2vw, 1.4rem); }
+.studio-anomaly-overlay__panel p { margin: 0; line-height: 1.5; }
+@media (max-width: 600px) {
+  .studio-signal-file { flex-direction: column; align-items: stretch; }
+}
+
+.studio-anomaly-overlay__wave {
+  position: relative; height: 38px; margin: .7rem 0;
+  border: 1px solid #98578e; overflow: hidden;
+  background: repeating-linear-gradient(0deg, transparent 0 7px, #a7548228 8px),
+    #090d17;
+}
+.studio-anomaly-overlay__wave::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 18px;
+  height: 2px; background: #dc78be; box-shadow: 0 0 8px #e14aaa;
+}
+.studio-anomaly-overlay__wave span {
+  position: absolute; z-index: 1; left: 7px; top: 3px;
+  color: #dca6c9; font: 700 8px monospace; letter-spacing: .08em;
+}
+.studio-anomaly-overlay__wave i {
+  position: absolute; z-index: 2; left: 61%; top: 0; bottom: 0;
+  width: 2px; background: #ffe3a3; box-shadow: 0 0 7px #ffdda1;
+}
+.studio-signal-context { border-left: 3px solid #e87cb7; padding-left: .6rem; color: #fae5f2; }

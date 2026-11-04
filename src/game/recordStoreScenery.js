@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { buildStoreJukebox } from "./recordStoreJukeboxScenery.js";
 import { STORE_LAYOUT } from "./recordStoreLayout.js";
 import { buildStoreAtmosphere } from "./recordStoreAtmosphere.js";
+import { createHangingNeonSign, createVenueSign } from "./venueSignage.js";
 const STORE_FONT = '"Bahnschrift", "Segoe UI", sans-serif';
 
 function canvasTexture(width, height, paint, { repeat, color = true } = {}) {
@@ -58,9 +59,13 @@ function plane(parent, map, x, y, z, w, h, lit = false) {
 }
 
 function sign(parent, text, x, y, z, w, h, options = {}) {
-  const height = options.height || 128;
-  const width = Math.max(128, Math.round(height * w / h));
-  return plane(parent, signTexture(text, { ...options, width, height, font: (options.font || 52) * 1.15 }), x, y, z, w, h);
+  const mesh = createVenueSign(text, w, h, {
+    pixelWidth: w >= 4 ? 1536 : w >= 2 ? 1024 : 512,
+    accent: options.color || "#d395b9", ...options,
+  });
+  mesh.position.set(x, y, z);
+  parent.add(mesh);
+  return mesh;
 }
 
 function cylinder(parent, radius, height, x, y, z, material, segments = 24) {
@@ -276,7 +281,7 @@ function pumpkin(parent, x, z, yaw, m) {
 
 export function buildRecordStore(scene, albums, albumPositions, obstacles) {
   const root = new THREE.Group(); scene.add(root);
-  const m = makeMaterials(), clickable = [], albumTargets = [], bulbs = [], records = [], flickeringLights = [];
+  const m = makeMaterials(), clickable = [], albumTargets = [], bulbs = [], records = [], ceilingFixtures = [], displayBins = [], wallDisplays = [], storefrontGlass = [];
   let resolveCovers;
   const coversReady = new Promise((resolve) => { resolveCovers = resolve; });
   const coverManager = new THREE.LoadingManager();
@@ -300,9 +305,14 @@ export function buildRecordStore(scene, albums, albumPositions, obstacles) {
   box(root, 0, 4.9, STORE_LAYOUT.roomCenterZ, STORE_LAYOUT.roomWidth, 0.3, STORE_LAYOUT.roomDepth, m.ceiling, false);
   box(root, 0, 0.5, -13.78, STORE_LAYOUT.roomWidth, 1, 0.14, m.wood, false);
   box(root, 0, 4.48, -13.74, 21.9, 0.07, 0.08, m.purpleGlow, false);
-  box(root, 0, 3.89, -13.67, 9, 1.14, 0.16, m.charcoal, false);
-  sign(root, "NEONBOY MUSIC", 0, 4.02, -13.57, 8.5, 0.74, { width: 1024, font: 88, background: "#201e27", color: "#f5dcb7" });
-  sign(root, "VINILOS · COMPACT DISC · CASSETTES", 0, 3.48, -13.57, 7.5, 0.28, { width: 1024, font: 44, background: "#784047", color: "#ffe3b4" });
+  const mainSign = createVenueSign("NEONBOY MUSIC", 8.7, 1.02, {
+    hero: true, pixelWidth: 2048, symbol: "vinyl",
+    kicker: "DISQUER\u00cdA / ALTA FIDELIDAD",
+    subtitle: "VINILOS \u00b7 COMPACT DISC \u00b7 CASSETTES",
+    accent: "#c99cba", background: "#18131e",
+  });
+  mainSign.position.set(0, 3.91, -13.50);
+  root.add(mainSign);
 
   // Acoustic ceiling panels and louvred fluorescent fixtures belong to the room itself.
   for (const x of [-6, 0, 6]) for (const z of [-9, -2, 5, 12]) {
@@ -311,14 +321,17 @@ export function buildRecordStore(scene, albums, albumPositions, obstacles) {
     const flickerIndex = [[-6, -9], [-6, 5], [0, -2], [0, 12], [6, -9], [6, 5]]
       .findIndex(([fixtureX, fixtureZ]) => fixtureX === x && fixtureZ === z);
     const flickers = flickerIndex !== -1;
-    const fixtureMaterial = flickers ? m.warmGlow.clone() : m.warmGlow;
+    // Each fixture owns its tube material so the altered store can burn it out independently.
+    const fixtureMaterial = m.warmGlow.clone();
+    const fixture = { x, z, material: fixtureMaterial, color: fixtureMaterial.color.clone(), pattern: flickerIndex, light: null, alteredMode: null };
+    ceilingFixtures.push(fixture);
     for (const side of [-1, 1]) {
       const tube = cylinder(root, 0.034, 1.94, x + side * 0.26, 4.54, z, fixtureMaterial, 10); tube.rotation.x = Math.PI / 2; tube.castShadow = false;
     }
     if (flickers) {
       const light = new THREE.PointLight(0xffdfc0, 32, 8, 2);
       light.position.set(x, 4.28, z); root.add(light);
-      flickeringLights.push({ light, material: fixtureMaterial, color: fixtureMaterial.color.clone(), pattern: flickerIndex });
+      fixture.light = light;
     }
     for (let offset = -0.9; offset <= 0.9; offset += 0.3) box(root, x, 4.5, z + offset, 0.98, 0.07, 0.022, m.chrome, false);
   }
@@ -339,8 +352,9 @@ export function buildRecordStore(scene, albums, albumPositions, obstacles) {
   const categories = ["INSTRUMENTALES", "9TH REVELATION", "VINILOS / NEONBOY", "SINGLES / NOVEDADES", "EDICIONES / 90s", "NUEVOS DISCOS"];
   obstacles.slice(0, 6).forEach((obstacle, bin) => {
     const group = new THREE.Group(); group.position.set(obstacle.x, 0, obstacle.z); root.add(group);
+    const binData = { group, index: bin, clickables: [], targets: [] }; displayBins.push(binData);
     const stock = bin === 0 ? albums.filter((album) => album.group === "instrumental") : bin === 1 ? albums.filter((album) => album.group === "band") : albums;
-    const contact = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.1), contactMaterial); contact.rotation.x = -Math.PI / 2; contact.position.y = 0.012; group.add(contact);
+    const contact = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 3.1), contactMaterial); contact.rotation.x = -Math.PI / 2; contact.position.y = 0.012; group.add(contact); binData.contact = contact;
     box(group, 0, 0.42, 0, 2.74, 0.78, 2.18, m.wood);
     box(group, 0, 0.14, 0, 2.55, 0.26, 2, m.charcoal);
     box(group, 0, 0.83, 0, 2.82, 0.1, 2.23, m.sand);
@@ -354,8 +368,9 @@ export function buildRecordStore(scene, albums, albumPositions, obstacles) {
       sleeve.position.set((col - 1) * 0.88, 1.29 + (row % 3) * 0.018, -0.8 + row * 0.275);
       sleeve.rotation.x = -0.16 - row * 0.008;
       sleeve.userData.albumId = albums[albumIndex].id;
-      group.add(sleeve); clickable.push(sleeve);
-      albumTargets.push({ id: albums[albumIndex].id, x: obstacle.x + sleeve.position.x, z: obstacle.z + sleeve.position.z, reach: 2.1 });
+      group.add(sleeve); clickable.push(sleeve); binData.clickables.push(sleeve);
+      const target = { id: albums[albumIndex].id, x: obstacle.x + sleeve.position.x, z: obstacle.z + sleeve.position.z, reach: 2.1, object: sleeve };
+      albumTargets.push(target); binData.targets.push(target);
       if (row === 6 && col === 1) {
         const record = vinyl(group, vinylMaps[albumIndex], 0.32, 0.21, 1.43, sleeve.position.z - 0.025, m);
         record.rotation.x = sleeve.rotation.x;
@@ -387,7 +402,7 @@ export function buildRecordStore(scene, albums, albumPositions, obstacles) {
 
   albums.forEach((album, index) => {
     const spot = albumPositions[index];
-    const display = new THREE.Group(); display.position.set(spot.x, 2.12, spot.z); display.rotation.y = spot.yaw; root.add(display);
+    const display = new THREE.Group(); display.position.set(spot.x, 2.12, spot.z); display.rotation.y = spot.yaw; root.add(display); wallDisplays.push(display);
     box(display, 0.15, -0.78, 0.14, 2.16, 0.09, 0.53, m.wood);
     box(display, 0.15, -0.72, 0.4, 2.16, 0.025, 0.035, m.brass, false);
     vinyl(display, vinylMaps[index], 0.69, 0.62, 0.13, -0.025, m);
@@ -432,14 +447,15 @@ export function buildRecordStore(scene, albums, albumPositions, obstacles) {
     }
   }
   sign(cdRack, "COMPACT DISC", 0, 2.16, 0.05, 2.4, 0.3, { background: "#d2bd9b", color: "#29232b", font: 58 });
-  for (const [x, text] of [[-3.8, "INSTRUMENTALES"], [3.8, "9TH REVELATION"]]) {
-    for (const offset of [-0.9, 0.9]) wire(root, [[x + offset, 4.7, 1.6], [x + offset, 3.9, 1.6]], m.chrome, 0.008);
-    box(root, x, 3.66, 1.6, 2.8, 0.52, 0.06, m.cream, false);
-    sign(root, text, x, 3.66, 1.637, 2.7, 0.44, { font: 42, background: "#b8aa92", color: "#30252c" });
+  for (const [x, text, accent] of [[-3.8, "INSTRUMENTALES", "#76e6ff"], [3.8, "9TH REVELATION", "#ff75cc"]]) {
+    for (const offset of [-0.9, 0.9]) wire(root, [[x + offset, 4.7, 1.6], [x + offset, 3.98, 1.6]], m.chrome, 0.008);
+    const lightbox = createHangingNeonSign(text, 3.05, .62, { accent, secondary: "#bc85ff" });
+    lightbox.position.set(x, 3.66, 1.6);
+    root.add(lightbox);
   }
 
   for (const side of [-1, 1]) {
-    box(root, side * 5.55, 2.3, STORE_LAYOUT.frontWallZ, 10.7, 4.4, 0.08, m.glass, false);
+    storefrontGlass.push(box(root, side * 5.55, 2.3, STORE_LAYOUT.frontWallZ, 10.7, 4.4, 0.08, m.glass, false));
     box(root, side * 0.12, 2.3, STORE_LAYOUT.frontWallZ, 0.07, 4.5, 0.1, m.chrome, false);
     for (const z of [-12.3, 13.2]) pumpkin(root, side * 9.35, z, -side * 0.5, m);
     wire(root, [[side * 10.2, 4.32, -13], [side * 10.2, 4.02, -7], [side * 10.2, 4.31, -1], [side * 10.2, 4.04, 5], [side * 10.2, 4.3, 14]], m.rubber, 0.012);
@@ -451,13 +467,14 @@ export function buildRecordStore(scene, albums, albumPositions, obstacles) {
   const batShape = new THREE.Shape();
   [[-0.5, 0.16], [-0.29, 0.06], [-0.16, 0.12], [-0.05, -0.04], [0, 0.1], [0.05, -0.04], [0.16, 0.12], [0.29, 0.06], [0.5, 0.16], [0.37, -0.14], [0.2, -0.07], [0.09, -0.2], [0, -0.1], [-0.09, -0.2], [-0.2, -0.07], [-0.37, -0.14]].forEach(([x, y], i) => i ? batShape.lineTo(x, y) : batShape.moveTo(x, y)); batShape.closePath();
   const batGeometry = new THREE.ShapeGeometry(batShape);
-  for (let i = 0; i < 5; i++) {
+  const batPositions = [-9, -6.5, 6.5, 9];
+  for (let i = 0; i < batPositions.length; i++) {
     const bat = new THREE.Mesh(batGeometry, new THREE.MeshBasicMaterial({ color: 0x100c17, side: THREE.DoubleSide }));
-    bat.position.set(-8.2 + i * 4.1, 3.8 + (i % 2) * 0.28, -11.8); bat.rotation.z = (i % 2 ? 1 : -1) * 0.17; root.add(bat);
+    bat.position.set(batPositions[i], 3.8 + (i % 2) * 0.28, -11.8); bat.rotation.z = (i % 2 ? 1 : -1) * 0.17; root.add(bat);
     wire(root, [[bat.position.x, 4.7, -11.8], [bat.position.x, bat.position.y + 0.1, -11.8]], m.rubber, 0.004);
   }
   sign(root, "31 OCT · NOCHE DE DISCOS", 0, 2.98, -13.7, 5.6, 0.25, { width: 1024, font: 50, background: "#432635", color: "#ecb46f" });
   const kiosk = buildStoreJukebox(root, clickable, m);
-  const atmosphere = buildStoreAtmosphere(root, flickeringLights);
-  return { root, clickable, albumTargets, bulbs, records, atmosphere, ready: coversReady, ...kiosk };
+  const atmosphere = buildStoreAtmosphere(root, ceilingFixtures);
+  return { root, clickable, albumTargets, displayBins, wallDisplays, storefrontGlass, materials: m, vinylMaps, bulbs, records, covers, ceilingFixtures, atmosphere, keyLight, ready: coversReady, ...kiosk };
 }

@@ -203,7 +203,7 @@ export function buildRecordingStudio(scene) {
   furnishings.sofa(sofa);
   const chair = slot("chair", 0, 0, 0.55);
   const hugo = slot("hugo", -1.5, 0, 0.65);
-  const hugoPrompt = createInteractionPromptSprite();
+  const hugoPrompt = createInteractionPromptSprite("Hablar", { subject: "Hugo" });
   hugoPrompt.name = "Hugo talk prompt";
   slots.get("hugo").assembly.add(hugoPrompt);
   cylinder(chair, "engineer stool", 0.67, 0.2, 0, 0.72, 0, mats.charcoal, 16);
@@ -248,11 +248,13 @@ export function buildRecordingStudio(scene) {
   cable([[-7.35, 0.82, -13.1], [-7.95, 0.08, -13.25], [-9.55, 0.055, -13.25], [-9.72, 0.55, -13.25]], mats.dark, 0.012);
   cable([[-3.45, 0.52, -2.8], [-4.0, 0.05, -3.15], [-6.7, 0.04, -3.45], [-7.55, 0.8, -3.55]], mats.dark, 0.01);
 
+  const roomLights = [];
   for (const [x, z, color] of [[-5.6, 1.8, 0xffd2aa], [5.4, -1.9, 0xf780d8], [0, -14.6, 0xffc89e]]) {
     box(scene, "ceiling light", 2.4, 0.08, 0.42, x, 5.18, z, mats.cream);
     const light = new THREE.PointLight(color, 15, 12, 2);
     light.position.set(x, 4.8, z);
     scene.add(light);
+    roomLights.push(light);
   }
   const key = new THREE.SpotLight(0xffd8b8, 28, 15, Math.PI / 3, 0.65, 2);
   key.position.set(3, 5, 3);
@@ -271,7 +273,7 @@ export function buildRecordingStudio(scene) {
   scene.add(boothWarm);
 
   return {
-    slots, colliders, mixers: [], hugoPrompt,
+    slots, colliders, mixers: [], roomLights, hugoPrompt,
     hugoInteraction: { x: -1.5, z: 0.65, reach: 1.5, enabled: false },
     obstacles: STUDIO_OBSTACLES.map((item) => ({ ...item, baseHx: item.hx, baseHz: item.hz })),
     interactions: STUDIO_EXAMINE

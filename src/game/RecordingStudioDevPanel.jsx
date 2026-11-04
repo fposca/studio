@@ -7,7 +7,7 @@ const clone = (value) => JSON.parse(JSON.stringify(value));
 export default function RecordingStudioDevPanel({ transforms, onChange, assets = STUDIO_ASSETS,
   onSave = saveStudioAssetTransforms, onDefault = defaultStudioAssetTransform,
   filename = "studioAssetTransforms.json", ariaLabel = "Ajustar modelos del estudio",
-  reachIds = ["hugo"] }) {
+  reachIds = ["hugo"], numericFields = [] }) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(assets[0].id);
   const [notice, setNotice] = useState("");
@@ -19,7 +19,10 @@ export default function RecordingStudioDevPanel({ transforms, onChange, assets =
     const next = clone(transforms);
     if (field === "scale") next[selected].scale = Math.max(0.05, Math.min(value, 5));
     else if (field === "reach") next[selected].reach = Math.max(1, Math.min(value, 4));
-    else next[selected][field][index] = value;
+    else if (numericFields.some((item) => item.field === field)) {
+      const meta = numericFields.find((item) => item.field === field);
+      next[selected][field] = Math.max(meta.min, Math.min(value, meta.max));
+    } else next[selected][field][index] = value;
     onChange(next);
     setNotice("Cambios sin guardar");
   }
@@ -63,6 +66,7 @@ export default function RecordingStudioDevPanel({ transforms, onChange, assets =
       {reachIds.includes(selected) && <>
         <label>Distancia de interacción<input type="number" min="1" max="4" step="0.1" value={current.reach} onChange={(event) => edit("reach", 0, event.target.value)} /></label>
       </>}
+      {numericFields.filter((item) => Number.isFinite(current[item.field])).map((item) => <label key={item.field}>{item.label}<input type="number" min={item.min} max={item.max} step={item.step || 0.1} value={current[item.field]} onChange={(event) => edit(item.field, 0, event.target.value)} /></label>)}
       <div className="studio-dev-actions">
         <button type="button" onClick={save}>Guardar aquí</button>
         <button type="button" onClick={copy}>Copiar JSON</button>

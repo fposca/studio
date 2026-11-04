@@ -112,6 +112,7 @@
 .record-store-controls-hint, .record-store-nearby { position: absolute; z-index: 2; left: 22px; padding: 8px 12px; border: 1px solid #d9ad78; border-radius: 4px; background: #17111dca; color: #ffe2bb; font: 600 11px/1.2 var(--store-font); letter-spacing: .035em; pointer-events: none; }
 .record-store-controls-hint { top: 112px; }
 .record-store-nearby { bottom: 216px; border-color: #d58e58; background: #562d37ef; font-size: 13px; }
+.neon-record-store.is-invaded button.record-store-nearby { pointer-events: auto; cursor: pointer; font: 600 13px/1.2 var(--store-font); text-align: left; }
 @media (max-width: 760px) {
   .neon-record-store { overflow: hidden; }
   .neon-record-store .record-store-header { padding: 12px; }
@@ -328,3 +329,393 @@
 .record-store-player-timeline input, .record-store-player-volume input { flex: 1; min-width: 0; accent-color: #a04a83; cursor: pointer; }
 .record-store-player-timeline input:disabled { cursor: default; opacity: .55; }
 .record-store-player-volume span { min-width: 31px; text-align: right; }
+
+/* Chapter 5 is a layer over the existing shop; the normal scene keeps its styling. */
+.neon-record-store.is-altered .record-store-header .record-store-brand > span { color: #f3a4d3; }
+.record-store-story-event {
+  position: absolute; z-index: 9; top: 24%; left: 50%;
+  width: min(580px, calc(100% - 28px)); transform: translateX(-50%);
+  display: grid; gap: 10px; padding: 20px 24px;
+  border: 1px solid #ed89c8; border-radius: 6px;
+  background: linear-gradient(135deg, #100a1bf2, #29112de9);
+  box-shadow: 0 0 0 5px #12081799, 0 12px 48px #000b, 0 0 32px #db3caa55;
+  color: #fff1df; text-align: center; pointer-events: none;
+  animation: record-return-enter .35s ease-out both;
+}
+.record-store-story-event small { color: #efa4d2; font: 700 10px var(--store-font); letter-spacing: .22em; }
+.record-store-story-event strong { color: #ffe8cf; font: 800 clamp(24px, 3vw, 43px)/1.08 var(--store-font); letter-spacing: .04em; }
+.record-store-story-event p { margin: 0; font: 600 clamp(15px, 1.5vw, 19px)/1.4 var(--store-font); }
+.record-store-story-event span { color: #d1afd7; font: 600 12px var(--store-font); }
+.record-store-story-event--jukebox { border-color: #fa5ab9; box-shadow: 0 0 0 5px #12081799, 0 12px 48px #000b, 0 0 48px #f437b966; }
+.record-store-story-event--ghost {
+  top: auto; bottom: clamp(190px, 24vh, 260px);
+  width: min(440px, calc(100% - 350px)); gap: 4px; padding: 10px 16px;
+  border-color: #9f75c2; background: linear-gradient(135deg, #100a1be8, #29112ddc);
+  box-shadow: 0 10px 35px #000a, 0 0 20px #9f75c244;
+}
+.record-store-story-event--ghost strong { font-size: clamp(17px, 1.8vw, 23px); }
+.record-store-story-event--ghost p { font-size: clamp(13px, 1.2vw, 16px); }
+@media (max-width: 760px) {
+  .record-store-story-event.record-store-story-event--ghost { top: auto; bottom: 320px; width: calc(100% - 26px); padding: 9px 12px; }
+}
+.record-store-investigation-note {
+  position: absolute; z-index: 8; right: clamp(16px, 18vw, 340px); bottom: 230px;
+  width: min(380px, calc(100% - 30px)); max-height: min(52vh, 400px); overflow: auto;
+  padding: 17px 19px; border: 1px solid #d488bd; border-radius: 5px;
+  background: #17101eec; box-shadow: 0 18px 48px #000b, 0 0 22px #d546a04d;
+  color: #fff0da; font-family: var(--store-font);
+}
+.record-store-investigation-note small { display: block; color: #ec9ece; font-size: 10px; letter-spacing: .16em; }
+.record-store-investigation-note strong { display: block; margin: 5px 0 12px; font-size: 17px; }
+.record-store-investigation-note p { margin: 7px 0; line-height: 1.4; }
+.neon-record-store .record-store-investigation-note button {
+  margin-top: 11px; padding: 8px 17px; border: 1px solid #ea98ca; border-radius: 3px;
+  background: #653153; color: #fff0dc; cursor: pointer;
+}
+.neon-record-store .record-store-investigation-note button:hover,
+.neon-record-store .record-store-investigation-note button:focus-visible { background: #a34a83; outline: 2px solid #f7c3de; }
+@keyframes record-return-enter { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
+@media (max-width: 760px) {
+  .record-store-story-event { top: 18%; padding: 13px; }
+  .record-store-investigation-note { right: 12px; bottom: 150px; }
+}
+@media (prefers-reduced-motion: reduce) { .record-store-story-event { animation: none; } }
+
+/* Mission notices flow beneath the shop actions instead of using independent top offsets. */
+.record-store-status-stack {
+  position: absolute;
+  z-index: 4;
+  top: 197px;
+  left: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  width: min(360px, calc(100% - 44px));
+  max-height: calc(100% - 410px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #af78a5 transparent;
+  pointer-events: auto;
+}
+.neon-record-store .record-store-status-stack > :is(.record-store-view-status, .frequency-objective, .master-tape-hud, .club-show-hud, .record-store-quest-badge, .record-store-archive-trigger) {
+  position: static;
+  inset: auto;
+  box-sizing: border-box;
+  flex: none;
+  margin: 0;
+}
+.neon-record-store .record-store-status-stack > :is(.frequency-objective, .master-tape-hud, .club-show-hud) {
+  width: 100%;
+  pointer-events: none;
+}
+.neon-record-store .record-store-status-stack > .record-store-view-status {
+  width: auto; padding: 5px 9px; border: 1px solid #dbc69e36; border-radius: 5px;
+  background: #15101de8; color: #cfc1b1; font-size: 9px; letter-spacing: .1em;
+}
+.neon-record-store .record-store-status-stack { gap: 10px; }
+.neon-record-store .record-store-status-stack > .record-store-quest-badge { width: auto; pointer-events: none; }
+.neon-record-store .record-store-status-stack > .record-store-archive-trigger { width: auto; pointer-events: auto; }
+@media (min-width: 761px) and (max-width: 920px) {
+  .record-store-controls-hint {
+    max-width: calc(100% - 370px);
+    white-space: normal;
+    font-size: 10px;
+  }
+  .record-store-arcade-hud {
+    top: 166px;
+    max-width: calc(100% - 365px);
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .record-store-status-stack {
+    top: 252px;
+    width: min(360px, calc(100% - 365px));
+  }
+}
+@media (max-width: 760px) {
+  .record-store-status-stack {
+    top: 280px;
+    left: 9px;
+    width: min(340px, calc(100% - 18px));
+    max-height: min(185px, calc(100% - 365px));
+  }
+  .neon-record-store .record-store-status-stack > .record-store-view-status { font-size: 8px; }
+}
+
+
+/* El cat?logo comparte el puesto de escucha; la escena queda libre hasta el piso. */
+.neon-record-store .record-store-listener {
+  width: clamp(315px, 22vw, 370px);
+  gap: 9px;
+}
+.neon-record-store .record-store-sidebar-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  flex: none;
+  padding: 3px;
+  border: 1px solid #836b70;
+  border-radius: 5px;
+  background: #32252dcf;
+}
+.neon-record-store .record-store-sidebar-tabs button,
+.neon-game .neon-record-store .record-store-sidebar-tabs button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 35px;
+  padding: 7px 5px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: #f3dec9;
+  font: 700 11px/1 var(--store-font);
+  cursor: pointer;
+}
+.neon-record-store .record-store-sidebar-tabs button:hover,
+.neon-record-store .record-store-sidebar-tabs button[aria-selected="true"],
+.neon-game .neon-record-store .record-store-sidebar-tabs button[aria-selected="true"] {
+  border-color: #edb986;
+  background: #633849;
+  color: #fff3dc;
+  box-shadow: inset 0 -2px #f4b778;
+}
+.neon-record-store .record-store-sidebar-tabs button:focus-visible { outline: 2px solid #ffd18d; outline-offset: 1px; }
+.neon-record-store .record-store-wall {
+  position: relative;
+  inset: auto;
+  flex: 1;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #715b69;
+  border-radius: 5px;
+  background: #201924f2;
+  box-shadow: inset 0 0 16px #0b07135c;
+}
+.neon-record-store .record-store-wall::before { display: none; }
+.neon-record-store .record-store-wall-heading { flex: none; min-height: 39px; padding: 7px 9px; border-bottom: 1px solid #785c67; }
+.neon-record-store .record-store-wall-heading span { color: #ffe1c3; font-size: 9px; letter-spacing: .09em; }
+.neon-record-store .record-store-wall-heading span svg { width: 15px; height: 15px; }
+.neon-record-store .record-store-wall-heading small { color: #c8a9b7; font-size: 9px; white-space: nowrap; }
+.neon-record-store .record-store-wall-body { overflow: hidden; }
+.neon-record-store .record-store-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); flex: none; gap: 5px; padding: 8px; }
+.neon-record-store .record-store-groups button,
+.neon-game .neon-record-store .record-store-groups button { justify-content: flex-start; gap: 5px; min-height: 46px; padding: 5px; }
+.neon-record-store .record-store-groups button img { width: 32px; height: 26px; }
+.neon-record-store .record-store-groups button strong { font-size: 9px; }
+.neon-record-store .record-store-groups button small { display: none; }
+.neon-record-store .record-store-albums {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 1;
+  align-content: start;
+  justify-content: stretch;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 6px 8px 10px;
+  gap: 8px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.neon-record-store .record-store-wall .record-store-album,
+.neon-game .neon-record-store .record-store-wall .record-store-album {
+  flex: none;
+  min-width: 0;
+  padding: 5px;
+}
+.neon-record-store .record-store-wall .record-store-album:hover { transform: none; }
+.neon-record-store .record-store-wall .record-store-album-label strong { font-size: 10px; }
+.neon-record-store .record-store-listener-body[hidden],
+.neon-record-store .record-store-wall[hidden] { display: none; }
+.neon-record-store .record-store-listener.is-minimized { width: clamp(315px, 22vw, 370px); }
+.neon-record-store .record-store-listener.is-minimized .record-store-sidebar-tabs,
+.neon-record-store .record-store-listener.is-minimized .record-store-wall { display: none; }
+
+@media (max-width: 760px) {
+  .neon-record-store .record-store-listener {
+    top: auto;
+    right: 9px;
+    bottom: 34px;
+    left: 9px;
+    width: auto;
+    max-height: min(44vh, 370px);
+    padding: 8px;
+  }
+  .neon-record-store .record-store-listener:not(.is-catalog-tab) { max-height: min(32vh, 240px); }
+  .neon-record-store .record-store-listener.is-minimized {
+    right: 9px;
+    bottom: 34px;
+    left: 9px;
+    width: auto;
+    height: 54px;
+    max-height: none;
+  }
+  .neon-record-store .record-store-wall { width: 100%; max-height: none; }
+  .neon-record-store .record-store-albums { gap: 6px; }
+}
+
+/* The listening station docks at the right edge until the player opens it. */
+.neon-record-store .record-store-listener:not(.is-minimized){
+  top:235px;
+  right:14px;
+  bottom:43px;
+  left:auto;
+  width:min(355px,calc(100vw - 28px));
+  max-height:none;
+  z-index:19;
+  animation:record-store-listener-slide-in .18s ease-out;
+}
+@keyframes record-store-listener-slide-in{
+  from{opacity:.8;transform:translateX(18px)}
+  to{opacity:1;transform:translateX(0)}
+}
+.neon-record-store .record-store-listener:not(.is-minimized) .record-store-listener-top{gap:6px}
+.neon-record-store .record-store-listener:not(.is-minimized) .record-store-listener-top div{min-width:0}
+.neon-record-store .record-store-listener:not(.is-minimized) .record-store-listener-top div strong{font-size:14px}
+.neon-record-store .record-store-panel-pin.is-pinned,
+.neon-game .neon-record-store .record-store-panel-pin.is-pinned{
+  border-color:#f1c17b;
+  background:#875249;
+  color:#fff0d1;
+  box-shadow:inset 0 0 0 1px #f1c17b66;
+}
+.neon-record-store .record-store-listener.is-minimized{
+  top:clamp(235px,42vh,390px);
+  right:0;
+  bottom:auto;
+  left:auto;
+  width:50px;
+  height:142px;
+  min-height:0;
+  max-height:none;
+  padding:0;
+  overflow:hidden;
+  border:2px solid #ddb282;
+  border-right:0;
+  border-radius:10px 0 0 10px;
+  background:linear-gradient(155deg,#4b303e,#211624);
+  box-shadow:-7px 8px 25px #000b,0 0 18px #e27c9b4a;
+  z-index:19;
+}
+.neon-record-store .record-store-listener.is-minimized > :not(.record-store-listener-handle){display:none}
+.neon-record-store .record-store-listener-handle,
+.neon-game .neon-record-store .record-store-listener-handle{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  width:100%;
+  height:100%;
+  min-width:0;
+  min-height:0;
+  padding:5px 0;
+  border:0;
+  border-radius:8px 0 0 8px;
+  background:transparent;
+  color:#ffe5c3;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.neon-record-store .record-store-listener-handle span{
+  font:800 10px/1 var(--store-font);
+  letter-spacing:.18em;
+  writing-mode:vertical-rl;
+  transform:rotate(180deg);
+}
+.neon-record-store .record-store-listener-handle:hover,
+.neon-game .neon-record-store .record-store-listener-handle:hover{
+  background:#945567;
+  color:#fff8e7;
+}
+@media(max-width:760px){
+  .neon-record-store .record-store-listener:not(.is-minimized){
+    top:225px;
+    right:9px;
+    bottom:34px;
+    left:auto;
+    width:min(355px,calc(100vw - 18px));
+    max-height:none;
+  }
+  .neon-record-store .record-store-listener.is-minimized{
+    top:clamp(230px,42vh,390px);
+    right:0;
+    bottom:auto;
+    left:auto;
+    width:50px;
+    height:142px;
+    max-height:none;
+  }
+}
+@media(max-height:520px){
+  .neon-record-store .record-store-listener.is-minimized{top:210px;height:100px}
+  .neon-record-store .record-store-listener-handle{gap:3px}
+}
+@media(max-height:520px) and (max-width:760px){
+  .neon-record-store .record-store-listener:not(.is-minimized){
+    top:96px;
+    right:9px;
+    bottom:34px;
+    width:min(330px,calc(100vw - 18px));
+  }
+  .neon-record-store.listener-open :is(.record-store-arcade-hud,.store-invasion-vision,.store-invasion-hearts,.record-store-nearby){visibility:hidden}
+}
+@media(prefers-reduced-motion:reduce){
+  .neon-record-store .record-store-listener:not(.is-minimized){animation:none}
+}
+
+
+/* Compact landscape keeps the open drawer usable without covering combat HUD buttons. */
+@media (max-height:520px) and (max-width:1100px){
+  .neon-record-store .record-store-listener:not(.is-minimized){
+    top:96px;
+    right:9px;
+    bottom:34px;
+    left:auto;
+    width:min(330px,calc(100vw - 18px));
+    max-height:none;
+  }
+  .neon-record-store .record-store-listener.is-minimized{
+    top:auto;
+    right:0;
+    bottom:42px;
+    left:auto;
+    height:94px;
+  }
+  .neon-record-store.listener-open :is(.store-invasion-vision,.store-invasion-hearts){visibility:hidden}
+}
+@media (max-height:520px) and (max-width:760px){
+  .neon-record-store.listener-open :is(.record-store-arcade-hud,.record-store-nearby){visibility:hidden}
+}
+
+
+@media (max-width:760px) and (min-height:621px){
+  .neon-record-store .record-store-listener:not(.is-minimized){top:310px}
+}
+@media (max-width:760px) and (max-height:620px){
+  .neon-record-store .record-store-listener:not(.is-minimized){
+    top:96px;
+    right:9px;
+    bottom:34px;
+    width:min(330px,calc(100vw - 18px));
+  }
+  .neon-record-store.listener-open :is(.record-store-arcade-hud,.record-store-nearby,.store-invasion-vision,.store-invasion-hearts){visibility:hidden}
+}
+
+
+/* Keep the same right edge before and after hover so the drawer cannot flicker. */
+.neon-record-store .record-store-listener:not(.is-minimized){
+  right:0;
+  border-right-width:0;
+  border-radius:10px 0 0 10px;
+}
+

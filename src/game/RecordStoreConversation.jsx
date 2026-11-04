@@ -4,10 +4,16 @@ import { getStoreVoiceUrl } from "./recordStoreVoices.js";
 
 export default function RecordStoreConversation({ npc, node, lastChoice, onChoose, onClose, onVoiceEnded }) {
   const firstOption = useRef(null);
+  const dialogRef = useRef(null);
   const voiceRef = useRef(null);
   const [voiceStatus, setVoiceStatus] = useState("idle");
   const voiceUrl = getStoreVoiceUrl(npc.id, node);
-  useEffect(() => { firstOption.current?.focus(); }, [npc.id, node.id]);
+  useEffect(() => {
+    if (node.id === "altered:tito:intro") {
+      dialogRef.current?.focus({ preventScroll: true });
+      dialogRef.current?.scrollTo(0, 0);
+    } else firstOption.current?.focus();
+  }, [npc.id, node.id]);
   useEffect(() => {
     if (!voiceUrl) {
       setVoiceStatus("idle");
@@ -46,7 +52,7 @@ export default function RecordStoreConversation({ npc, node, lastChoice, onChoos
   }
 
   return <div className="record-store-conversation-overlay">
-    <section className="record-store-conversation" role="dialog" aria-modal="true" aria-label={`Conversación con ${npc.name}`}>
+    <section ref={dialogRef} tabIndex={-1} className="record-store-conversation" role="dialog" aria-modal="true" aria-label={`Conversación con ${npc.name}`}>
       <div className="record-store-conversation-head">
         <span className="record-store-conversation-avatar" aria-hidden="true">{npc.avatar || (npc.id === "tito" ? "TS" : npc.id === "rulo" ? "RD" : npc.id === "roxy" ? "RX" : npc.id === "freddy" ? "FR" : npc.id === "skeleton-holy" ? "HF" : "UF")}</span>
         <div><small>{node.kicker || `${npc.role} · 1999`}</small><h3><MessageCircle size={18} /> {npc.name}</h3></div>

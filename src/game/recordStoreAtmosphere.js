@@ -121,7 +121,7 @@ function spider(parent, x, y, z, scale, yaw, materials, hanging = false) {
   return { group, y, x, z, positions, threadGeometry };
 }
 
-export function buildStoreAtmosphere(root, flickeringLights) {
+export function buildStoreAtmosphere(root, ceilingFixtures) {
   const materials = {
     bone: new THREE.MeshStandardMaterial({ color: 0xc8bd99, roughness: 0.84 }),
     dark: new THREE.MeshStandardMaterial({ color: 0x211c20, roughness: 0.95 }),
@@ -159,7 +159,7 @@ export function buildStoreAtmosphere(root, flickeringLights) {
   ];
 
   return {
-    update(time, reducedMotion) {
+    update(time, reducedMotion, altered = false, ghost = false) {
       skeletons.forEach(({ pivot, yaw }, index) => {
         pivot.rotation.z = reducedMotion ? 0 : Math.sin(time * 0.65 + index * 2.2) * 0.036;
         pivot.rotation.y = yaw + (reducedMotion ? 0 : Math.sin(time * 0.43 + index) * 0.075);
@@ -170,16 +170,30 @@ export function buildStoreAtmosphere(root, flickeringLights) {
         positions.set([group.position.x, group.position.y, z], 3);
         threadGeometry.attributes.position.needsUpdate = true;
       });
-      flickeringLights.forEach(({ material, light, color, pattern }, index) => {
-        const rhythm = rhythms[(pattern ?? index) % rhythms.length];
+      ceilingFixtures.forEach(({ material, light, color, pattern, alteredMode, z }, index) => {
+        // The original store still animates only its six faulty fluorescents.
+        if (!altered && pattern < 0) return;
+        const rhythm = rhythms[(pattern >= 0 ? pattern : index) % rhythms.length];
         const cycle = (time + rhythm.phase) % rhythm.period;
         let level = 1;
         if (!reducedMotion) for (const [start, duration, depth] of rhythm.dips) {
           const fade = Math.min(1, (cycle - start) / 0.035, (start + duration - cycle) / 0.035);
           if (fade > 0) level = Math.min(level, 1 - depth * fade);
         }
-        material.color.copy(color).multiplyScalar(level);
-        light.intensity = 32 * level;
+        const sectorLevel = ghost && z < -1 ? .08 : 1;
+        if (altered && alteredMode === "burned") {
+          material.color.setHex(0x282125);
+          if (light) light.intensity = 0;
+        } else if (altered && alteredMode === "red") {
+          material.color.setHex(0xff1738).multiplyScalar((.12 + level * .88) * sectorLevel);
+          if (light) {
+            light.color.setHex(0xff1839);
+            light.intensity = 32 * level * sectorLevel;
+          }
+        } else {
+          material.color.copy(color).multiplyScalar(level);
+          if (light) light.intensity = 32 * level;
+        }
       });
     }
   };

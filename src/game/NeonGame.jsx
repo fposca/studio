@@ -194,7 +194,7 @@ export default function NeonGame({ onReady }) {
       </div>
       <div className="neon-game-title-actions">
         <div className="neon-game-level-picker" role="group" aria-label="Elegir escenario">
-          <span>Eleg� un escenario</span>
+          <span>Elegí un escenario</span>
           <div>{LEVELS.map((level) => <button key={level.id} type="button"
             aria-label={`Nivel ${level.id}: ${level.name}`} aria-pressed={selectedLevel === level.id}
             onClick={() => setSelectedLevel(level.id)}><strong>NIVEL {String(level.id).padStart(2, "0")}</strong><small>{level.name}</small></button>)}

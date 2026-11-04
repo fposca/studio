@@ -123,7 +123,7 @@ export function createRockClubActors(scene, club, loader, getTransforms, isAlive
     shadow.renderOrder = 1;
     scene.add(shadow);
     if (npc.ambient) shadow.visible = false;
-    const prompt = interactive ? createInteractionPromptSprite("[E] HABLAR") : null;
+    const prompt = interactive ? createInteractionPromptSprite("Hablar", { subject: npc.name }) : null;
     if (prompt) { prompt.visible = false; root.add(prompt); }
     const obstacle = { id: npc.id, x: 0, z: 0, hx: 0.32, hz: 0.32 };
     if (!npc.ambient) club.obstacles.push(obstacle);

@@ -1,0 +1,19 @@
+.neon-interaction-prompt{--prompt-accent:#dfc2e9;--prompt-ink:#211629;max-width:min(360px,calc(100% - 32px))}
+:is(.neon-record-store,.halloween-game) .neon-interaction-prompt:is(.record-store-nearby,.studio-examine-cue,.halloween-prompt){display:flex;align-items:center;gap:12px;width:max-content;min-height:52px;padding:8px 13px 8px 9px;border:1px solid #b893c163;border-left:2px solid var(--prompt-accent);border-radius:12px;background:linear-gradient(115deg,#271d35f5,#100e19f5);color:#fff0df;box-shadow:0 6px 20px #0005,inset 0 1px #ffffff08;text-align:left;text-shadow:none;letter-spacing:normal;white-space:normal;overflow:hidden;backdrop-filter:blur(8px);font-family:var(--store-font,"Bahnschrift","Segoe UI",sans-serif)}
+.neon-interaction-prompt .neon-interaction-key{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border:1px solid #ffffff24;border-radius:7px;background:var(--prompt-accent);color:var(--prompt-ink);box-shadow:0 2px 0 #06040d66;font:800 18px/1 "Bahnschrift","Segoe UI",sans-serif}
+.neon-interaction-prompt .neon-interaction-copy{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.neon-interaction-prompt .neon-interaction-action{color:#fff0df;font-size:13px;font-weight:650;line-height:1.2}
+.neon-interaction-prompt .neon-interaction-detail{color:#c9b5d0;font-size:11px;font-weight:450;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.neon-interaction-prompt .neon-interaction-icon{flex:none;color:var(--prompt-accent);opacity:.8;margin-left:6px}
+button.neon-interaction-prompt{pointer-events:auto;touch-action:manipulation;cursor:pointer}
+button.neon-interaction-prompt:focus-visible{outline:2px solid var(--prompt-accent);outline-offset:3px}
+button.neon-interaction-prompt:disabled{opacity:.55;cursor:default}
+:is(.neon-record-store,.halloween-game) button.neon-interaction-prompt:hover:not(:disabled){border-color:var(--prompt-accent);background:linear-gradient(115deg,#352442fa,#171020fa)}
+.is-matrix .neon-interaction-prompt{--prompt-accent:#98edba;--prompt-ink:#092316}
+@media(max-height:500px),(max-width:700px){
+  :is(.neon-record-store,.halloween-game) .neon-interaction-prompt:is(.record-store-nearby,.studio-examine-cue,.halloween-prompt){gap:9px;min-height:44px;padding:6px 10px 6px 7px;border-radius:9px}
+  .neon-interaction-prompt .neon-interaction-key{flex-basis:30px;width:30px;height:30px;font-size:16px}
+  .neon-interaction-prompt .neon-interaction-action{font-size:12px}
+  .neon-interaction-prompt .neon-interaction-detail{font-size:10px}
+  .neon-interaction-prompt .neon-interaction-icon{width:15px;height:15px;margin-left:0}
+}

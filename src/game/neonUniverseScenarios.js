@@ -36,11 +36,26 @@ export const NEON_UNIVERSE_SCENARIOS = [
   {
     id: "neonboy-rooftop",
     name: "Azotea de NeonBoy",
-    description: "Una terraza sobre la ciudad para mirar las luces desde las alturas.",
+    description: "Investig\u00e1 la antena y la se\u00f1al que Hugo detect\u00f3 sobre Buenos Aires.",
     status: "locked",
     position: { x: 60.9, y: 71.7 },
-    destination: null,
+    destination: "neonboy-rooftop",
   },
+  {
+    id: "lost-ship",
+    name: "La Nave Perdida",
+    description: "PUERTA 01 conduce a una nave suspendida entre tiempos y dimensiones.",
+    status: "locked",
+    position: null,
+    destination: "lost-ship",
+  },
+  {
+    id: "parthenon",
+    name: "Puerta 02 · El Partenón Maldito",
+    description: "Un templo griego corrompido aguarda del otro lado de la nave.",
+    status: "locked", position: null, destination: "parthenon",
+  },
+  {id:"matrix",name:"Puerta 03 · La Realidad Fracturada",description:"Cinco sectores de una simulaci?n que corrompe los recuerdos de NeonBoy.",status:"locked",position:null,destination:"matrix"},
   {
     id: "underworld",
     name: "Inframundo",

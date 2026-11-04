@@ -92,6 +92,8 @@ const topicOption = (npc, key, topics, effect) => option(`topic:${npc}:${key}`, 
 function greeting(npc, progress, context) {
   const song = context.currentSong?.toLowerCase();
   if (npc === "tito") {
+    if (context.storeInvaded && !context.storeInvasionProgress?.titoBriefed) return "Tito sigue levantando discos caídos mientras la luz roja parpadea sobre el mostrador.";
+    if (context.recordStoreAltered && !context.storeInvestigation?.recordStoreTitoInterviewed) return "Tito mira las luces que fallan y no deja de vigilar la rockola.";
     if (progress.archiveUnlocked) return "Desde que te llevaste ese disco pasan cosas raras acá. Ayer una guitarra empezó a tocar sola.";
     if (song === "holy fire" || context.currentAlbum?.toLowerCase() === "holy fire") return "Cada vez que pongo Holy Fire, las luces empiezan a parpadear. Debe ser la instalación eléctrica... espero.";
     if (context.credits >= 10) return "Así que juntaste todas las monedas. Ahora capaz podés comprar algo. Aunque los precios subieron.";
@@ -108,6 +110,8 @@ function greeting(npc, progress, context) {
 
 function rootOptions(npc, progress, context) {
   if (npc === "tito") return [
+    ...(context.storeInvaded ? [option("invasion:tito", context.storeInvasionProgress?.titoBriefed ? "Hablemos de la invasión." : "¡Tito! ¿Qué carajo pasó acá?", "invasion:tito:intro")] : []),
+    ...(context.recordStoreAltered ? [option("altered:tito", context.storeInvestigation?.recordStoreTitoInterviewed ? "Hablemos de lo que pasó en la tienda." : "¡Tito! ¿Qué pasó acá?", "altered:tito:intro")] : []),
     ...masterTapeOptions("tito", context.masterTape),
     ...(context.clubQuest?.hugoSuggestedShow ? [context.clubQuest.credentialGranted
       ? option("club:reminder", "¿Dónde encuentro a Charly?", "club:reminder")
@@ -116,6 +120,8 @@ function rootOptions(npc, progress, context) {
     option("more", "Tengo más preguntas sobre esta tienda.", "more"), option("bye", "Terminar conversación", "close")
   ];
   return [
+    ...(context.storeInvaded ? [option("invasion:rulo", "Rulo, ¿viste lo que apareció?", "invasion:rulo")] : []),
+    ...(context.recordStoreAltered ? [option("altered:rulo", "Rulo, ¿viste algo raro?", "altered:rulo")] : []),
     topicOption("rulo", "music", ruloTopics),
     ...(progress.rumorKnown ? [option("mystery", "Tito me habló de un disco prohibido.", "mystery", "duelUnlock")] : [topicOption("rulo", "holy", ruloTopics)]),
     option("more", "Hablemos de algo más pesado.", "more"), option("bye", "Terminar conversación", "close")
@@ -128,14 +134,99 @@ export function getStoreDialogueNode(npc, nodeId, progress, context = {}) {
   const back = option("back", "Seguir hablando", "root");
   const bye = option("bye", "Terminar conversación", "close");
   const options = (items) => [...items, bye];
+  if (context.storeInvaded && npc === "tito" && nodeId === "invasion:tito:intro") return {
+    id:nodeId,kicker:"LA SEÑAL DEL ARCHIVISTA / TITO",
+    lines:[
+      {speaker:"NEONBOY",text:"¡Tito! ¿Qué carajo pasó acá?"},
+      {speaker:"TITO",text:"¡Ah, apareciste! Mirá cómo me dejaron el negocio."},
+      {speaker:"NEONBOY",text:"Esto no fue un accidente."},
+      {speaker:"TITO",text:"¿En serio? Yo pensé que los discos se habían tirado al piso para hacer ejercicio."},
+      {speaker:"NEONBOY",text:"¡Tito, hablo en serio! Algo está invadiendo Buenos Aires."},
+      {speaker:"TITO",text:"Bueno, que invadan otro negocio. Acá bastante trabajo tengo."},
+      {speaker:"NEONBOY",text:"¿Cuándo empezó todo?"},
+      {speaker:"TITO",text:"Primero las luces. Después la rockola. Y ahora las cosas se mueven solas."},
+      {speaker:"NEONBOY",text:"¿Viste alguna criatura?"},
+      {speaker:"TITO",text:"Vi algo al fondo. No me acerqué a preguntarle qué disco buscaba."},
+    ],
+    options:[
+      option("invasion:juke","¿Qué pasó con la rockola?","invasion:tito:juke"),
+      option("invasion:creature","¿Viste alguna criatura?","invasion:tito:creature"),
+      option("invasion:archive","¿Hay algo que pueda revisar?","invasion:tito:archive"),
+      option("invasion:signal","¿Qué es esa señal en la pared?","invasion:tito:signal"),
+      option("invasion:well","¿Estás bien?","invasion:tito:well"),bye],
+  };
+  if (context.storeInvaded && npc === "tito" && nodeId.startsWith("invasion:tito:")) {
+    const replies={juke:"La rockola mete una frecuencia que no es de ningún disco. Mirá los carteles originales de al lado. Los números parecen importar.",creature:"Vi una sombra entre los estantes. Aparece y desaparece. Si te persigue, no te quedes quieto.",archive:"La caja F09 quedó frente a un panel. Podés moverla por el riel, pero por favor no me rompas los vinilos.",signal:"Hay una inscripción al fondo. Con esa visión tuya quizá entiendas los emisores.",well:"Mientras los discos sigan sonando, estoy bien. Pero que el monstruo pague lo que rompió."};
+    const answer=replies[nodeId.slice("invasion:tito:".length)];
+    if(answer)return {id:nodeId,speaker:npc,text:answer,options:[option("invasion:back","Seguir preguntando","invasion:tito:intro"),back,bye]};
+  }
+  if(context.storeInvaded&&npc==="rulo"&&nodeId==="invasion:rulo")return {id:nodeId,kicker:"RULO / INVASIÓN",lines:[{speaker:"NEONBOY",text:"Rulo, ¿viste lo que acaba de aparecer?"},{speaker:"RULO",text:"¡Sí! ¡Eso era más feo que la tapa de un disco de death metal!"},{speaker:"NEONBOY",text:"¡Era un demonio de verdad!"},{speaker:"RULO",text:"Bueno, entonces el arte estaba bastante logrado."}],options:[back,bye]};
+  if(context.storeInvaded&&npc==="roxy"&&nodeId==="invasion:roxy")return {id:nodeId,kicker:"ROXY / INVASIÓN",lines:[{speaker:"NEONBOY",text:"Roxy, ¿estás bien?"},{speaker:"ROXY",text:"Sí, hasta que apareciste vos."},{speaker:"NEONBOY",text:"¡Te estoy preguntando por los demonios!"},{speaker:"ROXY",text:"Prefiero a los demonios. Por lo menos no me hablan tanto."},...(context.storeInvasionProgress?.ghostDefeated?[{speaker:"ROXY",text:"Bueno... admito que esa pelotita sirve para algo."},{speaker:"NEONBOY",text:"¡¿Viste?!"},{speaker:"ROXY",text:"No te agrandés."}]:[])],options:[back,bye]};
   if (npc === "jason") return null;
   if (npc === "freddy" && (nodeId === "greeting" || nodeId === "root")) return { id: nodeId, speaker: npc, text: "Freddy te mira y suelta una carcajada escalofriante.", options: [bye] };
   if (npc.startsWith("skeleton-") && (nodeId === "greeting" || nodeId === "root")) return { id: nodeId, speaker: npc, text: "Neonboy, ¿sos vos?", options: [bye] };
+  if (context.recordStoreAltered && npc === "roxy" && nodeId === "altered:roxy") return {
+    id: nodeId, kicker: "UNA TIENDA INQUIETA",
+    lines: [
+      { speaker: "NEONBOY", text: "Roxy, ¿vos también escuchaste el grito?" },
+      { speaker: "ROXY", text: "Sí." },
+      { speaker: "NEONBOY", text: "¿Y qué pensás?" },
+      { speaker: "ROXY", text: "Que no vuelvo a poner una ficha en esa máquina." },
+      { speaker: "NEONBOY", text: "¿Tenés miedo?" },
+      { speaker: "ROXY", text: "Más miedo me da que sigas hablando." },
+    ], options: [back, bye],
+  };
+  if (context.recordStoreAltered && npc === "tito" && nodeId === "altered:tito:intro") return {
+    id: nodeId, kicker: "EL REGRESO · TITO",
+    lines: [
+      { speaker: "NEONBOY", text: "¡Tito! ¿Qué pasó acá?" },
+      { speaker: "TITO", text: "¡Ah, apareciste! Justo a tiempo para ayudarme a entender qué carajo está pasando." },
+      { speaker: "NEONBOY", text: "Vi esta tienda destruida." },
+      { speaker: "TITO", text: "Bueno, gracias por el optimismo." },
+      { speaker: "NEONBOY", text: "¡Hablo en serio! Fue como una visión del futuro." },
+      { speaker: "TITO", text: "¿Del futuro? Mirá que ya bastante tengo con los discos que traés y que todavía no salieron." },
+      { speaker: "NEONBOY", text: "¿Escuchaste algo extraño?" },
+      { speaker: "TITO", text: "Las luces empezaron a fallar. Después la rockola se encendió sola." },
+      { speaker: "NEONBOY", text: "¿Y qué sonaba?" },
+      { speaker: "TITO", text: "Eso es lo peor. No sonaba ninguna canción." },
+      { speaker: "NEONBOY", text: "¿Entonces?" },
+      { speaker: "TITO", text: "Parecía alguien gritando desde muy lejos." },
+    ],
+    options: [
+      option("altered:when", "¿Cuándo empezaron los problemas?", "altered:tito:when"),
+      option("altered:jukebox", "¿Qué pasó con la rockola?", "altered:tito:jukebox"),
+      option("altered:person", "¿Viste a alguien extraño?", "altered:tito:person"),
+      option("altered:recording", "¿Tenés alguna grabación de lo que ocurrió?", "altered:tito:recording"),
+      bye,
+    ],
+  };
+  if (context.recordStoreAltered && npc === "tito" && nodeId.startsWith("altered:tito:")) {
+    const answers = {
+      when: "Hace un rato. Primero una lámpara, después todas las luces. Y mirá cómo quedaron esos vinilos.",
+      jukebox: "Se encendió sin monedas. La pantalla mostró un símbolo y después escuché ese grito. Acercate y fijate.",
+      person: "No vi a nadie, pero juraría que algo se movió al fondo del local.",
+      recording: "No pude grabarlo. Si esa señal vuelve, Hugo tal vez sepa qué hacer con ella.",
+    };
+    const key = nodeId.slice("altered:tito:".length);
+    return answers[key] ? { id: nodeId, speaker: npc, text: answers[key],
+      options: [option("altered:tito:back", "Preguntar más sobre lo ocurrido", "altered:tito:intro"), back, bye] } : null;
+  }
+  if (context.recordStoreAltered && npc === "rulo" && nodeId === "altered:rulo") return {
+    id: nodeId, kicker: "LA ROCKOLA MALDITA",
+    lines: [
+      { speaker: "NEONBOY", text: "Rulo, ¿viste algo raro?" },
+      { speaker: "RULO", text: "¡Sí! Esa rockola hizo un ruido infernal." },
+      { speaker: "NEONBOY", text: "¿Y?" },
+      { speaker: "RULO", text: "Al principio pensé que era un tema tuyo." },
+      { speaker: "NEONBOY", text: "¡Dale, boludo!" },
+      { speaker: "RULO", text: "Jajaja, pero después se puso bastante feo." },
+    ], options: [back, bye],
+  };
   if (npc === "roxy") {
     if (nodeId === "greeting" || nodeId === "root") return {
       id: nodeId, speaker: npc,
       text: progress.roxyMet ? "¿Otra vez vos? ¿No te había dicho que te fueras?" : "",
-      options: [...roxyQuestions.map(({ id, question }) => option("ask:roxy:" + id, question, "reply:roxy:" + id)), bye]
+      options: [...(context.storeInvaded ? [option("invasion:roxy", "Roxy, ¿estás bien?", "invasion:roxy")] : []), ...(context.recordStoreAltered ? [option("altered:roxy", "Roxy, ¿vos también escuchaste el grito?", "altered:roxy")] : []), ...roxyQuestions.map(({ id, question }) => option("ask:roxy:" + id, question, "reply:roxy:" + id)), bye]
     };
     if (nodeId.startsWith("reply:roxy:")) {
       const answer = roxyQuestions.find(({ id }) => nodeId === "reply:roxy:" + id);

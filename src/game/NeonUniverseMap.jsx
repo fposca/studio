@@ -27,7 +27,7 @@ export default function NeonUniverseMap({ onClose, onEnter, unlockedScenarios = 
         <div className="universe-map-image-wrap">
           <div className="universe-map-image" aria-label="Edificios de NeonBoy Universe">
             <img src={mapImage} alt="Ciudad nocturna de NeonBoy Universe: tienda de discos, estudio, club, arcade, azotea y portal rojo" draggable="false" />
-            {NEON_UNIVERSE_SCENARIOS.map((scenario) => <button
+            {NEON_UNIVERSE_SCENARIOS.filter((scenario) => scenario.position).map((scenario) => <button
               key={scenario.id}
               type="button"
               className={`universe-map-marker is-${getScenarioStatus(scenario, unlockedScenarios)}${selectedId === scenario.id ? " is-selected" : ""}`}
@@ -45,6 +45,13 @@ export default function NeonUniverseMap({ onClose, onEnter, unlockedScenarios = 
           <span className={`universe-map-status is-${selectedStatus}`}>{selectedStatus === "available" ? <Sparkles size={14} /> : <LockKeyhole size={14} />}{NEON_UNIVERSE_STATUS[selectedStatus]}</span>
           <h3>{selected.name}</h3>
           <p>{selected.description}</p>
+          {unlockedScenarios.includes("lost-ship") && <button type="button" className="universe-map-dimensional-link" onClick={() => setSelectedId("lost-ship")}>
+            DIMENSIONES PERDIDAS · PUERTA 01
+          </button>}
+          {unlockedScenarios.includes("parthenon") && <button type="button" className="universe-map-dimensional-link" onClick={() => setSelectedId("parthenon")}>
+            DIMENSIONES PERDIDAS · PUERTA 02
+          </button>}
+          {unlockedScenarios.includes("matrix") && <button type="button" className="universe-map-dimensional-link" onClick={() => setSelectedId("matrix")}>DIMENSIONES PERDIDAS · PUERTA 03</button>}
           <div className="universe-map-detail-bottom">
             {selectedStatus === "available" && selected.destination
               ? <button type="button" className="universe-map-enter" onClick={() => onEnter(selected.destination)}>Entrar a {selected.id === "record-store" ? "la " : ""}{selected.name} <ArrowRight size={17} /></button>

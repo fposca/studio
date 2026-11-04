@@ -87,7 +87,7 @@ export function dressArcadeRoom(scene, { box, cylinder, sign, materials }) {
   for (let i = 0; i < 6; i++) box(scene, "fuse cabinet vents", .46, .023, .025, -4.1, 1.68 + i * .085, -21.35, materials.black);
   box(scene, "rear electric conduit", .07, 2.0, .07, -4.1, 3.0, -21.48, materials.steel);
   sign(scene, "rear warning", "ALTA TENSION", "NO ABRIR", .52, .23, -4.1, 1.39, -21.35, "#d8b568");
-  sign(scene, "rear faded notice", "NO GOLPEAR", "LAS MAQUINAS", 1.2, .50, 3.5, 2.35, -21.61, "#b59a89");
+  sign(scene, "rear faded notice", "NO GOLPEAR", "LAS MAQUINAS", 1.2, .50, 5.1, 1.90, -21.61, "#b59a89");
   // The same entry wall faces inward (towards -Z).
   const clockFace = arcadeCanvas(256, 256, (ctx) => {
     ctx.fillStyle = "#dfd2b2"; ctx.fillRect(0, 0, 256, 256); ctx.strokeStyle = "#25242e";
