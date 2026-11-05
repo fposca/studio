@@ -35,7 +35,7 @@ export function createHalloweenFootsteps(urls) {
     source.playbackRate.value = (running ? 1.08 : 1) * (stepIndex % 2 ? .97 : 1.03);
     const gain = context.createGain();
     // The second recording is about 15 dB quieter; balance it at playback.
-    gain.gain.value = (running ? .19 : .14) * (stepIndex % 2 ? 5.7 : 1);
+    gain.gain.value = (running ? .52 : .42) * (stepIndex % 2 ? 5.7 : 1);
     source.connect(gain).connect(context.destination);
     source.onended = () => { source.disconnect(); gain.disconnect(); };
     source.start();

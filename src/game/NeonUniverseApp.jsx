@@ -9,7 +9,7 @@ import "./neonUniverseApp.css";
 
 const OPTIONS_KEY = "neonboy.universe.options.v1";
 const SLOT_LABELS = { autosave: "Autoguardado", "slot-1": "Partida 1", "slot-2": "Partida 2", "slot-3": "Partida 3" };
-const SCENE_LABELS = { store: "Tienda de Discos", studio: "Neon Recording Studio", club: "Club de Rock 1999", arcade: "Arcade 1999", rooftop: "La Azotea 1999", "lost-ship": "La Nave Perdida", parthenon: "El Partenón Maldito", matrix: "La Realidad Fracturada" };
+const SCENE_LABELS = { store: "Tienda de Discos", studio: "Neon Recording Studio", club: "Club de Rock 1999", arcade: "Arcade 1999", rooftop: "La Azotea 1999", "lost-ship": "La Nave Perdida", parthenon: "El Partenón Maldito", matrix: "La Realidad Fracturada", underworld: "Puente de las Almas" };
 
 function readMotionSetting() {
   try { return JSON.parse(localStorage.getItem(OPTIONS_KEY) || "null")?.motion !== false; }

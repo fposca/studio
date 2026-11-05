@@ -11,14 +11,21 @@ export const INVASION_BIN_BOUNDS = Object.freeze([
   { hx: 1.45, hz: 1.25, height: .84 }, { hx: 1.45, hz: 1.25, height: .84 },
   { hx: 1.58, hz: 1.32, height: 1.96 }, { hx: 1.58, hz: 1.32, height: 1.96 },
 ]);
+// The leaning archive shelf is decorative geometry outside the shared store layout.
+export const INVASION_ARCHIVE_SHELF_OBSTACLE = Object.freeze({
+  id: "archive leaning shelf", x: 9.7, z: -7.15, hx: .86, hz: .4, height: 1.5,
+});
 export const INVASION_STATIC_COUNT = STORE_OBSTACLES.length - STORE_NPCS.filter(({ id }) => !["roxy", "freddy", "jason"].includes(id)).length;
 export function invadedStoreObstacles() {
   const stationary = STORE_NPCS.filter(({ id }) => !["roxy", "freddy", "jason"].includes(id));
   const furnitureCount = STORE_OBSTACLES.length - stationary.length;
-  return STORE_OBSTACLES.map((obstacle, index) => {
-    if (index < INVASION_BIN_BOUNDS.length) return { ...obstacle, ...INVASION_BIN_BOUNDS[index] };
-    const npc = stationary[index - furnitureCount];
-    const position = npc && INVASION_NPC_PLACEMENTS[npc.id];
-    return position ? { ...obstacle, x: position.x, z: position.z } : { ...obstacle };
-  });
+  return [
+    ...STORE_OBSTACLES.map((obstacle, index) => {
+      if (index < INVASION_BIN_BOUNDS.length) return { ...obstacle, ...INVASION_BIN_BOUNDS[index] };
+      const npc = stationary[index - furnitureCount];
+      const position = npc && INVASION_NPC_PLACEMENTS[npc.id];
+      return position ? { ...obstacle, x: position.x, z: position.z } : { ...obstacle };
+    }),
+    { ...INVASION_ARCHIVE_SHELF_OBSTACLE },
+  ];
 }

@@ -53,3 +53,18 @@
   .universe-mission-card .universe-mission-card__heading h3 { font-size: 14px; }
   .universe-mission-card .universe-mission-card__objective p { font-size: 11px; }
 }
+
+
+.universe-mission-card.is-collapsible { pointer-events: auto; transition: border-color .18s, background .18s, box-shadow .18s; }
+.universe-mission-card.is-collapsible:hover,
+.universe-mission-card.is-collapsible:focus-within { border-color: var(--mission-accent); box-shadow: inset 0 1px 0 #fff5e318, 0 8px 28px #05030a88; }
+.universe-mission-card__toggle { appearance: none; display: flex; align-items: center; gap: 8px; width: 100%; min-height: 42px; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.universe-mission-card__toggle .universe-mission-card__header { flex: 1; min-width: 0; }
+.universe-mission-card__toggle:focus-visible { outline: 2px solid #e99ccd; outline-offset: 3px; border-radius: 4px; }
+.universe-mission-card__expand-icon { flex: none; color: var(--mission-accent); transition: transform .18s ease; }
+.universe-mission-card.is-expanded .universe-mission-card__expand-icon { transform: rotate(180deg); }
+.universe-mission-card__content[hidden] { display: none; }
+.universe-mission-card__content:not([hidden]) { animation: mission-card-reveal .18s ease-out both; }
+.universe-mission-card__footer { margin-top: 10px; padding-top: 10px; border-top: 1px solid #fff0dd16; }
+@keyframes mission-card-reveal { from { opacity: .4; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .universe-mission-card.is-collapsible, .universe-mission-card__expand-icon, .universe-mission-card__content:not([hidden]) { transition: none; animation: none; } }

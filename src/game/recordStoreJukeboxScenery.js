@@ -32,6 +32,45 @@ function label(parent, text, x, y, z, w, h, background = "#231d25", color = "#e6
   mesh.position.set(x, y, z); parent.add(mesh); return mesh;
 }
 
+function coinPlaque(parent, title, detail, y, frontZ, rearZ, w, h, frame) {
+  const map = texture(1024, 192, (ctx, width, height) => {
+    const background = ctx.createLinearGradient(0, 0, width, height);
+    background.addColorStop(0, "#241723");
+    background.addColorStop(.58, "#14151f");
+    background.addColorStop(1, "#342129");
+    ctx.fillStyle = background; ctx.fillRect(0, 0, width, height);
+    ctx.strokeStyle = "#d6b989"; ctx.lineWidth = 8; ctx.strokeRect(5, 5, width - 10, height - 10);
+    ctx.strokeStyle = "#b66b99"; ctx.lineWidth = 3; ctx.strokeRect(16, 16, width - 32, height - 32);
+    ctx.fillStyle = "#dfb981"; ctx.fillRect(22, 22, 8, height - 44);
+    ctx.fillStyle = "#b6dadd"; ctx.font = "700 22px monospace";
+    ctx.fillText("NEONBOY MUSIC / ROCKOLA", 48, 47);
+    ctx.fillStyle = "#fff1dc"; ctx.font = "800 70px " + FONT;
+    ctx.fillText(title, 45, 125, 655);
+    ctx.fillStyle = "#533042"; ctx.fillRect(745, 61, 245, 81);
+    ctx.strokeStyle = "#dfb981"; ctx.lineWidth = 3; ctx.strokeRect(745, 61, 245, 81);
+    ctx.fillStyle = "#fff0dc"; ctx.font = "800 37px " + FONT;
+    ctx.textAlign = "center"; ctx.fillText(detail, 867, 114, 220);
+    ctx.fillStyle = "#8ddcde"; ctx.fillRect(48, 153, 650, 3);
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = i === 0 ? "#e67caf" : "#687581";
+      ctx.fillRect(48 + i * 23, 164, 15, 6);
+    }
+  });
+  const material = new THREE.MeshBasicMaterial({ map, toneMapped: false });
+  const makeFace = (z, back = false) => {
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(w - .02, h - .02), material);
+    face.position.set(0, y, z + (back ? -.022 : .022));
+    if (back) face.rotation.y = Math.PI;
+    parent.add(face);
+  };
+  box(parent, 0, y, frontZ, w, h, .04, frame, true);
+  makeFace(frontZ);
+  if (rearZ === frontZ) makeFace(frontZ, true);
+  else {
+    box(parent, 0, y, rearZ, w, h, .04, frame, true);
+    makeFace(rearZ, true);
+  }
+}
 function archPanel(parent, radius, depth, y, z, material) {
   const shape = new THREE.Shape(); shape.moveTo(-radius, 0); shape.lineTo(radius, 0); shape.absarc(0, 0, radius, 0, Math.PI, false); shape.closePath();
   const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelSize: 0.024, bevelThickness: 0.02, bevelSegments: 2, curveSegments: 48, steps: 1 });
@@ -148,9 +187,9 @@ export function buildStoreJukebox(root, clickable, storeMaterials) {
   box(table, 0, 0.87, 0, 1.35, 0.16, 0.82, walnut);
   box(table, 0, 0.96, 0, 1.42, 0.035, 0.88, bronze);
   for (const x of [-0.52, 0.52]) for (const z of [-0.28, 0.28]) box(table, x, 0.43, z, 0.1, 0.8, 0.1, walnut);
-  label(table, "MONEDAS · TOMAR", 0, 0.63, 0.43, 1.18, 0.18);
+  coinPlaque(table, "MONEDAS", "TOMAR", 0.63, 0.43, -0.43, 1.18, 0.2, bronze);
   for (const x of [-0.51, 0.51]) box(table, x, 1.25, 0.31, 0.03, 0.5, 0.03, bronze);
-  label(table, "10 FICHAS · TOMAR", 0, 1.55, 0.34, 1.32, 0.22);
+  coinPlaque(table, "10 FICHAS", "TOMAR", 1.55, 0.34, 0.34, 1.42, 0.27, bronze);
   const coinGroup = new THREE.Group();
   coinGroup.position.y = 1.05;
   table.add(coinGroup);

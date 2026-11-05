@@ -184,3 +184,22 @@
   width: 2px; background: #ffe3a3; box-shadow: 0 0 7px #ffdda1;
 }
 .studio-signal-context { border-left: 3px solid #e87cb7; padding-left: .6rem; color: #fae5f2; }
+
+
+/* Studio missions use compact expandable rows; one row opens at a time. */
+.studio-mission-stack { gap: 7px; padding-right: 2px; scrollbar-width: none; overscroll-behavior: contain; }
+.studio-mission-stack::-webkit-scrollbar { display: none; }
+.studio-mission-stack__bar { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 26px; padding: 2px 3px 5px; background: linear-gradient(180deg, #130d1deb 80%, transparent); color: #f1b5d9; font: 800 9px var(--store-font); letter-spacing: .12em; }
+.neon-recording-studio .studio-mission-stack__bar button { min-width: 0; min-height: 0; padding: 4px 7px; border: 1px solid #9f6594; border-radius: 4px; background: #28192f; color: #e9c8df; font: 700 9px var(--store-font); letter-spacing: 0; cursor: pointer; }
+.neon-recording-studio .studio-mission-stack__bar button:disabled { opacity: .45; cursor: default; }
+.studio-mission-stack > .universe-mission-card { position: static; inset: auto; flex: none; width: 100%; max-width: none; margin: 0; padding: 7px 10px; border-radius: 8px; }
+.studio-mission-stack .universe-mission-card__icon { flex-basis: 30px; height: 30px; border-radius: 7px; }
+.studio-mission-stack .universe-mission-card__heading h3 { font-size: 13px; }
+.studio-mission-stack .universe-mission-card__status { margin-bottom: 3px; font-size: 7px; }
+.studio-mission-stack .universe-mission-card__objective { margin-top: 6px; }
+.studio-mission-stack .universe-mission-card__content { padding: 1px 0 3px 38px; }
+.studio-mission-stack .universe-mission-card__content .universe-mission-card__objective { margin-top: 4px; }
+.neon-recording-studio .studio-mission-archive { width: 100%; min-width: 0; min-height: 0; padding: 8px 10px; border: 1px solid #a8719c; border-radius: 5px; background: #51324c; color: #ffe8f3; font: 700 11px var(--store-font); cursor: pointer; }
+.neon-recording-studio .studio-mission-archive:hover { background: #754268; }
+@media (max-width: 700px) { .studio-mission-stack { max-height: min(55vh, calc(100% - 195px)); width: min(330px, calc(100% - 20px)); } }
+@media (max-height: 520px) { .studio-mission-stack { top: 145px; left: 10px; max-height: calc(100% - 245px); width: min(280px, 40vw); } }

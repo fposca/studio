@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { STORE_OBSTACLES } from "./recordStoreLayout.js";
 import { STORE_NPCS } from "./recordStoreDialogue.js";
-import { invadedStoreObstacles, INVASION_NPC_PLACEMENTS, INVASION_STATIC_COUNT } from "./recordStoreInvadedLayout.js";
+import { invadedStoreObstacles, INVASION_ARCHIVE_SHELF_OBSTACLE, INVASION_NPC_PLACEMENTS, INVASION_STATIC_COUNT } from "./recordStoreInvadedLayout.js";
 
 test("invaded layout preserves shared normal/altered furniture and NPC positions", () => {
   const original = structuredClone(STORE_OBSTACLES);
@@ -12,6 +12,10 @@ test("invaded layout preserves shared normal/altered furniture and NPC positions
   assert.deepEqual(STORE_NPCS.map(({id,x,z}) => ({id,x,z})), npcs);
   invaded.forEach((obstacle, index) => assert.notEqual(obstacle, STORE_OBSTACLES[index]));
   assert.equal(INVASION_STATIC_COUNT, 12);
+  const shelf = invaded.find(o => o.id === INVASION_ARCHIVE_SHELF_OBSTACLE.id);
+  assert.deepEqual(shelf, INVASION_ARCHIVE_SHELF_OBSTACLE);
+  assert.ok(Math.abs(9.1 - shelf.x) < shelf.hx + .46 && Math.abs(-7.15 - shelf.z) < shelf.hz + .46);
+  assert.ok(Math.abs(7.8 - shelf.x) >= shelf.hx + .46, "The archive approach stays open");
   for (const id of ["tito", "rulo"]) {
     const location = INVASION_NPC_PLACEMENTS[id];
     assert.ok(invaded.some(o => o.x === location.x && o.z === location.z));

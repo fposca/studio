@@ -10,12 +10,12 @@ const SECTIONS = [
   ["Curiosidades de producción", "Historias de las mezclas"]
 ];
 
-export function MasterTapeHud({ progress, scene }) {
+export function MasterTapeHud({ progress, scene, expanded, onToggle }) {
   if (progress.phase === "new") return null;
   const inventory = masterTapeInventory(progress);
   const complete = progress.phase === "complete";
   return <UniverseMissionCard className={"master-tape-hud master-tape-hud--" + scene}
-    title="El máster perdido" kind="tape" complete={complete}
+    title="El máster perdido" kind="tape" complete={complete} expanded={expanded} onToggle={onToggle}
     objective={complete ? "Neon Sessions disponible en la tienda." : masterTapeObjective(progress)}
     details={[
       inventory.length > 0 && `Inventario · ${inventory.join(" · ")}`,

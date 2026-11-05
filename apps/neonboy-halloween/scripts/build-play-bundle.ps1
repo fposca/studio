@@ -1,7 +1,8 @@
 ﻿param(
   [string]$KeystorePath = (Join-Path $env:USERPROFILE '.android\neonboy-halloween-upload.jks'),
   [string]$ProtectedPasswordPath = (Join-Path $env:USERPROFILE '.android\neonboy-halloween-upload-password.dpapi'),
-  [string]$Alias = 'neonboy-halloween-upload'
+  [string]$Alias = 'neonboy-halloween-upload',
+  [string]$ArtifactName = ('neonboy-halloween-v1.0.1-{0}-play.aab' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
 )
 
 $ErrorActionPreference = 'Stop'
@@ -16,7 +17,13 @@ $appRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $androidRoot = Join-Path $appRoot 'android'
 $unsignedBundle = Join-Path $androidRoot 'app\build\outputs\bundle\release\app-release.aab'
 $releaseDir = Join-Path $appRoot 'release-assets'
-$signedBundle = Join-Path $releaseDir 'neonboy-halloween-v1.0-play.aab'
+if ($ArtifactName -notmatch '^[a-zA-Z0-9][a-zA-Z0-9._-]*\.aab$') {
+  throw 'El nombre del AAB debe ser un archivo .aab simple, sin rutas.'
+}
+$signedBundle = Join-Path $releaseDir $ArtifactName
+if (Test-Path -LiteralPath $signedBundle) {
+  throw "El AAB de destino ya existe y no se sobrescribira: $signedBundle"
+}
 
 if (-not (Test-Path -LiteralPath $KeystorePath -PathType Leaf)) { throw "No se encontró la clave de carga: $KeystorePath" }
 $hadPasswordInEnvironment = [bool]$env:NEONBOY_UPLOAD_PASSWORD
@@ -46,7 +53,7 @@ try {
 
   if (-not (Test-Path -LiteralPath $unsignedBundle -PathType Leaf)) { throw 'Gradle no generó el AAB.' }
   New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
-  Copy-Item -LiteralPath $unsignedBundle -Destination $signedBundle -Force
+  Copy-Item -LiteralPath $unsignedBundle -Destination $signedBundle
   & jarsigner.exe -keystore $KeystorePath -storepass:env NEONBOY_UPLOAD_PASSWORD -keypass:env NEONBOY_UPLOAD_PASSWORD -sigalg SHA256withRSA -digestalg SHA-256 $signedBundle $Alias
   if ($LASTEXITCODE -ne 0) { throw 'Falló la firma del AAB.' }
   $verification = & jarsigner.exe -verify $signedBundle 2>&1

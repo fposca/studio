@@ -1,5 +1,6 @@
-export const HALLOWEEN_SAVE_KEY = "neonboy-halloween-saves-v1";
-export const HALLOWEEN_SAVE_SLOTS = 3;
+export const HALLOWEEN_SAVE_KEY = "neonboy-halloween-save-v2";
+export const HALLOWEEN_LEGACY_SAVE_KEY = "neonboy-halloween-saves-v1";
+export const HALLOWEEN_SAVE_SLOTS = 1;
 const clampInt = (value, min, max) => Math.min(max, Math.max(min, Number.isFinite(value) ? Math.trunc(value) : min));
 const finite = (value, fallback) => Number.isFinite(value) ? value : fallback;
 const strings = (value, limit = 80) => [...new Set((Array.isArray(value) ? value : [])
@@ -35,33 +36,39 @@ export function normalizeHalloweenProgress(value = {}) {
   };
 }
 
+const validSave = (record, slot = 0) => record && record.slot === slot
+  && Number.isFinite(record.savedAt) && record.progress && typeof record.progress === "object";
+
 export function readHalloweenSaves(storage = globalThis.localStorage) {
   try {
     const data = JSON.parse(storage.getItem(HALLOWEEN_SAVE_KEY) || "null");
-    if (!data || data.version !== 1 || !Array.isArray(data.slots)) return Array(HALLOWEEN_SAVE_SLOTS).fill(null);
-    return Array.from({ length: HALLOWEEN_SAVE_SLOTS }, (_, slot) => {
-      const record = data.slots[slot];
-      return record && record.slot === slot && Number.isFinite(record.savedAt) && record.progress
-        ? { slot, savedAt: record.savedAt, progress: normalizeHalloweenProgress(record.progress) } : null;
-    });
+    // A new, empty save must not revive an older legacy slot.
+    if (data?.version === 2) {
+      const record = data.record;
+      return [validSave(record) ? { slot: 0, savedAt: record.savedAt, progress: normalizeHalloweenProgress(record.progress) } : null];
+    }
+    const legacy = JSON.parse(storage.getItem(HALLOWEEN_LEGACY_SAVE_KEY) || "null");
+    if (legacy?.version !== 1 || !Array.isArray(legacy.slots)) return [null];
+    const latest = legacy.slots
+      .filter((record, slot) => validSave(record, slot))
+      .sort((a, b) => b.savedAt - a.savedAt)[0];
+    // Reading leaves the original three saves untouched. The next save uses v2.
+    return [latest ? { slot: 0, savedAt: latest.savedAt, progress: normalizeHalloweenProgress(latest.progress) } : null];
   } catch {
-    return Array(HALLOWEEN_SAVE_SLOTS).fill(null);
+    return [null];
   }
 }
 
 export function writeHalloweenSave(storage, slot, progress, now = Date.now()) {
-  if (!Number.isInteger(slot) || slot < 0 || slot >= HALLOWEEN_SAVE_SLOTS) throw new RangeError("Invalid save slot");
-  const slots = readHalloweenSaves(storage);
-  const record = { slot, savedAt: now, progress: normalizeHalloweenProgress(progress) };
-  slots[slot] = record;
-  storage.setItem(HALLOWEEN_SAVE_KEY, JSON.stringify({ version: 1, slots }));
+  if (slot !== 0) throw new RangeError("Invalid save slot");
+  const record = { slot: 0, savedAt: now, progress: normalizeHalloweenProgress(progress) };
+  storage.setItem(HALLOWEEN_SAVE_KEY, JSON.stringify({ version: 2, record }));
   return record;
 }
 
 export function deleteHalloweenSave(storage, slot) {
-  if (!Number.isInteger(slot) || slot < 0 || slot >= HALLOWEEN_SAVE_SLOTS) throw new RangeError("Invalid save slot");
-  const slots = readHalloweenSaves(storage);
-  slots[slot] = null;
-  storage.setItem(HALLOWEEN_SAVE_KEY, JSON.stringify({ version: 1, slots }));
-  return slots;
+  if (slot !== 0) throw new RangeError("Invalid save slot");
+  storage.removeItem(HALLOWEEN_SAVE_KEY);
+  storage.removeItem(HALLOWEEN_LEGACY_SAVE_KEY);
+  return [null];
 }

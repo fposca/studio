@@ -500,6 +500,8 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
     }
     function onWheel(event) { view.distance = THREE.MathUtils.clamp(view.distance + event.deltaY * .005, 3, 7); }
     function onBlur() { held.clear(); dragging = null; firstMotion.reset(view.yaw, view.firstPitch); footsteps.reset(); }
+    const unlockFootstepsOnTouch = () => { if (!propsRef.current.locked) footsteps.unlock(); };
+    window.addEventListener("pointerdown", unlockFootstepsOnTouch, { capture: true });
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("blur", onBlur);
@@ -749,6 +751,7 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       alive = false;
       cancelAnimationFrame(frameId);
       window.clearTimeout(finishTimer);
+      window.removeEventListener("pointerdown", unlockFootstepsOnTouch, { capture: true });
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);

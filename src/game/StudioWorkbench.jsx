@@ -9,7 +9,7 @@ const archiveItems = [
   { flag: "newBornInfo", title: "New Born", text: "Hugo participó con guitarras." }
 ];
 
-export default function StudioWorkbench({ mode, albumId = null, progress, masterTape, onClose, onExplore, signalAvailable = false, onAnalyzeSignal, signalContextText, paused = false }) {
+export default function StudioWorkbench({ mode, albumId = null, progress, masterTape, onClose, onExplore, signalAvailable = false, onAnalyzeSignal, signalContextText, chapter10Progress, chapter10Ready = false, chapter10Error = false, onChapter10Channel, paused = false }) {
   const [selected, setSelected] = useState(null);
   const [activeAlbumId, setActiveAlbumId] = useState(albumId);
   const [trackIndex, setTrackIndex] = useState(null);
@@ -58,6 +58,17 @@ export default function StudioWorkbench({ mode, albumId = null, progress, master
           <button type="button" onClick={onAnalyzeSignal}>Analizar señal</button>
         </div>}
         {computer && !showAlbums && <p>Una reconstrucción informativa del trabajo en el estudio. No son archivos de sesión ni pistas de audio reales.</p>}
+        {consoleMode && chapter10Progress?.hugoConsulted && !chapter10Progress.signalReconstructed && <section className="chapter10-puzzle" aria-label="Reconstrucción de señal">
+          <small>CAPÍTULO 10 / CONSOLA DE HUGO</small><h4>RECONSTRUCCIÓN DE SEÑAL</h4>
+          <p>El primer pulso permitió abrir el camino.</p>
+          <p>Los recuerdos sobreviven incluso cuando la realidad cambia.</p>
+          <p>La señal atraviesa dimensiones y conecta aquello que fue separado.</p>
+          {!chapter10Ready ? <p className="chapter10-puzzle-error">Faltan registros de las Puertas 01, 02 o 03. Continuá la historia para recuperarlos.</p> : <>
+            <div className="chapter10-puzzle-actions">{[["pulse","CANAL 1 / PULSO"],["memory","CANAL 2 / MEMORIA"],["frequency","CANAL 3 / FRECUENCIA"]].map(([id,label])=><button key={id} type="button" onClick={()=>onChapter10Channel?.(id)}>{label}</button>)}</div>
+            <div className="chapter10-puzzle-sequence" role="status">SECUENCIA: {chapter10Progress.channelInput.length ? chapter10Progress.channelInput.map(value=>({pulse:"PULSO",memory:"MEMORIA",frequency:"FRECUENCIA"})[value]).join(" → ") : "ESPERANDO ENTRADA"}</div>
+            {chapter10Error && <p className="chapter10-puzzle-error" role="status">Interferencia: el orden no coincide. La secuencia se reinició; podés volver a intentar.</p>}
+          </>}
+        </section>}
         {consoleMode && progress.impossibleRecordingStarted && <p className="studio-signal-context">{progress.studioAnomalySeen ? "La consola todavía registra una frecuencia extraña." : "Tenemos que aislar la señal."}</p>}
         {consoleMode && masterTape?.phase === "review" && <p className="master-tape-console-progress">El máster perdido · Revisá guitarra, bajo y batería ({masterTape.reviewed.length}/3). Guitarra rítmica o solista cuentan como guitarra.</p>}
         {consoleMode && <p>Seleccioná un canal para entender su función. No hay stems disponibles para reproducir instrumentos por separado.</p>}

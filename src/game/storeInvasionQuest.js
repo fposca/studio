@@ -70,6 +70,7 @@ export function advanceStoreInvasion(progress,event,value,eligible=true){
  if(event==='boss-hit'&&p.generators.every(Boolean)&&!p.bossDefeated&&bool(value?.vulnerable)){
   const health=Math.max(0,p.bossHealth-1);return {...p,bossHealth:health,bossDefeated:health===0};
  }
+ if(event==='boss-replay'&&p.transmissionOff&&p.bossDefeated)return {...p,generators:[false,false],bossHealth:5,bossDefeated:false,coreNeutralized:false};
  if(event==='core-read'&&p.bossDefeated)return {...p,coreNeutralized:true,visionActive:false};
  if(event==='retry')return p.archiveOff&&!p.ghostDefeated?{...p,ghostHealth:3}:p.transmissionOff&&!p.bossDefeated?{...p,generators:[false,false],bossHealth:5}:p;
  if(event==='hint'&&Object.hasOwn(p.hints,value))return {...p,hints:{...p.hints,[value]:Math.min(3,p.hints[value]+1)}};
@@ -88,7 +89,11 @@ export function storeInvasionObjective(p){
  if(!p.archiveOff)return'Mové la caja del expositor y restaurá los conductores.';
  if(!p.ghostDefeated)return'Defendete de la aparición entre las estanterías.';
  if(!p.transmissionOff)return'Restaurá los emisores ocultos y usá el reflector.';
- if(!p.bossDefeated)return'Desactivá los generadores y enfrentá a la entidad corrupta.';
+ if(!p.bossDefeated){
+  const disabled=p.generators.filter(Boolean).length;
+  if(disabled<2)return 'Desactivá los escudos con el Orbe Neon: '+disabled+'/2.';
+  return 'Escudo roto. Dispará a la entidad cuando se ilumine el pulso fucsia.';
+ }
  if(!p.coreNeutralized)return'Consultá y neutralizá el núcleo principal.';
  return'Investigá las nuevas anomalías de Buenos Aires.';
 }

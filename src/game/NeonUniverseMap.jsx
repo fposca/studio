@@ -42,9 +42,10 @@ export default function NeonUniverseMap({ onClose, onEnter, unlockedScenarios = 
 
         <aside className="universe-map-detail" aria-live="polite">
           <span className="universe-map-detail-kicker">DESTINO SELECCIONADO</span>
-          <span className={`universe-map-status is-${selectedStatus}`}>{selectedStatus === "available" ? <Sparkles size={14} /> : <LockKeyhole size={14} />}{NEON_UNIVERSE_STATUS[selectedStatus]}</span>
+          <span className={`universe-map-status is-${selectedStatus}`}>{(selectedStatus === "available" || selectedStatus === "identified") ? <Sparkles size={14} /> : <LockKeyhole size={14} />}{NEON_UNIVERSE_STATUS[selectedStatus]}</span>
           <h3>{selected.name}</h3>
           <p>{selected.description}</p>
+          {selected.id === "underworld" && selectedStatus === "available" && <div className="chapter10-map-note" role="status"><strong>CAPÍTULO 11 DISPONIBLE</strong>PUENTE DE LAS ALMAS<br />LA CIUDADELA AGUARDA DEL OTRO LADO</div>}
           {unlockedScenarios.includes("lost-ship") && <button type="button" className="universe-map-dimensional-link" onClick={() => setSelectedId("lost-ship")}>
             DIMENSIONES PERDIDAS · PUERTA 01
           </button>}

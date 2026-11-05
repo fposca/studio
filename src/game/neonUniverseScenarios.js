@@ -62,19 +62,21 @@ export const NEON_UNIVERSE_SCENARIOS = [
     description: "Un portal rojo oculta un lugar del que todavía no se sabe nada.",
     status: "secret",
     position: { x: 92.4, y: 47.1 },
-    destination: null,
+    destination: "underworld",
   },
 ];
 
 export const NEON_UNIVERSE_STATUS = {
   available: "DISPONIBLE",
   locked: "BLOQUEADO",
-  secret: "SECRETO",
+  secret: "BLOQUEADO",
+  identified: "DESBLOQUEADO",
 };
 
 // Temporary preview access; the permanent unlock status remains "locked".
 // Set VITE_RECORDING_STUDIO_PREVIEW=true for a preview build or false in local dev.
 export function getScenarioStatus(scenario, unlockedScenarios = [], env = import.meta.env ?? {}) {
+  if (scenario.id === "underworld" && unlockedScenarios.includes("underworld")) return "available";
   if (scenario.destination && unlockedScenarios.includes(scenario.id)) return "available";
   if (scenario.id === "arcade-1999" && env.VITE_ARCADE_1999_PREVIEW === "true") return "available";
   if (scenario.id === "rock-club" && (env.VITE_ROCK_CLUB_PREVIEW === "true" || (env.DEV && env.VITE_ROCK_CLUB_PREVIEW !== "false"))) return "available";

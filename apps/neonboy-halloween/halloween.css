@@ -422,41 +422,6 @@
 @media(prefers-reduced-motion:reduce){.halloween-phone-wave.is-playing i{animation:none}}
 
 
-/* Save selection is a separate, responsive opening screen. */
-.halloween-start{position:relative;isolation:isolate;min-height:100dvh;overflow:auto;padding:clamp(20px,4vh,42px) max(20px,env(safe-area-inset-right,0px)) calc(22px + env(safe-area-inset-bottom,0px));background:radial-gradient(ellipse at 80% 18%,#702b5750,transparent 35%),radial-gradient(ellipse at 10% 90%,#22385468,transparent 42%),#0d0914;color:#fce8d7}
-.halloween-start::before{content:"";position:fixed;inset:0;z-index:-1;opacity:.42;background:repeating-linear-gradient(0deg,transparent 0 3px,#0007 4px 5px),linear-gradient(120deg,#0f0819 0%,transparent 55%);pointer-events:none}
-.halloween-start-glow{position:fixed;z-index:-1;width:min(45vw,600px);aspect-ratio:1;right:-6vw;top:14vh;border:2px solid #e581bb44;border-radius:50%;background:repeating-radial-gradient(circle,#100a18 0 10px,#432341 12px,#0c0b14 15px);box-shadow:0 0 0 30px #ce649e0c,0 0 110px #d14c9370,inset 0 0 90px #000}
-.halloween-start-glow::after{content:"";position:absolute;inset:38%;border-radius:50%;background:radial-gradient(circle,#ffb3d2 0 8%,#682d65 10% 58%,#14101b 61%);box-shadow:0 0 25px #e47fb1}
-.halloween-start-content{width:min(1100px,100%);margin:auto}
-.halloween-start-header{max-width:720px}
-.halloween-start-header img{display:block;width:clamp(140px,18vw,230px);max-height:70px;object-fit:contain;object-position:left center;filter:drop-shadow(0 0 18px #e168b990)}
-.halloween-start-header span{display:block;margin-top:10px;color:#ef9cc4;font:800 11px/1.3 monospace;letter-spacing:.22em}
-.halloween-start-header h1{margin:13px 0 8px;color:#fff1dc;font-size:clamp(30px,5vw,60px);line-height:.95;letter-spacing:-.055em;text-wrap:balance;text-shadow:0 4px 22px #000}
-.halloween-start-header p{margin:0;color:#d8bac5;font-size:clamp(13px,1.6vw,16px);line-height:1.4}
-.halloween-start-actions{display:flex;flex-wrap:wrap;gap:12px;margin:28px 0}
-.halloween-start button{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:44px;border:1px solid #aa789a;border-radius:7px;background:#241829;color:#ffe9d9;font-size:12px;font-weight:800;letter-spacing:.06em;touch-action:manipulation;transition:background .16s,border-color .16s,transform .16s}
-.halloween-start button:hover:not(:disabled){border-color:#ffd3e7;background:#58304e;transform:translateY(-1px)}
-.halloween-start button:disabled{opacity:.42;cursor:not-allowed}
-.halloween-start-actions button{min-width:185px;padding:0 18px}
-.halloween-start-actions .is-primary,.halloween-start-slot-actions button:first-child{border-color:#ffb0c9;background:linear-gradient(120deg,#763b62,#a34c73);box-shadow:0 6px 24px #e2539650}
-.halloween-start-slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-.halloween-start-slot{min-width:0;min-height:205px;padding:17px;border:1px solid #6f536e;border-radius:10px;background:linear-gradient(150deg,#2a1b30e8,#130f1ddf 70%);box-shadow:0 16px 32px #0008,inset 0 1px #f6a3d41c}
-.halloween-start-slot-heading{display:flex;align-items:center;gap:9px;color:#f8c5d5}
-.halloween-start-slot-heading strong{font-size:13px;letter-spacing:.12em}
-.halloween-start-slot-heading small{margin-left:auto;color:#bda5b3;font-size:10px;text-align:right}
-.halloween-start-slot>p{min-height:29px;margin:20px 0 11px;color:#f2dfd4;font-size:15px;font-weight:700}
-.halloween-start-progress{height:6px;overflow:hidden;border-radius:99px;background:#090810}
-.halloween-start-progress span{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#d0529c,#f0a8c7,#7ce1dc);box-shadow:0 0 12px #ed73b5}
-.halloween-start-slot>small{display:block;margin-top:8px;color:#beafba;font-size:10px;letter-spacing:.04em}
-.halloween-start-slot-actions{display:flex;gap:8px;margin-top:18px}
-.halloween-start-slot-actions button{flex:1;min-height:39px;padding:0 8px;font-size:10px}
-.halloween-start-slot-actions .is-subtle{background:transparent;color:#bc9ba9}
-.halloween-start-confirm{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:12px;padding:10px;border:1px solid #d07d9a;border-radius:7px;background:#301b2e}
-.halloween-start-confirm span{grid-column:1/-1;color:#ffd6d9;font-size:11px}
-.halloween-start-confirm button{min-height:38px;padding:4px;font-size:9px}
-.halloween-start-confirm button:first-of-type{border-color:#ffa5bc;background:#8b3e5d}
-.halloween-start-error{margin:14px 0 0;color:#ffc9ce;font-size:13px}
-.halloween-start footer{margin-top:20px;color:#9f93a5;font-size:11px;line-height:1.4}
 .halloween-save-panel{display:flex;flex-direction:column;align-items:center;gap:14px;overflow:auto;min-height:0;padding:clamp(20px,4vw,45px);text-align:center}
 .halloween-save-disc{display:grid;place-items:center;width:90px;aspect-ratio:1;border:1px solid #e2a3c1;border-radius:50%;background:repeating-radial-gradient(circle,#211527 0 4px,#513046 5px 6px,#211527 7px 9px);color:#ffd2e5;box-shadow:0 0 0 8px #2d192e,0 0 25px #cf6a9b70}
 .halloween-save-panel>small{color:#d8a5bf;font:800 10px/1.5 monospace;letter-spacing:.12em}
@@ -467,6 +432,25 @@
 .halloween-save-actions button:hover,.halloween-game-over-actions button:hover{background:#a6547b}
 .halloween-save-actions button+button,.halloween-game-over-actions button+button{background:#2a1e30}
 .halloween-game-over-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:12px}
-@media(max-width:720px){.halloween-start-slots{grid-template-columns:1fr}.halloween-start-slot{min-height:0}.halloween-start-slot>p{margin:12px 0 8px}.halloween-start-slot-actions{margin-top:12px}}
-@media(orientation:landscape) and (max-height:520px){.halloween-start{padding-top:calc(12px + env(safe-area-inset-top,0px))}.halloween-start-header img{width:140px;max-height:45px}.halloween-start-header span{margin-top:4px;font-size:9px}.halloween-start-header h1{margin:5px 0;font-size:clamp(25px,4vw,35px)}.halloween-start-header p{font-size:11px}.halloween-start-actions{margin:11px 0;gap:8px}.halloween-start-actions button{min-height:38px;min-width:145px}.halloween-start-slots{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.halloween-start-slot{min-height:0;padding:10px}.halloween-start-slot-heading strong{font-size:10px}.halloween-start-slot-heading small{font-size:8px}.halloween-start-slot>p{min-height:0;margin:10px 0 7px;font-size:12px}.halloween-start-slot-actions button{min-height:36px}.halloween-start footer{margin-top:12px}.halloween-save-panel{gap:8px;padding:12px}.halloween-save-disc{width:55px}.halloween-save-disc svg{width:30px}.halloween-save-panel p{font-size:12px}.halloween-save-actions button{min-height:36px}}
-@media(prefers-reduced-motion:reduce){.halloween-start button{transition:none}}
+@media(orientation:landscape) and (max-height:520px){.halloween-save-panel{gap:8px;padding:12px}.halloween-save-disc{width:55px}.halloween-save-disc svg{width:30px}.halloween-save-panel p{font-size:12px}.halloween-save-actions button{min-height:36px}}
+
+/* Keep combat indicators below the real header height on short landscape screens. */
+.halloween-header{position:relative}
+@media (orientation:landscape) and (max-height:520px) and (max-width:1100px){
+  .halloween-header .halloween-combat-hearts{
+    top:calc(100% + 6px);
+    right:max(12px,env(safe-area-inset-right,0px));
+  }
+  .halloween-header .halloween-judge-health{
+    top:calc(100% + 6px);
+    left:max(12px,env(safe-area-inset-left,0px));
+    right:auto;
+    width:min(240px,calc(50vw - 24px));
+    min-width:0;
+    transform:none;
+    padding:5px 8px;
+    font-size:9px;
+  }
+  .halloween-header .halloween-judge-health span{font-size:10px}
+  .halloween-header .halloween-judge-health>div{height:6px}
+}

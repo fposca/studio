@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { createRoot } from "react-dom/client";
 import HalloweenStoreApp from "./HalloweenStoreApp.jsx";
 import HalloweenStartScreen from "./HalloweenStartScreen.jsx";
-import { readHalloweenSaves, writeHalloweenSave } from "./halloweenSaves.js";
+import { deleteHalloweenSave, readHalloweenSaves, writeHalloweenSave } from "./halloweenSaves.js";
 import "./halloween.css";
 import faviconUrl from "../../src/assets/neonboy-logo.png";
 
@@ -29,6 +29,17 @@ function HalloweenExperience() {
     setError("");
     setSession({ slot, progress: record.progress, key: Date.now() });
   };
+  const onDelete = (slot) => {
+    try {
+      deleteHalloweenSave(window.localStorage, slot);
+      refresh();
+      setError("");
+      return true;
+    } catch {
+      setError("No se pudieron borrar los datos locales de esta partida.");
+      return false;
+    }
+  };
   const onSave = (slot, progress) => {
     try {
       writeHalloweenSave(window.localStorage, slot, progress);
@@ -45,6 +56,6 @@ function HalloweenExperience() {
   return session
     ? <HalloweenStoreApp key={session.key} initialSave={session.progress} saveSlot={session.slot}
         onSave={onSave} onExit={onExit} onRetry={onRetry} />
-    : <HalloweenStartScreen slots={slots} onLoad={onLoad} onNew={onNew} error={error} />;
+    : <HalloweenStartScreen slots={slots} onLoad={onLoad} onNew={onNew} onDelete={onDelete} error={error} />;
 }
 createRoot(document.getElementById("root")).render(<HalloweenExperience />);

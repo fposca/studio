@@ -50,7 +50,9 @@ test('third focus needs a reflected final hit and combat checkpoints preserve co
  for(const index of [0,1])p=step(p,'emitter-hit',{index,reflected:false});
  p=step(p,'reflector-set',1);p=step(p,'emitter-hit',{index:2,reflected:true});assert.equal(p.transmissionOff,true);
  p=step(p,'boss-hit',{vulnerable:true});assert.equal(p.bossHealth,5);
- p=step(p,'generator-hit',0);p=step(p,'generator-hit',1);
+ assert.match(storeInvasionObjective(p),/0\/2/);
+ p=step(p,'generator-hit',0);assert.match(storeInvasionObjective(p),/1\/2/);
+ p=step(p,'generator-hit',1);assert.match(storeInvasionObjective(p),/Escudo roto/);
  p=step(p,'boss-hit',{vulnerable:true});assert.equal(p.bossHealth,4);
  p=step(p,'retry');assert.deepEqual(p.generators,[false,false]);assert.equal(p.bossHealth,5);assert.equal(p.transmissionOff,true);
  p=step(p,'generator-hit',0);p=step(p,'generator-hit',1);
@@ -58,4 +60,9 @@ test('third focus needs a reflected final hit and combat checkpoints preserve co
  assert.equal(p.bossDefeated,true);p=step(p,'core-read');assert.equal(p.coreNeutralized,true);
  assert.match(storeInvasionObjective(p),/Buenos Aires/);
  assert.deepEqual(normalizeStoreInvasionProgress(p,true).jukeboxClues,[true,true,true]);
+ p=step(p,'boss-replay');
+ assert.equal(p.bossDefeated,false);assert.equal(p.coreNeutralized,false);
+ assert.equal(p.bossHealth,5);assert.deepEqual(p.generators,[false,false]);
+ assert.equal(p.transmissionOff,true);assert.equal(p.ghostDefeated,true);
+ assert.deepEqual(p.jukeboxClues,[true,true,true]);
 });

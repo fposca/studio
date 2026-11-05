@@ -33,6 +33,9 @@ import ParthenonPanel from "./ParthenonPanel.jsx";
 import MatrixPanel from "./MatrixPanel.jsx";
 import MatrixBossHud from "./MatrixBossHud.jsx";
 import StoreInvasionPanel from "./StoreInvasionPanel.jsx";
+import Chapter10Sequence from "./Chapter10Sequence.jsx";
+import { normalizeChapter10Progress, advanceChapter10, chapter10FragmentsReady, chapter10Objective } from "./chapter10Quest.js";
+import { normalizeUnderworldProgress, advanceUnderworld, underworldObjective } from "./underworldQuest.js";
 import { normalizeStoreInvasionProgress, advanceStoreInvasion, storeInvasionObjective } from "./storeInvasionQuest.js";
 import {normalizeMatrixProgress,advanceMatrixProgress,matrixObjective,matrixSafeCheckpoint,matrixSafePlayerSnapshot,MATRIX_INITIAL,MATRIX_HEALTH} from "./matrixQuest.js";
 import {MATRIX_LAYOUT,MATRIX_ASSETS,defaultMatrixTransform,loadMatrixTransforms,saveMatrixTransforms} from "./matrixLayout.js";
@@ -70,6 +73,7 @@ import "./frequency09.css";
 import "./rooftop.css";
 import "./lostShip.css";
 import "./parthenon.css";
+import "./underworld.css";
 import "./discographyStore.css";
 import "./storeInvasion.css";
 
@@ -86,12 +90,12 @@ const CLUB_DEV_ASSETS = [
   ...ROCK_CLUB_PROP_ASSETS,
 ];
 
-function ClubShowHud({ quest, masterTape, scene, rikyProgress }) {
+function ClubShowHud({ quest, masterTape, scene, rikyProgress, expanded, onToggle }) {
   const objective = clubShowObjective(quest, masterTape, rikyProgress);
   if (!objective) return null;
   return <UniverseMissionCard className={"club-show-hud club-show-hud--" + scene}
     title={quest.anomalySeen ? "La señal desconocida" : quest.soundcheckStarted ? "Prueba de sonido" : "La credencial del show"}
-    kind={quest.anomalySeen ? "signal" : quest.soundcheckStarted ? "sound" : "show"}
+    kind={quest.anomalySeen ? "signal" : quest.soundcheckStarted ? "sound" : "show"} expanded={expanded} onToggle={onToggle}
     objective={objective}
     details={[
       quest.credentialGranted && "Credencial del Club de Rock",
@@ -168,6 +172,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   const concertTransformsRef = useRef(concertTransforms);
   concertTransformsRef.current = concertTransforms;
   const [studioWorkbench, setStudioWorkbench] = useState(null);
+  const [studioExpandedMission, setStudioExpandedMission] = useState(null);
   const [studioAnalyzerOpen, setStudioAnalyzerOpen] = useState(false);
   const [studioAnomalyPhase, setStudioAnomalyPhase] = useState("idle");
   const [studioAnomalyStep, setStudioAnomalyStep] = useState(0);
@@ -205,6 +210,13 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   const matrixProgressRef=useRef(matrixProgress);matrixProgressRef.current=matrixProgress;
   const [storeInvasionProgress,setStoreInvasionProgress]=useState(()=>normalizeStoreInvasionProgress(initialSession?.storeInvasionProgress,Boolean(initialSession?.matrixProgress?.archiveRead&&(initialSession?.matrixProgress?.returnedHome||initialSession?.scene==="store"))));
   const storeInvasionProgressRef=useRef(storeInvasionProgress);storeInvasionProgressRef.current=storeInvasionProgress;
+  const [chapter10Progress,setChapter10Progress]=useState(()=>normalizeChapter10Progress(initialSession?.chapter10Progress,Boolean(initialSession?.storeInvasionProgress?.bossDefeated)));
+  const chapter10ProgressRef=useRef(chapter10Progress);chapter10ProgressRef.current=chapter10Progress;
+  const [underworldProgress,setUnderworldProgress]=useState(()=>normalizeUnderworldProgress(initialSession?.underworldProgress,Boolean(initialSession?.chapter10Progress?.chapterCompleted)));
+  const underworldProgressRef=useRef(underworldProgress);underworldProgressRef.current=underworldProgress;
+  const [underworldMessage,setUnderworldMessage]=useState(null);
+  const [chapter10Sequence,setChapter10Sequence]=useState(null);
+  const [chapter10PuzzleError,setChapter10PuzzleError]=useState(false);
   const [invasionPanel,setInvasionPanel]=useState(null);
   const [invasionCrateHeld,setInvasionCrateHeld]=useState(false);
   const [invasionNotice,setInvasionNotice]=useState(null);
@@ -265,6 +277,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   const arcadePlayerRef = useRef(initialSession?.positions?.arcade ?? null);
   const rooftopPlayerRef = useRef(initialSession?.positions?.rooftop ?? null);
   const lostShipPlayerRef = useRef(initialSession?.positions?.["lost-ship"] ?? null);
+  const underworldPlayerRef = useRef(initialSession?.positions?.underworld ?? null);
   const lostShipTransformsRef = useRef(lostShipTransforms);
   lostShipTransformsRef.current = lostShipTransforms;
   const lostShipAssetApiRef = useRef(null);
@@ -332,6 +345,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     ...(lostShipProgress.linkActivated ? ["lost-ship"] : []),
     ...(lostShipProgress.orbReceiverActivated ? ["parthenon"] : []),
     ...(parthenonProgress.frequencyFragment02Analyzed ? ["matrix"] : []),
+    ...(chapter10Progress.chapterCompleted ? ["underworld"] : []),
   ])];
   const clubNoticePanel = clubNotice && <div className="club-unlock-notice" role="status">
     <strong>{clubNotice}</strong><button type="button" onClick={() => setClubNotice(null)} aria-label="Cerrar aviso del club">×</button>
@@ -487,10 +501,64 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     if(event==="archive-node")setInvasionNotice(next.archiveOff?"FOCO 02 DESACTIVADO / NEONBOY: ¡Otra vez vos! Esta vez tengo con qué defenderme.":next.conductors.length?"CONDUCTOR "+next.conductors.length+"/3 RESTAURADO":"Secuencia incorrecta. Segú la flecha del panel.");
     if(event==="ghost-hit")setInvasionNotice(next.ghostDefeated?"NEONBOY: ¡La pelotita sigue funcionando! El fantasma se disipó.":"APARICIÓN / Resistencia "+next.ghostHealth+"/3");
     if(event==="emitter-hit")setInvasionNotice(next.transmissionOff?"FOCO 03 DESACTIVADO / NÚCLEO PRINCIPAL DETECTADO":next.emitters.length?"EMISOR "+next.emitters.length+"/3 RESTAURADO":"El orden se interrumpió. Revisá la inscripción.");
-    if(event==="generator-hit")setInvasionNotice("GENERADORES / "+next.generators.filter(Boolean).length+"/2 DESACTIVADOS");
-    if(event==="boss-hit")setInvasionNotice(next.bossDefeated?"ENTIDAD CORRUPTA DERROTADA / Consultá el núcleo.":next===before||next.bossHealth===before.bossHealth?"ESCUDO ACTIVO / Esperá el pulso fucsia.":"ENTIDAD / Resistencia "+next.bossHealth+"/5");
-    if(event==="core-read")setInvasionNotice("SEÑAL LOCAL DESACTIVADA / CORRUPCIÓN GLOBAL ACTIVA");
+    if(event==="generator-hit")setInvasionNotice(next.generators.every(Boolean)?"ESCUDO ROTO / Atacá a la entidad durante el pulso fucsia.":"ESCUDO "+(value+1)+" DESACTIVADO / Falta un generador.");
+    if(event==="boss-hit")setInvasionNotice(next.bossDefeated?"ENTIDAD CORRUPTA DERROTADA / Consultá el núcleo.":!next.generators.every(Boolean)?"ESCUDO ACTIVO / Desactivá los dos generadores.":next.bossHealth===before.bossHealth?"SIN DAÑO / Dispará durante el pulso fucsia.":"ENTIDAD / Resistencia "+next.bossHealth+"/5");
+    if(event==="core-read"){
+      setInvasionNotice("SEÑAL LOCAL DESACTIVADA / FRECUENCIA DESCONOCIDA DETECTADA");
+      if(!chapter10ProgressRef.current.signalDetected){commitChapter10("core-examine");setInvasionPanel(null);setChapter10Sequence("core");}
+    }
     return next;
+  }
+  function commitChapter10(event,value){
+    const before=chapter10ProgressRef.current;
+    const ready=chapter10FragmentsReady(lostShipProgressRef.current,parthenonProgressRef.current,matrixProgressRef.current);
+    const next=advanceChapter10(before,event,value,Boolean(storeInvasionProgressRef.current.bossDefeated),ready);
+    chapter10ProgressRef.current=next;setChapter10Progress(next);
+    return next;
+  }
+  function commitUnderworld(event,value){
+    const next=advanceUnderworld(underworldProgressRef.current,event,value,Boolean(chapter10ProgressRef.current.chapterCompleted));
+    underworldProgressRef.current=next;setUnderworldProgress(next);
+    return next;
+  }
+  function examineUnderworld(id){
+    if(id==="arrival"){commitUnderworld("arrival");setUnderworldMessage("La inscripción está incompleta. La piedra responde a la Visión de Frecuencia.");}
+    if(id==="bridge")setUnderworldMessage("El camino que ves no sostiene a nadie. Buscá la frecuencia verdadera.");
+    if(id==="altar"){
+      const next=commitUnderworld("altar");
+      setUnderworldMessage(next.completed?"El umbral respondió. La ciudadela conserva secretos para otra noche.":"El altar exige silenciar a los dos centinelas.");
+    }
+  }
+  function finishChapter10Sequence(){
+    if(chapter10Sequence==="core")commitChapter10("signal-detect");
+    if(chapter10Sequence==="hugo")commitChapter10("hugo-consult");
+    if(chapter10Sequence==="finale"){commitChapter10("complete");setChapter10Sequence("complete");return;}
+    setChapter10Sequence(null);
+  }
+  function playChapter10Signal(){
+    const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+    if(!AudioContextClass)return;
+    const context=new AudioContextClass();
+    const start=context.currentTime;
+    [220,330,666].forEach((frequency,index)=>{
+      const oscillator=context.createOscillator();
+      const gain=context.createGain();
+      oscillator.type="sine";
+      oscillator.frequency.value=frequency;
+      gain.gain.setValueAtTime(0,start+index*.18);
+      gain.gain.linearRampToValueAtTime(.028,start+index*.18+.04);
+      gain.gain.exponentialRampToValueAtTime(.001,start+index*.18+.42);
+      oscillator.connect(gain).connect(context.destination);
+      oscillator.start(start+index*.18);
+      oscillator.stop(start+index*.18+.44);
+    });
+    window.setTimeout(()=>context.close().catch(()=>{}),1300);
+  }
+  function selectChapter10Channel(channel){
+    const before=chapter10ProgressRef.current;
+    const next=commitChapter10("channel",channel);
+    setChapter10PuzzleError(!next.signalReconstructed&&next.channelInput.length===0&&before.channelInput.length<3);
+    if(next.signalReconstructed&&!before.signalReconstructed){playChapter10Signal();setStudioWorkbench(null);setChapter10Sequence("finale");}
   }
   useEffect(()=>{
     if(activeScene!=="store"||!storeInvaded)return;
@@ -521,6 +589,16 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     setDamageTick(tick => tick + 1);
     if (health === 0 && document.pointerLockElement) document.exitPointerLock();
   }
+  function replayInvasionBoss() {
+    if(!storeInvasionProgressRef.current.bossDefeated)return;
+    commitInvasion("boss-replay");
+    combatHeartsRef.current=3;setCombatHearts(3);
+    combatInvulnerableUntil.current=performance.now()+1800;
+    storePlayerRef.current={x:0,z:-5.5,yaw:Math.PI,viewYaw:0};
+    setInvasionPanel(null);setInvasionCrateHeld(false);
+    setCombatRetryKey(key=>key+1);
+    setInvasionNotice("COMBATE REINICIADO / Los tres focos y las pistas se conservan.");
+  }
   function retryCombat() {
     combatHeartsRef.current = 3; setCombatHearts(3);
     combatInvulnerableUntil.current = performance.now() + 1800;
@@ -528,6 +606,11 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
       commitInvasion("retry");
       storePlayerRef.current={x:0,z:storeInvasionProgressRef.current.transmissionOff?-5.5:-2,yaw:Math.PI,viewYaw:0};
       setInvasionPanel(null);setInvasionCrateHeld(false);setCombatRetryKey(key=>key+1);return;
+    }
+    if(activeScene==="underworld"){
+      underworldPlayerRef.current={x:0,z:underworldProgressRef.current.bridgeCrossed?-33:10.5,yaw:Math.PI,viewYaw:0};
+      setUnderworldMessage("CHECKPOINT / PUENTE DE LAS ALMAS");
+      setCombatRetryKey(key=>key+1);return;
     }
     if(activeScene==="matrix"){
       const progress=commitMatrix('retry');
@@ -732,8 +815,8 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
 
   gameSnapshotRef.current = () => ({
     scene: activeScene === "frequency" ? "arcade" : activeScene, credits: creditsRef.current, selectedId, activeGroup,
-    storyProgress, studioProgress, masterTape, clubQuest, rikyProgress, friendsProgress, arcadeProgress, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, combatHearts, mapUnlocks: unlockedScenarios,
-    positions: { store: storePlayerRef.current, studio: studioPlayerRef.current, club: clubPlayerRef.current, arcade: arcadePlayerRef.current, rooftop: rooftopPlayerRef.current, "lost-ship": lostShipPlayerRef.current, parthenon: parthenonPlayerRef.current, matrix: matrixPlayerRef.current },
+    storyProgress, studioProgress, masterTape, clubQuest, rikyProgress, friendsProgress, arcadeProgress, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress, combatHearts, mapUnlocks: unlockedScenarios,
+    positions: { store: storePlayerRef.current, studio: studioPlayerRef.current, club: clubPlayerRef.current, arcade: arcadePlayerRef.current, rooftop: rooftopPlayerRef.current, "lost-ship": lostShipPlayerRef.current, parthenon: parthenonPlayerRef.current, matrix: matrixPlayerRef.current, underworld: underworldPlayerRef.current },
   });
   function advanceStoreStep(event) {
     const next = advanceStoreInvestigation(arcadeProgressRef.current, event);
@@ -761,7 +844,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     if (!onAutosave) return undefined;
     const timer = window.setTimeout(() => onAutosave(gameSnapshotRef.current?.()), 700);
     return () => window.clearTimeout(timer);
-  }, [onAutosave, activeScene, credits, selectedId, activeGroup, storyProgress, studioProgress, masterTape, clubQuest, rikyProgress, friendsProgress, arcadeProgress, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, mapUnlocks]);
+  }, [onAutosave, activeScene, credits, selectedId, activeGroup, storyProgress, studioProgress, masterTape, clubQuest, rikyProgress, friendsProgress, arcadeProgress, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress, mapUnlocks]);
   useEffect(() => () => onAutosave?.(gameSnapshotRef.current?.()), [onAutosave]);
   useEffect(() => {
     if (!onAutosave) return undefined;
@@ -926,7 +1009,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   useEffect(() => {
 
     const onKeyDown = (event) => {
-      if (combatHearts === 0 && (activeScene === "lost-ship" || activeScene === "parthenon" || activeScene === "matrix" || (activeScene === "store" && storeInvaded))) return;
+      if (combatHearts === 0 && (activeScene === "lost-ship" || activeScene === "parthenon" || activeScene === "matrix" || activeScene === "underworld" || (activeScene === "store" && storeInvaded))) return;
       if (activeScene === "frequency" && event.key === "Escape" && !paused) {
         event.preventDefault(); event.stopImmediatePropagation(); onPause?.(true); return;
       }
@@ -952,6 +1035,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
         return;
       }
       if (event.key === "Escape") {
+        if(chapter10Sequence)return;
         event.preventDefault();
         event.stopImmediatePropagation();
         if (paused) onPause?.(false);
@@ -967,16 +1051,17 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
         else if (lostShipPanel) closeLostShipPanel();
         else if (parthenonPanel) setParthenonPanel(null);
         else if (matrixPanel) setMatrixPanel(null);
+        else if (underworldMessage) setUnderworldMessage(null);
         else if (invasionPanel) setInvasionPanel(null);
         else if (studioMessage) setStudioMessage(null);
         else if (conversation) closeConversation();
         else if (jukeboxOpen) closeJukebox();
         else if (onPause) onPause(true);
-        else if (activeScene === "studio" || activeScene === "club" || activeScene === "arcade" || activeScene === "rooftop" || activeScene === "lost-ship" || activeScene === "parthenon" || activeScene === "matrix") openMap();
+        else if (activeScene === "studio" || activeScene === "club" || activeScene === "arcade" || activeScene === "rooftop" || activeScene === "lost-ship" || activeScene === "parthenon" || activeScene === "matrix" || activeScene === "underworld") openMap();
         else onClose?.();
       }
       if (event.key === "Tab" && !paused) {
-        const focusRoot = gameOpen ? storeRef.current?.querySelector(".orbit-duel-cabinet") : inventoryOpen ? storeRef.current?.querySelector(".universe-inventory") : mapOpen ? storeRef.current?.querySelector(".universe-map") : jukeboxOpen ? storeRef.current?.querySelector(".record-jukebox") : sessionsOpen ? storeRef.current?.querySelector(".neon-sessions-archive") : archiveOpen ? storeRef.current?.querySelector(".record-store-archive") : invasionPanel ? storeRef.current?.querySelector(".store-invasion-panel") : conversation ? storeRef.current?.querySelector(".record-store-conversation") : studioAnalyzerOpen ? storeRef.current?.querySelector(".studio-signal-analyzer") : studioWorkbench ? storeRef.current?.querySelector(".studio-workbench") : storeRef.current;
+        const focusRoot = gameOpen ? storeRef.current?.querySelector(".orbit-duel-cabinet") : inventoryOpen ? storeRef.current?.querySelector(".universe-inventory") : mapOpen ? storeRef.current?.querySelector(".universe-map") : jukeboxOpen ? storeRef.current?.querySelector(".record-jukebox") : sessionsOpen ? storeRef.current?.querySelector(".neon-sessions-archive") : archiveOpen ? storeRef.current?.querySelector(".record-store-archive") : chapter10Sequence ? storeRef.current?.querySelector(".chapter10-panel, .chapter10-complete") : invasionPanel ? storeRef.current?.querySelector(".store-invasion-panel") : conversation ? storeRef.current?.querySelector(".record-store-conversation") : studioAnalyzerOpen ? storeRef.current?.querySelector(".studio-signal-analyzer") : studioWorkbench ? storeRef.current?.querySelector(".studio-workbench") : storeRef.current;
         const focusable = [...(focusRoot?.querySelectorAll("button:not(:disabled), a[href]") || [])]
           .filter((element) => element.getClientRects().length);
         const index = focusable.indexOf(document.activeElement);
@@ -987,7 +1072,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [onClose, standalone, jukeboxOpen, activeVideoIndex, conversation, archiveOpen, sessionsOpen, studioWorkbench, studioAnalyzerOpen, studioAnomalyPhase, clubMessage, arcadeMessage, studioMessage, mapOpen, inventoryOpen, activeScene, paused, onPause, concertPhase, gameOpen, frequencyPhase, rooftopPuzzle, lostShipPanel, parthenonPanel, invasionPanel, storeInvaded, combatHearts]);
+  }, [onClose, standalone, jukeboxOpen, activeVideoIndex, conversation, archiveOpen, sessionsOpen, studioWorkbench, studioAnalyzerOpen, studioAnomalyPhase, clubMessage, arcadeMessage, studioMessage, mapOpen, inventoryOpen, activeScene, paused, onPause, concertPhase, gameOpen, frequencyPhase, rooftopPuzzle, lostShipPanel, parthenonPanel, invasionPanel, chapter10Sequence, storeInvaded, combatHearts]);
   useEffect(() => {
     if (studioAnomalyPhase !== "active" || activeScene !== "studio") return;
     let frame = 0;
@@ -1310,7 +1395,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   }
 
   function openMap() {
-    if (inventoryOpen || studioAnalyzerOpen || lostShipPanel || parthenonPanel || combatHearts === 0 || studioAnomalyPhase === "active" || frequencyPhaseRef.current !== "idle") return;
+    if (chapter10Sequence || inventoryOpen || studioAnalyzerOpen || lostShipPanel || parthenonPanel || combatHearts === 0 || studioAnomalyPhase === "active" || frequencyPhaseRef.current !== "idle") return;
     if (gameOpen) setArcadeGameId(null);
     if (concertPhase !== "idle") stopConcert();
     mapReturnFocusRef.current = document.activeElement;
@@ -1365,6 +1450,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     setArcadeGameId(null);
     setRooftopPuzzle(null);
     setLostShipPanel(null);
+    setUnderworldMessage(null);
     setLostShipMessage(null);
     setParthenonPanel(null); setParthenonMessage(null);setMatrixPanel(null);setMatrixMessage(null);setMatrixCinematic(null); setParthenonBossStatus({ phase: "idle", health: 6, maxHealth: 6, petrification: 0, phaseNumber: 1 });
     combatHeartsRef.current = 3; setCombatHearts(3);
@@ -1417,6 +1503,11 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     } else if(destination==="matrix"){
       if(!parthenonProgressRef.current.frequencyFragment02Analyzed){closeMap();return;}
       commitMatrix("enter");setNearby(null);setFirstPerson(false);setJumping(false);setActiveScene("matrix");
+    } else if (destination === "underworld") {
+      if (!chapter10ProgressRef.current.chapterCompleted) { closeMap(); return; }
+      setNearby(null); setFirstPerson(false); setJumping(false);
+      combatHeartsRef.current=3;setCombatHearts(3);
+      setUnderworldMessage(null); setActiveScene("underworld");
     } else if (destination === "discography") {
       if(matrixProgressRef.current.archiveRead)commitMatrix("return-home");
       if (arcadeProgressRef.current.recordStoreFutureVisionSeen &&
@@ -1456,7 +1547,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
       setStudioWorkbench("computer");
       return;
     }
-    if (id === "console") { setStudioMessage(null); setStudioWorkbench("console"); return; }
+    if (id === "console") { setStudioMessage(null); if(chapter10ProgressRef.current.signalReconstructed&&!chapter10ProgressRef.current.chapterCompleted){setChapter10Sequence("finale");return;} setStudioWorkbench("console"); return; }
     if (id === "monitors" && studioProgress.studioAnomalySeen) {
       setStudioMessage({ id, text: "Prefiero que esos parlantes se queden apagados un rato." });
       return;
@@ -1639,7 +1730,8 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   }
 
   function openStudioConversation() {
-    if (conversation || studioWorkbench || mapOpen) return;
+    if (conversation || studioWorkbench || mapOpen || chapter10Sequence) return;
+    if(chapter10ProgressRef.current.signalDetected&&!chapter10ProgressRef.current.hugoConsulted){setStudioMessage(null);setChapter10Sequence("hugo");return;}
     if (rooftopProgressRef.current.missionCompleted && !lostShipProgressRef.current.hugoBriefed) { setLostShipPanel("hugo"); return; }
     if (lostShipProgressRef.current.signalDecoded && !lostShipProgressRef.current.linkActivated) { setLostShipPanel("hugo-after"); return; }
     setStudioMessage(null);
@@ -1923,6 +2015,34 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     <footer className="studio-footer"><span>FREQUENCY 09</span><span>DIMENSIÓN INTERIOR</span><span>1999 / ?</span></footer>
   </div>;
 
+  if (activeScene === "underworld") return <div ref={storeRef} className="neon-record-store neon-recording-studio neon-underworld" data-frequency-vision={underworldProgress.visionActive ? "active" : "inactive"} role={standalone ? "region" : "dialog"} aria-modal={standalone ? undefined : "true"} aria-label="Capítulo 11, Puente de las Almas">
+    <RecordStoreScene key={"underworld-" + combatRetryKey} scenario="underworld" albums={DISCOGRAPHY_ALBUMS}
+      onNearby={setNearby} onExamine={examineUnderworld} onViewChange={setFirstPerson} onJumpChange={setJumping}
+      interactionLocked={paused || mapOpen || inventoryOpen || Boolean(underworldMessage) || combatHearts === 0}
+      paused={paused || mapOpen || inventoryOpen || Boolean(underworldMessage) || combatHearts === 0}
+      firstPerson={firstPerson} playerSnapshotRef={underworldPlayerRef} lostShipProgress={lostShipProgress}
+      underworldProgress={underworldProgress} onUnderworldEvent={commitUnderworld} onCombatDamage={onCombatDamage}
+      orbApiRef={orbApiRef} onOrbStatus={setOrbStatus} orbStatus={orbStatus} />
+    <header className="studio-header"><div><span>NEONBOY UNIVERSE / CAPÍTULO 11</span><h2>PUENTE DE LAS ALMAS</h2><p>Primer ingreso al Inframundo</p></div>
+      <div className="studio-header-actions">{inventoryButton}<button type="button" onClick={openMap}><MapPinned size={17} /> MAPA</button></div></header>
+    <div className="studio-control-hint">WASD: caminar | Arrastrar: mirar | C: visión | E: examinar | F/Click: Orbe Neón | R: recuperar | M: mapa</div>
+    <UniverseMissionCard className="underworld-mission" title="CAPÍTULO 11 / PUENTE DE LAS ALMAS" kind="signal"
+      objective={underworldObjective(underworldProgress)} complete={underworldProgress.completed}
+      details={[underworldProgress.bridgeCrossed && "PUENTE · CRUZADO", `CENTINELAS · ${underworldProgress.enemies.filter((health) => health === 0).length}/2`, underworldProgress.completed && "UMBRAL · ACTIVO"]} />
+    <div className="underworld-vision-control"><button type="button" className={underworldProgress.visionActive ? "is-active" : ""} aria-pressed={underworldProgress.visionActive} onClick={() => commitUnderworld("vision-toggle")} disabled={paused || mapOpen || inventoryOpen || combatHearts === 0}>◈ VISIÓN DE FRECUENCIA <kbd>C</kbd> · {underworldProgress.visionActive ? "ACTIVA" : "INACTIVA"}</button></div>
+    <div className="parthenon-hearts" role="status" aria-label={"Salud " + combatHearts + " de 3"}>{Array.from({ length: 3 }, (_, i) => <span key={i}>{i < combatHearts ? "♥" : "♡"}</span>)}</div>
+    <NeonOrbHud progress={lostShipProgress} status={orbStatus} label="INFRAMUNDO"
+      locked={paused || mapOpen || inventoryOpen || Boolean(underworldMessage) || combatHearts === 0}
+      onFire={() => orbApiRef.current?.fire()} onRecall={() => orbApiRef.current?.recall()} />
+    {nearby?.kind === "examine" && !underworldMessage && !paused && <InteractionPrompt className="studio-examine-cue">[E] {nearby.label}</InteractionPrompt>}
+    {underworldMessage && <div className="underworld-message" role="status"><small>INFRAMUNDO / ECO</small><p>{underworldMessage}</p><button type="button" onClick={() => setUnderworldMessage(null)}>Continuar</button></div>}
+    {damageTick > 0 && <div key={damageTick} className="parthenon-damage" aria-hidden="true" />}
+    {combatHearts === 0 && <div className="parthenon-fallen"><section className="parthenon-fallen-card" role="dialog" aria-modal="true" aria-label="Has caído en el Inframundo"><h2>LA FRECUENCIA SE APAGÓ</h2><p>La inscripción y los centinelas derrotados se conservan.</p><div className="parthenon-fallen-actions"><button type="button" onClick={retryCombat}>Reintentar desde el puente</button><button type="button" onClick={() => enterScenario("recording-studio")}>Volver al estudio</button></div></section></div>}
+    {mapOpen && <NeonUniverseMap onClose={closeMap} onEnter={enterScenario} unlockedScenarios={unlockedScenarios} />}
+    {inventoryPanel}{inventoryToast}
+    <footer className="studio-footer"><span>CAPÍTULO 11 / INFRAMUNDO</span><span>{firstPerson ? "PRIMERA PERSONA" : "TERCERA PERSONA"}</span><span>{underworldProgress.completed ? "UMBRAL ACTIVADO" : "SEÑAL 666"}</span></footer>
+  </div>;
+
   if(activeScene==="matrix")return <div ref={storeRef} className="neon-record-store neon-recording-studio neon-matrix" data-frequency-vision={matrixProgress.visionActive?"active":"inactive"} role={standalone?"region":"dialog"} aria-modal={standalone?undefined:"true"} aria-label="Puerta 03 La Realidad Fracturada">
     <RecordStoreScene key={"matrix-"+combatRetryKey} scenario="matrix" albums={DISCOGRAPHY_ALBUMS}
       onNearby={setNearby} onExamine={examineMatrix} onViewChange={setFirstPerson} onJumpChange={setJumping}
@@ -2105,7 +2225,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
 
   if (activeScene === "studio") return <div ref={storeRef} className="neon-record-store neon-recording-studio" role={standalone ? "region" : "dialog"} aria-modal={standalone ? undefined : "true"} aria-label="Neon Recording Studio 1999">
     <RecordStoreScene scenario="studio" albums={DISCOGRAPHY_ALBUMS} onNearby={setNearby} onExamine={examineStudio} onHugoInteract={openStudioConversation}
-      onViewChange={setFirstPerson} onJumpChange={setJumping} interactionLocked={paused || mapOpen || inventoryOpen || Boolean(conversation) || Boolean(studioWorkbench) || Boolean(lostShipPanel) || studioAnalyzerOpen || studioAnomalyPhase === "active" || Boolean(studioMessage)} firstPerson={firstPerson}
+      onViewChange={setFirstPerson} onJumpChange={setJumping} interactionLocked={paused || mapOpen || inventoryOpen || Boolean(conversation) || Boolean(studioWorkbench) || Boolean(lostShipPanel) || studioAnalyzerOpen || studioAnomalyPhase === "active" || Boolean(studioMessage) || Boolean(chapter10Sequence)} firstPerson={firstPerson}
       playerSnapshotRef={studioPlayerRef} studioTransformsRef={studioTransformsRef} studioAssetApiRef={studioAssetApiRef}
       studioAnomalyRef={studioAnomalyRef} studioChapterSeen={studioProgress.studioAnomalySeen} paused={paused} />
     <header className="studio-header">
@@ -2116,15 +2236,20 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     {nearby?.kind === "hugo" && !conversation && !mapOpen && !studioWorkbench &&
       <span className="studio-talk-accessible" role="status">Hugo Mendez cerca. Presioná E para hablar.</span>}
     {nearby?.kind === "examine" && <InteractionPrompt className="studio-examine-cue">[E] Examinar {nearby.label}</InteractionPrompt>}
-    <div className="studio-mission-stack">
-      {rooftopProgress.missionCompleted && <UniverseMissionCard title={lostShipProgress.archiveRecovered ? "PUERTA 02 / ORBE NEON" : "PUERTA 01 / LA NAVE PERDIDA"} kind="signal" objective={lostShipObjective(lostShipProgress)} complete={lostShipProgress.orbReceiverActivated} />}
+    <div className="studio-mission-stack" aria-label="Misiones del estudio">
+      <div className="studio-mission-stack__bar"><span>MISIONES / ESTUDIO</span><button type="button" disabled={!studioExpandedMission} onClick={()=>setStudioExpandedMission(null)}>Contraer todo</button></div>
+      {rooftopProgress.missionCompleted && <UniverseMissionCard title={lostShipProgress.archiveRecovered ? "PUERTA 02 / ORBE NEON" : "PUERTA 01 / LA NAVE PERDIDA"} kind="signal" objective={lostShipObjective(lostShipProgress)} complete={lostShipProgress.orbReceiverActivated}
+        expanded={studioExpandedMission==="door"} onToggle={()=>setStudioExpandedMission(value=>value==="door"?null:"door")} />}
+      {chapter10Progress.coreAnalyzed && <UniverseMissionCard title="Capítulo 10 / La frecuencia del Abismo" kind="signal" objective={chapter10Objective(chapter10Progress)} complete={chapter10Progress.chapterCompleted}
+        expanded={studioExpandedMission==="abyss"} onToggle={()=>setStudioExpandedMission(value=>value==="abyss"?null:"abyss")} />}
       {studioChapterObjective && <UniverseMissionCard title="La grabación imposible" kind="signal" objective={studioChapterObjective}
-        complete={false} details={[studioProgress.reversedSignalDecoded && "PATRÓN 0-9-0-9", studioProgress.studioAnomalySeen && "Señal externa"]} />}
-      <div className="studio-progress" role="status"><strong>DETRÁS DE LA MEZCLA</strong><span>{studioMissionStep}</span>
-        <button type="button" onClick={() => setStudioWorkbench("archive")}>Archivo ({Number(studioProgress.wakeUpInfo) + Number(studioProgress.jesusIsKingInfo) + Number(studioProgress.newBornInfo) + Number(studioProgress.missionComplete)})</button>
-      </div>
-      <MasterTapeHud progress={masterTape} scene="studio" />
-      <ClubShowHud quest={clubQuest} masterTape={masterTape} scene="studio" />
+        complete={false} details={[studioProgress.reversedSignalDecoded && "PATRÓN 0-9-0-9", studioProgress.studioAnomalySeen && "Señal externa"]}
+        expanded={studioExpandedMission==="recording"} onToggle={()=>setStudioExpandedMission(value=>value==="recording"?null:"recording")} />}
+      <UniverseMissionCard title="Detrás de la mezcla" kind="sound" objective={studioMissionStep} complete={studioProgress.missionComplete}
+        expanded={studioExpandedMission==="mix"} onToggle={()=>setStudioExpandedMission(value=>value==="mix"?null:"mix")}
+        footer={<button type="button" className="studio-mission-archive" onClick={()=>setStudioWorkbench("archive")}>Abrir archivo ({Number(studioProgress.wakeUpInfo)+Number(studioProgress.jesusIsKingInfo)+Number(studioProgress.newBornInfo)+Number(studioProgress.missionComplete)})</button>} />
+      <MasterTapeHud progress={masterTape} scene="studio" expanded={studioExpandedMission==="tape"} onToggle={()=>setStudioExpandedMission(value=>value==="tape"?null:"tape")} />
+      <ClubShowHud quest={clubQuest} masterTape={masterTape} scene="studio" expanded={studioExpandedMission==="club"} onToggle={()=>setStudioExpandedMission(value=>value==="club"?null:"club")} />
     </div>
     {clubNoticePanel}
     {inventoryToast}
@@ -2135,6 +2260,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
       onClose={() => setStudioWorkbench(null)} onExplore={exploreStudioEquipment} paused={paused}
       signalAvailable={arcadeProgress.recordStoreGhostSeen && studioProgress.impossibleRecordingStarted}
       onAnalyzeSignal={() => { advanceStudioChapter("computer"); setStudioWorkbench(null); setStudioAnalyzerOpen(true); }}
+      chapter10Progress={chapter10Progress} chapter10Ready={chapter10FragmentsReady(lostShipProgress,parthenonProgress,matrixProgress)} chapter10Error={chapter10PuzzleError} onChapter10Channel={selectChapter10Channel}
       signalContextText={studioProgress.studioAnomalySeen ? "El patrón 09 sigue apareciendo, aunque la grabación haya terminado." : null} />}
     {lostShipPanel && <LostShipPanel mode={lostShipPanel} progress={lostShipProgress} onAction={commitLostShip} onClose={() => setLostShipPanel(null)} onEnter={enterScenario} />}
     {studioAnalyzerOpen && <StudioSignalAnalyzer progress={studioProgress} paused={paused} onMilestone={advanceStudioChapter}
@@ -2145,6 +2271,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
         <strong>{studioAnomalyStep < 2 ? "La señal no se detiene..." : studioAnomalyStep < 4 ? "La consola recibe algo sin entrada." : "El estudio vuelve a quedar en silencio."}</strong>
         <p>{["NEONBOY: ¡Hugo! ¡Apagá eso!", "HUGO: ¡Está apagado!", "NEONBOY: ¿Entonces de dónde viene?", "HUGO: No tengo la menor idea..."][Math.min(3, studioAnomalyStep)]}</p>
       </div></div>}
+    {chapter10Sequence && <Chapter10Sequence scene={chapter10Sequence} onFinish={finishChapter10Sequence} />}
     {import.meta.env.DEV && !mapOpen && !conversation && !studioWorkbench && <RecordingStudioDevPanel transforms={studioTransforms} onChange={changeStudioTransforms} />}
     {mapOpen && <NeonUniverseMap onClose={closeMap} onEnter={enterScenario} unlockedScenarios={unlockedScenarios} />}
     {inventoryPanel}
@@ -2260,7 +2387,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     <div className="record-store-arcade-hud"><span><Coins size={16} /> {credits}/10 monedas</span><button type="button" onClick={openJukebox}><Film size={17} /> Abrir rockola</button>{inventoryButton}{storeInvaded&&<button type="button" onClick={()=>setInvasionPanel("diary")}>DIARIO</button>}<button type="button" onClick={openMap} aria-keyshortcuts="M"><MapPinned size={17} /> MAPA</button>{masterTape.phase === "complete" && <button type="button" className="neon-sessions-trigger" onClick={() => setSessionsOpen(true)}>NEON SESSIONS</button>}</div>
     <div className="record-store-status-stack">
       <div className="record-store-view-status" role="status">{firstPerson ? "PRIMERA PERSONA" : "TERCERA PERSONA"}{jumping ? " · SALTANDO" : ""}</div>
-      {storeInvaded ? <UniverseMissionCard className="store-invasion-mission" title="La señal del Archivista" kind="signal" description={storeInvasionProgress.coreNeutralized ? "Señal local desactivada / Corrupción global activa" : "Buenos Aires 1999 / Tienda invadida"} objective={storeInvasionObjective(storeInvasionProgress)} details={[`Focos ${[storeInvasionProgress.jukeboxOff,storeInvasionProgress.archiveOff,storeInvasionProgress.transmissionOff].filter(Boolean).length}/3`,storeInvasionProgress.ghostDefeated&&"Aparición disipada",storeInvasionProgress.bossDefeated&&"Entidad derrotada"]}/>
+      {storeInvaded ? <UniverseMissionCard className="store-invasion-mission" title={chapter10Progress.coreAnalyzed ? "Capítulo 10 / La frecuencia del Abismo" : "La señal del Archivista"} kind="signal" description={storeInvasionProgress.coreNeutralized ? "Señal local desactivada / Corrupción global activa" : "Buenos Aires 1999 / Tienda invadida"} objective={chapter10Progress.coreAnalyzed ? chapter10Objective(chapter10Progress) : storeInvasionObjective(storeInvasionProgress)} details={[`Focos ${[storeInvasionProgress.jukeboxOff,storeInvasionProgress.archiveOff,storeInvasionProgress.transmissionOff].filter(Boolean).length}/3`,storeInvasionProgress.ghostDefeated&&"Aparición disipada",storeInvasionProgress.transmissionOff&&!storeInvasionProgress.bossDefeated&&"Escudos "+storeInvasionProgress.generators.filter(Boolean).length+"/2",storeInvasionProgress.generators.every(Boolean)&&!storeInvasionProgress.bossDefeated&&"Entidad "+storeInvasionProgress.bossHealth+"/5",storeInvasionProgress.bossDefeated&&"Entidad derrotada"]}/>
         : arcadeProgress.recordStoreFutureVisionSeen
         ? <UniverseMissionCard className="frequency-objective" title="El futuro que no existe"
           description="La visión mostró un futuro que todavía no ocurrió." objective={storeInvestigationObjective(arcadeProgress)} />
@@ -2277,7 +2404,8 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
       {invasionNotice&&<div className="store-invasion-notice" role="status" aria-live="polite">{invasionNotice}</div>}
       {damageTick>0&&<div key={damageTick} className="parthenon-damage" aria-hidden="true"/>}
       {combatHearts===0&&<div className="parthenon-fallen"><section className="parthenon-fallen-card" role="dialog" aria-modal="true" aria-label="Has caido"><h2>LA SEÑAL TE ALCANZÓ</h2><p>Los focos y las pistas ya resueltos se conservan.</p><button type="button" onClick={retryCombat}>Reintentar desde el checkpoint</button></section></div>}
-      {invasionPanel&&<StoreInvasionPanel mode={invasionPanel} progress={storeInvasionProgress} onAction={commitInvasion} onClose={()=>setInvasionPanel(null)}/>}
+      {invasionPanel&&<StoreInvasionPanel mode={invasionPanel} progress={storeInvasionProgress} chapter10Progress={chapter10Progress} onAction={commitInvasion} onReplay={replayInvasionBoss} onClose={()=>setInvasionPanel(null)}/>}
+      {chapter10Sequence && <Chapter10Sequence scene={chapter10Sequence} onFinish={finishChapter10Sequence} />}
     </>}
     {clubNoticePanel}
     {inventoryToast}

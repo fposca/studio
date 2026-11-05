@@ -1,0 +1,47 @@
+.neon-underworld { --underworld-glow: #ff654b; background: #170608; }
+.neon-underworld .studio-header h2 { color: #ffe4ce; text-shadow: 0 2px 24px #ff482966; }
+.neon-underworld .studio-header > div > span,
+.neon-underworld .studio-footer { color: #ffab8b; }
+.neon-underworld .underworld-mission {
+  position: absolute; z-index: 8; left: 18px; top: 164px;
+  width: min(370px, 38vw); max-height: min(35vh, 260px); overflow: auto;
+  border-color: #aa564b; box-shadow: 0 10px 38px #100507b3, inset 0 1px #ffab8b33;
+}
+.neon-underworld .underworld-vision-control { position: absolute; z-index: 10; top: 132px; right: 18px; }
+.neon-underworld .underworld-vision-control button {
+  border: 1px solid #a9554e; border-radius: 4px; padding: 10px 14px;
+  color: #ffe5d9; background: #250d18e8; box-shadow: 0 3px 18px #170509;
+  font-size: 11px; font-weight: 800; cursor: pointer;
+}
+.neon-underworld .underworld-vision-control button.is-active {
+  color: #f2fffa; border-color: #62e6d2; box-shadow: 0 0 22px #4cd7bb70;
+}
+.neon-underworld .underworld-vision-control button:disabled { opacity: .55; cursor: default; }
+.neon-underworld .underworld-vision-control kbd { margin: 0 3px; }
+.neon-underworld .underworld-message {
+  position: absolute; z-index: 35; bottom: 135px; left: 50%;
+  width: min(480px, calc(100% - 32px)); transform: translateX(-50%);
+  padding: 17px 20px; border: 1px solid #e98565; border-radius: 8px;
+  color: #ffe7d8; background: linear-gradient(145deg, #28101eea, #150a17f4);
+  box-shadow: 0 12px 50px #0a020bcc; text-align: center;
+}
+.neon-underworld .underworld-message small { color: #ffac8d; font-weight: 800; letter-spacing: .18em; }
+.neon-underworld .underworld-message p { margin: 12px 0 15px; line-height: 1.45; }
+.neon-underworld .underworld-message button {
+  padding: 8px 18px; border: 1px solid #e98565; color: #ffe7d8; background: #6f2535; cursor: pointer;
+}
+.record-store-load-error {
+  position: absolute; z-index: 60; top: 50%; left: 50%;
+  width: min(440px, calc(100% - 32px)); transform: translate(-50%, -50%);
+  padding: 24px; border: 1px solid #ff9e82; color: #fff0e6;
+  background: #210b16; text-align: center;
+}
+@media (max-width: 800px), (max-height: 560px) {
+  .neon-underworld .underworld-mission {
+    top: 111px; left: 10px; width: min(285px, 42vw); max-height: 78px;
+  }
+  .neon-underworld .studio-control-hint { display: none; }
+  .neon-underworld .underworld-vision-control { top: 95px; right: 10px; }
+  .neon-underworld .underworld-vision-control button { padding: 8px 9px; font-size: 9px; }
+  .neon-underworld .underworld-message { bottom: 90px; }
+}
