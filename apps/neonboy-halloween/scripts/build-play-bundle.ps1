@@ -2,7 +2,7 @@
   [string]$KeystorePath = (Join-Path $env:USERPROFILE '.android\neonboy-halloween-upload.jks'),
   [string]$ProtectedPasswordPath = (Join-Path $env:USERPROFILE '.android\neonboy-halloween-upload-password.dpapi'),
   [string]$Alias = 'neonboy-halloween-upload',
-  [string]$ArtifactName = ('neonboy-halloween-v1.0.1-{0}-play.aab' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+  [string]$ArtifactName = ('neonboy-halloween-v1.0.5-{0}-play.aab' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
 )
 
 $ErrorActionPreference = 'Stop'

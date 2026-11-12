@@ -102,3 +102,7 @@
 .halloween-start-delete-confirm button:first-child{border-color:#ef9ab8;background:#7f3d5d}
 @media(max-width:600px){.halloween-start footer,.halloween-start-footer-actions{flex-wrap:wrap}.halloween-start-privacy-link{margin:0 0 8px}}
 @media(orientation:landscape) and (max-height:520px){.halloween-start-privacy-link{min-height:26px;margin:0 0 3px;font-size:9px}.halloween-start .halloween-start-delete{min-height:25px;font-size:8px}.halloween-start-footer-actions{gap:8px}}
+
+.halloween-start-masthead-actions{display:flex;align-items:center;justify-content:flex-end;gap:16px;min-width:0}
+.halloween-start .halloween-fullscreen-start{min-height:36px;padding:0 11px;border-color:#79cfd0;color:#c7f6f1;background:#11202ac4;font-size:10px;white-space:nowrap}
+@media(orientation:landscape) and (max-height:520px){.halloween-start .halloween-fullscreen-start span{display:none}.halloween-start .halloween-fullscreen-start{width:36px;padding:0}.halloween-start-masthead-actions{gap:8px}}

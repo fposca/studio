@@ -1,6 +1,18 @@
 packages:
   - functions
 
+overrides:
+  shell-quote: 1.11.0
+  '@grpc/grpc-js': 1.14.5
+  re2js: 2.8.7
+  source-map-js: 1.2.2
+  follow-redirects: 1.16.2
+  'body-parser@1': 1.20.9
+  'body-parser@2': 2.4.0
+  qs: 6.16.1
+  'uuid@11': 11.1.1
+  fast-xml-parser: 5.12.0
+
 allowBuilds:
   '@firebase/util': true
   electron: true

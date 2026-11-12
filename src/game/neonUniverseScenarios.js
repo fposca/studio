@@ -64,6 +64,16 @@ export const NEON_UNIVERSE_SCENARIOS = [
     position: { x: 92.4, y: 47.1 },
     destination: "underworld",
   },
+  {
+    id: "cathedral", name: "La Catedral de los Condenados",
+    description: "Tras la puerta roja del Puente de las Almas aguardan los sellos, el Archivo y la Primera Voz.",
+    status: "locked", position: null, destination: "cathedral",
+  },
+  {
+    id: "abyss-throne", name: "El Trono del Abismo",
+    description: "La transmisión original señala este destino. Todavía no se puede ingresar.",
+    status: "locked", position: null, destination: null,
+  },
 ];
 
 export const NEON_UNIVERSE_STATUS = {
@@ -77,6 +87,7 @@ export const NEON_UNIVERSE_STATUS = {
 // Set VITE_RECORDING_STUDIO_PREVIEW=true for a preview build or false in local dev.
 export function getScenarioStatus(scenario, unlockedScenarios = [], env = import.meta.env ?? {}) {
   if (scenario.id === "underworld" && unlockedScenarios.includes("underworld")) return "available";
+  if (scenario.id === "abyss-throne" && unlockedScenarios.includes("abyss-throne")) return "identified";
   if (scenario.destination && unlockedScenarios.includes(scenario.id)) return "available";
   if (scenario.id === "arcade-1999" && env.VITE_ARCADE_1999_PREVIEW === "true") return "available";
   if (scenario.id === "rock-club" && (env.VITE_ROCK_CLUB_PREVIEW === "true" || (env.DEV && env.VITE_ROCK_CLUB_PREVIEW !== "false"))) return "available";

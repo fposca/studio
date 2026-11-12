@@ -143,16 +143,16 @@ export function createHalloweenJudgeVisuals(scene, { lowPower = false } = {}) {
   // Code vision must not replace the effect materials or generate shader variants.
   effects.traverse(object => { object.userData.halloweenCodeExclude = true; });
   let serial = 1, emission = 0, trail = 0, shockAge = 10, shockSize = 1, impactAge = 10;
-  let deathBurst = false, phase = "inactive", lastX = 0, lastZ = 0;
+  let deathBurst = false, phase = "inactive", lastX = 0, lastZ = 0, particleScale = 1;
   const random = () => { serial = (serial * 1664525 + 1013904223) >>> 0; return serial / 4294967296; };
 
   function burst(position, count = 32, power = 1) {
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < Math.max(1, Math.round(count * particleScale)); i++) {
       const a = random() * TAU, r = (.35 + random()) * power;
       sparks.emit(position.x, position.y, position.z, Math.cos(a) * r, (.3 + random() * 1.4) * power,
         Math.sin(a) * r, .4 + random() * .9, i % 3 ? purple : hot);
     }
-    for (let i = 0; i < (lowPower ? 3 : 6); i++) haze.emit(position.x, position.y, position.z,
+    for (let i = 0; i < Math.max(1, Math.round((lowPower ? 3 : 6) * particleScale)); i++) haze.emit(position.x, position.y, position.z,
       (random() - .5) * power, .15 + random() * .35, (random() - .5) * power, .7 + random(), purple);
   }
   function pulse(position, size) {
@@ -160,6 +160,7 @@ export function createHalloweenJudgeVisuals(scene, { lowPower = false } = {}) {
   }
   return {
     projectile,
+    setParticleScale(value) { particleScale = THREE.MathUtils.clamp(value, .4, 1.2); },
     setPhase(next, position) {
       phase = next; emission = 0; deathBurst = false;
       if (next === "spawning") pulse(position, 2.1);
@@ -201,7 +202,7 @@ export function createHalloweenJudgeVisuals(scene, { lowPower = false } = {}) {
         const radius = 1 - smooth(phaseTime / 5) * .3;
         line.scale.set(radius, 1, radius);
       }
-      emission += dt * (lowPower ? 22 : 42) * (quiet ? .5 : 1);
+      emission += dt * (lowPower ? 22 : 42) * particleScale * (quiet ? .5 : 1);
       while (emission >= 1) {
         emission--;
         if (!spawning && !dying && !charging) continue;
@@ -222,7 +223,7 @@ export function createHalloweenJudgeVisuals(scene, { lowPower = false } = {}) {
         heart.rotation.y += dt * 2;
         arcs.forEach((arc, i) => { arc.rotation.y += dt * (i % 2 ? -2 : 2.7) * (quiet ? .3 : 1); arc.rotation.z += dt * .8; });
         aura.material.opacity = quiet ? .65 : .74 + .1 * Math.sin(elapsed * 5);
-        trail += dt * (lowPower ? 32 : 55);
+        trail += dt * (lowPower ? 32 : 55) * particleScale;
         while (trail >= 1) {
           trail--;
           const p = projectile.position;

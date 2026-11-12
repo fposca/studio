@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createEnemyFirePlume } from "./enemyFirePlume.js";
 import { createPlasmaOrb, createOrbHalo, createOrbTrail, createOrbBurst } from "./neonOrbVisuals.js";
 
 const PALETTES = {
@@ -12,7 +13,7 @@ const FADE_TIME = .28;
 
 // One reusable effect per projectile slot. No per-shot textures, lights or geometry.
 // The parent stays at world origin because the ribbon records world positions.
-export function createEnemyOrbVisual(texture, phase = 0) {
+export function createEnemyOrbVisual(texture, phase = 0, { palette: customPalette, size = 1, flame = false } = {}) {
   const root = new THREE.Group();
   root.name = "Enemy orb / effects";
   const body = new THREE.Group();
@@ -22,12 +23,19 @@ export function createEnemyOrbVisual(texture, phase = 0) {
   hotCore.position.z = .13;
   body.add(plasma.root, hotCore);
 
-  const trail = createOrbTrail({ width: .105, spacing: .055 });
+  const plume = flame ? createEnemyFirePlume(phase) : null;
+  if (plume) body.add(plume.root);
+  const trailWidth = flame ? .16 : .105;
+  const trail = createOrbTrail({ width: trailWidth, spacing: .055 });
   trail.mesh.name = "Enemy orb / energy wake";
   const uniforms = trail.mesh.material.uniforms;
   uniforms.uCore.value.set(0xffdfc4);
-  const muzzle = createOrbBurst(texture, false, BURST_COLORS);
-  const impact = createOrbBurst(texture, true, BURST_COLORS);
+  const burstColors = customPalette ? {
+    glowColor: customPalette.glow, ringColor: customPalette.arc,
+    sparkColor: customPalette.accent, highlightColor: customPalette.arc,
+  } : BURST_COLORS;
+  const muzzle = createOrbBurst(texture, false, burstColors);
+  const impact = createOrbBurst(texture, true, burstColors);
   muzzle.root.name = "Enemy orb / discharge";
   impact.root.name = "Enemy orb / impact";
 
@@ -91,8 +99,8 @@ export function createEnemyOrbVisual(texture, phase = 0) {
 
   function start(at, velocity, corrupted = false) {
     clear();
-    const palette = corrupted ? PALETTES.corrupted : PALETTES.plasma;
-    scale = corrupted ? 1.65 : 1;
+    const palette = customPalette || (corrupted ? PALETTES.corrupted : PALETTES.plasma);
+    scale = size * (corrupted ? 1.65 : 1);
     heading.copy(velocity).normalize();
     if (heading.lengthSq() < .001) heading.copy(axis);
     body.position.copy(at);
@@ -100,9 +108,10 @@ export function createEnemyOrbVisual(texture, phase = 0) {
     body.scale.setScalar(scale);
     previous.copy(at);
     plasma.setPalette(palette);
+    hotCore.material.color.set(flame ? 0xffd692 : 0xffe2c3);
     uniforms.uHead.value.set(palette.arc);
     uniforms.uTail.value.set(palette.tail);
-    uniforms.uWidth.value = .105 * scale;
+    uniforms.uWidth.value = trailWidth * scale;
     uniforms.uOpacity.value = .85;
     sparksMaterial.uniforms.uColor.value.set(palette.arc);
     trail.reset(at);
@@ -138,6 +147,7 @@ export function createEnemyOrbVisual(texture, phase = 0) {
     plasma.update(clock, (reducedMotion ? 1 : 1.15) * fade);
     plasma.halo.material.opacity *= fade;
     hotCore.material.opacity = .72 * fade;
+    plume?.update(clock, fade * (reducedMotion ? .65 : 1));
     sparksMaterial.uniforms.uTime.value = clock + phase;
     sparksMaterial.uniforms.uFade.value = fade * (reducedMotion ? .25 : .85);
     uniforms.uOpacity.value = fade * (reducedMotion ? .4 : .85);

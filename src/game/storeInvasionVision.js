@@ -22,6 +22,9 @@ if(invasionAmount > .001) {
   #ifdef INVASION_PLAYER
     grid = surface * vec2(16.0,20.0);
   #endif
+  #ifdef INVASION_BRIDGE
+    grid = surface * vec2(4.8);
+  #endif
   vec2 cell = floor(grid);
   float seed = invasionHash(vec2(cell.x, floor(dot(positionCode,axes)*.5)));
   float trail = mod(cell.y + invasionTime*(2.0+seed*3.0) + seed*24.0,24.0);
@@ -42,6 +45,15 @@ if(invasionAmount > .001) {
     base += vec3(.15,.05,.005)*rim;
     ink = mix(vec3(.92,.30,.055),vec3(1.0,.74,.35),head);
     decoded = base + ink*glyph*(.26+exp(-trail*.16)*.7)*detail;
+  #endif
+  #ifdef INVASION_BRIDGE
+    // The revealed crossing reads as a dense data surface, with enough relief
+    // to keep its edges and the path's depth visible.
+    vec3 bridgeInk = mix(vec3(.035,.72,.22),vec3(.64,1.0,.79),head);
+    decoded = outgoingLight*.065 + vec3(.002,.018,.008);
+    decoded += bridgeInk*glyph*(.30+exp(-trail*.16)*1.05)*detail;
+    float scan = 1.0-smoothstep(.05,.32,abs(mod(surface.y+invasionTime*1.3+64.0,8.0)-4.0));
+    decoded += vec3(.025,.16,.065)*scan;
   #endif
   outgoingLight = mix(outgoingLight,decoded,invasionAmount);
 }
@@ -75,6 +87,7 @@ export function createStoreInvasionVision(scene, scenery) {
         const coded=material.clone(),compile=material.onBeforeCompile,key=material.customProgramCacheKey.call(material);
         coded.name='Invasion / '+profile+' / '+material.name;
         if(profile==='player')coded.defines={...coded.defines,INVASION_PLAYER:1};
+        if(profile==='bridge')coded.defines={...coded.defines,INVASION_BRIDGE:1};
         coded.onBeforeCompile=function(shader,renderer){
           compile.call(this,shader,renderer);Object.assign(shader.uniforms,uniforms);
           shader.vertexShader=VARYINGS+'uniform vec4 invasionPose;\n'+shader.vertexShader;
@@ -99,7 +112,7 @@ export function createStoreInvasionVision(scene, scenery) {
       object.material=Array.isArray(original)?original.map(convert):convert(original);
     });
   }
-  register(scenery);
+  if(scenery)register(scenery);
   return {register,update(dt,enabled,player,reducedMotion){
     const amount=!initialized||reducedMotion||dt===0?Number(enabled):THREE.MathUtils.damp(uniforms.invasionAmount.value,Number(enabled),7,dt);
     initialized=true;uniforms.invasionAmount.value=amount;

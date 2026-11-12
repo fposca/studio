@@ -100,6 +100,7 @@ export function createHalloweenSecretProps(scene, mirrorOptions = {}) {
     setVision: mirror.setVision,
     setMirrorPlayer: mirror.setPlayer,
     setReflectionEnabled: mirror.setEnabled,
+    setReflectionQuality: mirror.setQuality,
     invalidateReflection: mirror.invalidate,
     setVhsCollected(value) { vhsCollected = value; slots.vhs.visible = !value; },
     setAnniversaryUnlocked(value) { unlocked = value; slots.vinyl.visible = value; },

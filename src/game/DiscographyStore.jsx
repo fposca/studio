@@ -35,7 +35,11 @@ import MatrixBossHud from "./MatrixBossHud.jsx";
 import StoreInvasionPanel from "./StoreInvasionPanel.jsx";
 import Chapter10Sequence from "./Chapter10Sequence.jsx";
 import { normalizeChapter10Progress, advanceChapter10, chapter10FragmentsReady, chapter10Objective } from "./chapter10Quest.js";
-import { normalizeUnderworldProgress, advanceUnderworld, underworldObjective } from "./underworldQuest.js";
+import { UNDERWORLD_MAX_HEALTH, normalizeUnderworldProgress, advanceUnderworld, underworldObjective } from "./underworldQuest.js";
+import { normalizeCathedralProgress, advanceCathedral, cathedralObjective } from "./cathedralQuest.js";
+import { CATHEDRAL_RECALLS } from "./cathedralPresentation.js";
+import { CATHEDRAL_DIALOGUES, CATHEDRAL_CONVERSATION_NPC, getCathedralVoiceUrl } from "./cathedralDialogues.js";
+import { UNDERWORLD_DIALOGUES, UNDERWORLD_SEQUENCES, UNDERWORLD_CONVERSATION_NPCS, chooseUnderworldRandom, underworldConversationFor, underworldSubtitleDuration } from "./underworldDialogues.js";
 import { normalizeStoreInvasionProgress, advanceStoreInvasion, storeInvasionObjective } from "./storeInvasionQuest.js";
 import {normalizeMatrixProgress,advanceMatrixProgress,matrixObjective,matrixSafeCheckpoint,matrixSafePlayerSnapshot,MATRIX_INITIAL,MATRIX_HEALTH} from "./matrixQuest.js";
 import {MATRIX_LAYOUT,MATRIX_ASSETS,defaultMatrixTransform,loadMatrixTransforms,saveMatrixTransforms} from "./matrixLayout.js";
@@ -74,6 +78,7 @@ import "./rooftop.css";
 import "./lostShip.css";
 import "./parthenon.css";
 import "./underworld.css";
+import "./cathedral.css";
 import "./discographyStore.css";
 import "./storeInvasion.css";
 
@@ -215,6 +220,27 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   const [underworldProgress,setUnderworldProgress]=useState(()=>normalizeUnderworldProgress(initialSession?.underworldProgress,Boolean(initialSession?.chapter10Progress?.chapterCompleted)));
   const underworldProgressRef=useRef(underworldProgress);underworldProgressRef.current=underworldProgress;
   const [underworldMessage,setUnderworldMessage]=useState(null);
+  const [cathedralProgress,setCathedralProgress]=useState(()=>normalizeCathedralProgress(initialSession?.cathedralProgress,Boolean(initialSession?.underworldProgress?.completed)));
+  const cathedralProgressRef=useRef(cathedralProgress);cathedralProgressRef.current=cathedralProgress;
+  const [cathedralMessage,setCathedralMessage]=useState(null);
+  const [cathedralDialogue,setCathedralDialogue]=useState(null);
+  const [cathedralFinalOpen,setCathedralFinalOpen]=useState(false);
+  const [cathedralDiaryOpen,setCathedralDiaryOpen]=useState(false);
+  const [cathedralTransition,setCathedralTransition]=useState(false);
+  const [cathedralFeedback,setCathedralFeedback]=useState(null);
+  const [cathedralCinema,setCathedralCinema]=useState(null);
+  const [cathedralReveal,setCathedralReveal]=useState(false);
+  const [cathedralSequenceSkip,setCathedralSequenceSkip]=useState(0);
+  const [underworldDialogue,setUnderworldDialogue]=useState(null);
+  const underworldDialogueRef=useRef(null);
+  const [underworldSceneReady,setUnderworldSceneReady]=useState(false);
+  const underworldAmbientAgeRef=useRef(0);
+  const underworldAmbientPositionRef=useRef(null);
+  const underworldAmbientNextRef=useRef(100+Math.random()*60);
+  const underworldAmbientLastRef=useRef(null);
+  const underworldSentinelEncounterRef=useRef(0);
+  const underworldLine=underworldDialogue ? UNDERWORLD_DIALOGUES[UNDERWORLD_SEQUENCES[underworldDialogue.key].ids[underworldDialogue.index]] : null;
+  const cathedralLine=cathedralDialogue ? CATHEDRAL_DIALOGUES[cathedralDialogue.type][cathedralDialogue.index] : null;
   const [chapter10Sequence,setChapter10Sequence]=useState(null);
   const [chapter10PuzzleError,setChapter10PuzzleError]=useState(false);
   const [invasionPanel,setInvasionPanel]=useState(null);
@@ -278,6 +304,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   const rooftopPlayerRef = useRef(initialSession?.positions?.rooftop ?? null);
   const lostShipPlayerRef = useRef(initialSession?.positions?.["lost-ship"] ?? null);
   const underworldPlayerRef = useRef(initialSession?.positions?.underworld ?? null);
+  const cathedralPlayerRef = useRef(initialSession?.positions?.cathedral ?? null);
   const lostShipTransformsRef = useRef(lostShipTransforms);
   lostShipTransformsRef.current = lostShipTransforms;
   const lostShipAssetApiRef = useRef(null);
@@ -346,6 +373,8 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     ...(lostShipProgress.orbReceiverActivated ? ["parthenon"] : []),
     ...(parthenonProgress.frequencyFragment02Analyzed ? ["matrix"] : []),
     ...(chapter10Progress.chapterCompleted ? ["underworld"] : []),
+    ...(underworldProgress.completed ? ["cathedral"] : []),
+    ...(cathedralProgress.completed ? ["abyss-throne"] : []),
   ])];
   const clubNoticePanel = clubNotice && <div className="club-unlock-notice" role="status">
     <strong>{clubNotice}</strong><button type="button" onClick={() => setClubNotice(null)} aria-label="Cerrar aviso del club">×</button>
@@ -516,19 +545,223 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     chapter10ProgressRef.current=next;setChapter10Progress(next);
     return next;
   }
+  function clearUnderworldDialogue(){
+    underworldDialogueRef.current=null;
+    setUnderworldDialogue(null);
+  }
+  function startUnderworldSequence(key){
+    const sequence=UNDERWORLD_SEQUENCES[key];
+    if(!sequence||activeScene!=="underworld"||paused||mapOpen||inventoryOpen||combatHeartsRef.current===0)return false;
+    const current=underworldDialogueRef.current;
+    if(current&&(current.mode==="conversation"||current.priority>=sequence.priority))return false;
+    const next={key,index:0,mode:sequence.mode,priority:sequence.priority,status:"subtitle"};
+    underworldDialogueRef.current=next;
+    setUnderworldDialogue(next);
+    setUnderworldMessage(null);
+    return true;
+  }
+  function advanceUnderworldDialogue(skip=false){
+    const current=underworldDialogueRef.current;
+    if(!current)return;
+    const sequence=UNDERWORLD_SEQUENCES[current.key];
+    if(skip||current.index>=sequence.ids.length-1){
+      clearUnderworldDialogue();
+      if(sequence.completionEvent)commitUnderworld(sequence.completionEvent);
+      return;
+    }
+    const next={...current,index:current.index+1};
+    underworldDialogueRef.current=next;
+    setUnderworldDialogue(next);
+  }
   function commitUnderworld(event,value){
-    const next=advanceUnderworld(underworldProgressRef.current,event,value,Boolean(chapter10ProgressRef.current.chapterCompleted));
+    const before=underworldProgressRef.current;
+    const next=advanceUnderworld(before,event,value,Boolean(chapter10ProgressRef.current.chapterCompleted));
     underworldProgressRef.current=next;setUnderworldProgress(next);
+    if(event==="testigo-hit"&&next.testigoHealth<before.testigoHealth){
+      if(before.testigoHealth>UNDERWORLD_MAX_HEALTH.testigo/2&&next.testigoHealth<=UNDERWORLD_MAX_HEALTH.testigo/2&&next.testigoHealth>0)startUnderworldSequence("testigo-half");
+      if(next.testigoHealth===0)startUnderworldSequence("testigo-defeat");
+    }
     return next;
   }
+  function handleUnderworldEvent(event,value){
+    if(event==="sentinel-detected"){
+      const key=underworldSentinelEncounterRef.current>=2?"sentinel-extra":"sentinel-"+value;
+      const started=startUnderworldSequence(key);
+      if(started)underworldSentinelEncounterRef.current++;
+      return started;
+    }
+    if(event==="testigo-encounter")return startUnderworldSequence("testigo-intro");
+    return commitUnderworld(event,value);
+  }
   function examineUnderworld(id){
+    if(id==="cathedral-door"){
+      if(underworldProgressRef.current.completed) enterScenario("cathedral");
+      else setUnderworldMessage("La puerta roja sigue sellada. El altar del umbral debe responder primero.");
+      return;
+    }
+    if(id!=="alma"&&id!=="barquero"&&underworldDialogueRef.current?.mode==="auto")advanceUnderworldDialogue(true);
+    if(id==="alma"||id==="barquero"){
+      const key=underworldConversationFor(id,underworldProgressRef.current);
+      startUnderworldSequence(key);
+      return;
+    }
     if(id==="arrival"){commitUnderworld("arrival");setUnderworldMessage("La inscripción está incompleta. La piedra responde a la Visión de Frecuencia.");}
     if(id==="bridge")setUnderworldMessage("El camino que ves no sostiene a nadie. Buscá la frecuencia verdadera.");
     if(id==="altar"){
       const next=commitUnderworld("altar");
-      setUnderworldMessage(next.completed?"El umbral respondió. La ciudadela conserva secretos para otra noche.":"El altar exige silenciar a los dos centinelas.");
+      setUnderworldMessage(next.completed?"El umbral respondió. La puerta roja de la Catedral de los Condenados está abierta. Acercate y cruzala.":
+        next.enemies.some((remaining)=>remaining>0)?"El altar exige silenciar a los dos centinelas.":
+        next.gargolaHealth>0?"La Gárgola infernal aún custodia el acceso.":
+        !next.testigoDefeatLineSeen?"Escuchá al Testigo de las Cenizas.":"El umbral todavía no responde.");
     }
   }
+  function handleCathedralFeedback(event) {
+    if(event.type==="memory") setCathedralFeedback({...CATHEDRAL_RECALLS[event.index], stamp:Date.now()});
+    if(event.type==="cinema-start") setCathedralCinema(event.kind);
+    if(event.type==="cinema-end") setCathedralCinema(null);
+    if(event.type==="final-ready"){setCathedralCinema(null);setCathedralReveal(false);setCathedralFinalOpen(true);}
+  }
+  function skipCathedralSequence(){setCathedralSequenceSkip(value=>value+1);}
+  useEffect(()=>{
+    if(!cathedralFeedback||paused)return undefined;
+    const timer=window.setTimeout(()=>setCathedralFeedback(null),6500);
+    return ()=>window.clearTimeout(timer);
+  },[cathedralFeedback,paused]);
+  useEffect(()=>{
+    if(activeScene!=="cathedral"){setCathedralFeedback(null);setCathedralCinema(null);setCathedralReveal(false);}
+  },[activeScene]);
+  function commitCathedral(event,value){
+    const before=cathedralProgressRef.current;
+    const next=advanceCathedral(before,event,value,Boolean(underworldProgressRef.current.completed));
+    cathedralProgressRef.current=next;setCathedralProgress(next);
+    return next;
+  }
+  function startCathedralDialogue(type) {
+    setCathedralMessage(null);
+    setCathedralFinalOpen(false);
+    setCathedralDialogue({type,index:0});
+  }
+  function advanceCathedralDialogue(skip=false){
+    if(!cathedralDialogue)return;
+    const {type,index}=cathedralDialogue;
+    const lines=CATHEDRAL_DIALOGUES[type];
+    if(skip){setCathedralDialogue(null);skipCathedralSequence();return;}
+    if(index<lines.length-1){setCathedralDialogue({type,index:index+1});return;}
+    setCathedralDialogue(null);
+    if(type==="first")commitCathedral("custodian-first");
+    if(type==="anomaly")commitCathedral("custodian-anomaly");
+    if(type==="hint")commitCathedral("custodian-hint");
+    if(type==="altar"){commitCathedral("recording");setCathedralReveal(true);}
+    if(type==="farewell"){commitCathedral("complete");setCathedralFinalOpen(true);}
+  }
+  function examineCathedral(id){
+    const p=cathedralProgressRef.current;
+    if(id==="cathedral-return"){enterScenario("underworld");return;}
+    if(id==="cathedral-inscription"){
+      commitCathedral("inscription");
+      setCathedralMessage("La piedra dice: «Primero recordá. Luego dejá pasar el tiempo. Solo entonces conocerás la verdad».");
+      return;
+    }
+    if(id.startsWith("cathedral-seal-")){
+      const seal=id.slice("cathedral-seal-".length);
+      if(p.archiveOpen){setCathedralMessage("Los tres sellos ya abrieron el Archivo de los Condenados.");return;}
+      const next=commitCathedral("seal",seal);
+      setCathedralMessage(next.archiveOpen?"Los tres sellos responden. La puerta del Archivo se abre.":
+        next.seals.length===0?"Los sellos pierden su luz. La secuencia se reinicia; podés volver a intentarlo.":
+        "El sello de "+seal.toUpperCase()+" se ilumina. "+next.seals.length+"/3.");
+      return;
+    }
+    if(id==="cathedral-archive-door"){
+      setCathedralMessage(p.archiveOpen?"El Archivo de los Condenados está abierto. La señal conduce hacia los atriles.":
+        "La reja está sellada. Tres mecanismos esperan una secuencia.");
+      return;
+    }
+    if(id.startsWith("cathedral-memory-")){
+      const memory=id.slice("cathedral-memory-".length);
+      if(p.memories.includes(memory)){return;}
+      if(!p.visionActive){setCathedralMessage("El registro está incompleto. Activá la Visión de Frecuencia para revelar sus marcas.");return;}
+      if(p.altarOpen){return;}
+      const next=commitCathedral("memory",memory);
+      if(next.memories.length===0) setCathedralMessage("Los recuerdos se desordenan y la secuencia vuelve a empezar. No perdés vida.");
+      // Successful pickups use non-blocking subtitles; scene effects observe the accepted saved state.
+      return;
+    }
+    if(id==="cathedral-custodian"){
+      startCathedralDialogue(!p.custodianMet?"first":!p.anomalyHeard?"anomaly":
+        p.altarOpen&&!p.altarHintHeard?"hint":p.recordingHeard&&!p.completed?"farewell":"repeat");
+      return;
+    }
+    if(id==="cathedral-altar-door"){
+      setCathedralMessage(p.altarOpen?"La puerta del altar está abierta. La transmisión original aguarda al fondo.":
+        "Las marcas del Archivo aún no forman una secuencia completa.");
+      return;
+    }
+    if(id==="cathedral-abyss"){
+      setCathedralMessage("EL TRONO DEL ABISMO — PRÓXIMAMENTE. La Catedral permanece abierta para seguir explorando.");
+      return;
+    }
+    if(id==="cathedral-altar"){
+      if(!p.altarOpen){setCathedralMessage("El núcleo no responde. Reconstruí los tres recuerdos del Archivo.");return;}
+      if(p.completed){setCathedralFinalOpen(true);return;}
+      if(p.recordingHeard){startCathedralDialogue("farewell");return;}
+      commitCathedral("altar");
+      startCathedralDialogue("altar");
+    }
+  }
+  useEffect(()=>{
+    if(!cathedralTransition)return undefined;
+    const timer=window.setTimeout(()=>setCathedralTransition(false),520);
+    return ()=>window.clearTimeout(timer);
+  },[cathedralTransition]);
+  useEffect(()=>{
+    if(activeScene!=="underworld"||combatHearts===0){
+      clearUnderworldDialogue();
+      underworldAmbientAgeRef.current=0;
+      underworldAmbientPositionRef.current=null;
+      underworldAmbientNextRef.current=100+Math.random()*60;
+      underworldAmbientLastRef.current=null;
+      underworldSentinelEncounterRef.current=0;
+      if(combatHearts===0)setUnderworldMessage(null);
+      if(activeScene!=="underworld")setUnderworldSceneReady(false);
+    }
+  },[activeScene,combatHearts]);
+  useEffect(()=>{
+    if(activeScene!=="underworld"||!underworldSceneReady||underworldProgress.introSeen||underworldDialogue||underworldMessage||paused||combatHearts===0)return;
+    const timer=window.setTimeout(()=>startUnderworldSequence("intro"),850);
+    return ()=>window.clearTimeout(timer);
+  },[activeScene,underworldSceneReady,underworldProgress.introSeen,underworldDialogue,underworldMessage,paused,combatHearts]);
+  useEffect(()=>{
+    if(activeScene!=="underworld"||!underworldSceneReady||underworldProgress.testigoHealth!==0||underworldProgress.testigoDefeatLineSeen||underworldDialogue||paused||combatHearts===0)return;
+    const timer=window.setTimeout(()=>startUnderworldSequence("testigo-defeat"),180);
+    return ()=>window.clearTimeout(timer);
+  },[activeScene,underworldSceneReady,underworldProgress.testigoHealth,underworldProgress.testigoDefeatLineSeen,underworldDialogue,paused,combatHearts]);
+  useEffect(()=>{
+    if(activeScene!=="underworld"||!underworldDialogue||underworldDialogue.mode!=="auto"||paused||combatHearts===0)return;
+    const line=UNDERWORLD_DIALOGUES[UNDERWORLD_SEQUENCES[underworldDialogue.key].ids[underworldDialogue.index]];
+    const timer=window.setTimeout(()=>advanceUnderworldDialogue(),underworldSubtitleDuration(line.text));
+    return ()=>window.clearTimeout(timer);
+  },[activeScene,underworldDialogue,paused,combatHearts]);
+  useEffect(()=>{
+    if(activeScene!=="underworld"||!underworldSceneReady)return;
+    const timer=window.setInterval(()=>{
+      const progress=underworldProgressRef.current;
+      const position=underworldPlayerRef.current;
+      const previous=underworldAmbientPositionRef.current;
+      underworldAmbientPositionRef.current=position ? {x:position.x,z:position.z} : null;
+      if(paused||mapOpen||inventoryOpen||combatHearts===0||underworldDialogueRef.current||underworldMessage||!progress.introSeen||!position)return;
+      if(!previous||Math.hypot(position.x-previous.x,position.z-previous.z)<.08)return;
+      if(progress.bridgeCrossed&&(progress.enemies.some((remaining)=>remaining>0)||progress.gargolaHealth>0||progress.testigoHealth>0))return;
+      underworldAmbientAgeRef.current+=1;
+      if(underworldAmbientAgeRef.current<underworldAmbientNextRef.current)return;
+      const id=chooseUnderworldRandom(underworldAmbientLastRef.current);
+      if(startUnderworldSequence(id)){
+        underworldAmbientLastRef.current=id;
+        underworldAmbientAgeRef.current=0;
+        underworldAmbientNextRef.current=100+Math.random()*60;
+      }
+    },1000);
+    return ()=>window.clearInterval(timer);
+  },[activeScene,underworldSceneReady,paused,mapOpen,inventoryOpen,combatHearts,underworldMessage]);
   function finishChapter10Sequence(){
     if(chapter10Sequence==="core")commitChapter10("signal-detect");
     if(chapter10Sequence==="hugo")commitChapter10("hugo-consult");
@@ -587,6 +820,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     combatHeartsRef.current = health;
     setCombatHearts(health);
     setDamageTick(tick => tick + 1);
+    if (health === 0 && activeScene === "underworld") { clearUnderworldDialogue(); setUnderworldMessage(null); }
     if (health === 0 && document.pointerLockElement) document.exitPointerLock();
   }
   function replayInvasionBoss() {
@@ -609,6 +843,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     }
     if(activeScene==="underworld"){
       underworldPlayerRef.current={x:0,z:underworldProgressRef.current.bridgeCrossed?-33:10.5,yaw:Math.PI,viewYaw:0};
+      clearUnderworldDialogue();
       setUnderworldMessage("CHECKPOINT / PUENTE DE LAS ALMAS");
       setCombatRetryKey(key=>key+1);return;
     }
@@ -640,6 +875,34 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
       setLostShipMessage("CHECKPOINT / CÁMARA DE RESONANCIA");
     }
     setCombatRetryKey(key => key + 1);
+  }
+  function restartUnderworldForTesting() {
+    if (!import.meta.env.DEV || activeScene !== "underworld") return;
+    const freshProgress = normalizeUnderworldProgress(null, true);
+    underworldProgressRef.current = freshProgress;
+    setUnderworldProgress(freshProgress);
+    underworldPlayerRef.current = { x: 0, z: 10.5, yaw: Math.PI, viewYaw: 0 };
+    combatHeartsRef.current = 3;
+    setCombatHearts(3);
+    combatInvulnerableUntil.current = performance.now() + 1800;
+    clearUnderworldDialogue();
+    setUnderworldSceneReady(false);
+    setUnderworldMessage(null);
+    underworldAmbientAgeRef.current = 0;
+    underworldAmbientPositionRef.current = null;
+    underworldAmbientNextRef.current = 100 + Math.random() * 60;
+    underworldAmbientLastRef.current = null;
+    underworldSentinelEncounterRef.current = 0;
+    setMapOpen(false);
+    setInventoryOpen(false);
+    setOrbStatus({ phase: "ready", cooldown: 0 });
+    setNearby(null);
+    setFirstPerson(false);
+    setJumping(false);
+    setDamageTick(0);
+    if (document.pointerLockElement) document.exitPointerLock();
+    onPause?.(false);
+    setCombatRetryKey((key) => key + 1);
   }
   function restartMatrixForTesting() {
     if (!import.meta.env.DEV || activeScene !== "matrix") return;
@@ -815,8 +1078,8 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
 
   gameSnapshotRef.current = () => ({
     scene: activeScene === "frequency" ? "arcade" : activeScene, credits: creditsRef.current, selectedId, activeGroup,
-    storyProgress, studioProgress, masterTape, clubQuest, rikyProgress, friendsProgress, arcadeProgress, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress, combatHearts, mapUnlocks: unlockedScenarios,
-    positions: { store: storePlayerRef.current, studio: studioPlayerRef.current, club: clubPlayerRef.current, arcade: arcadePlayerRef.current, rooftop: rooftopPlayerRef.current, "lost-ship": lostShipPlayerRef.current, parthenon: parthenonPlayerRef.current, matrix: matrixPlayerRef.current, underworld: underworldPlayerRef.current },
+    storyProgress, studioProgress, masterTape, clubQuest, rikyProgress, friendsProgress, arcadeProgress, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress, cathedralProgress, combatHearts, mapUnlocks: unlockedScenarios,
+    positions: { store: storePlayerRef.current, studio: studioPlayerRef.current, club: clubPlayerRef.current, arcade: arcadePlayerRef.current, rooftop: rooftopPlayerRef.current, "lost-ship": lostShipPlayerRef.current, parthenon: parthenonPlayerRef.current, matrix: matrixPlayerRef.current, underworld: underworldPlayerRef.current, cathedral: cathedralPlayerRef.current },
   });
   function advanceStoreStep(event) {
     const next = advanceStoreInvestigation(arcadeProgressRef.current, event);
@@ -844,7 +1107,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     if (!onAutosave) return undefined;
     const timer = window.setTimeout(() => onAutosave(gameSnapshotRef.current?.()), 700);
     return () => window.clearTimeout(timer);
-  }, [onAutosave, activeScene, credits, selectedId, activeGroup, storyProgress, studioProgress, masterTape, clubQuest, rikyProgress, friendsProgress, arcadeProgress, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress, mapUnlocks]);
+  }, [onAutosave, activeScene, credits, selectedId, activeGroup, storyProgress, studioProgress, masterTape, clubQuest, rikyProgress, friendsProgress, arcadeProgress, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress, cathedralProgress, mapUnlocks]);
   useEffect(() => () => onAutosave?.(gameSnapshotRef.current?.()), [onAutosave]);
   useEffect(() => {
     if (!onAutosave) return undefined;
@@ -1034,6 +1297,12 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
         if (mapOpen) closeMap(); else openMap();
         return;
       }
+      if (event.code === "KeyE" && activeScene === "underworld" && underworldDialogue?.mode === "conversation" && !event.repeat && !typing) {
+        event.preventDefault(); event.stopImmediatePropagation(); advanceUnderworldDialogue(); return;
+      }
+      if (event.code === "KeyE" && activeScene === "cathedral" && cathedralDialogue && !event.repeat && !typing) {
+        event.preventDefault(); event.stopImmediatePropagation(); advanceCathedralDialogue(); return;
+      }
       if (event.key === "Escape") {
         if(chapter10Sequence)return;
         event.preventDefault();
@@ -1051,6 +1320,10 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
         else if (lostShipPanel) closeLostShipPanel();
         else if (parthenonPanel) setParthenonPanel(null);
         else if (matrixPanel) setMatrixPanel(null);
+        else if (cathedralDialogue) advanceCathedralDialogue(true);
+        else if (cathedralFinalOpen) setCathedralFinalOpen(false);
+        else if (cathedralMessage) setCathedralMessage(null);
+        else if (underworldDialogue) advanceUnderworldDialogue(true);
         else if (underworldMessage) setUnderworldMessage(null);
         else if (invasionPanel) setInvasionPanel(null);
         else if (studioMessage) setStudioMessage(null);
@@ -1072,7 +1345,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [onClose, standalone, jukeboxOpen, activeVideoIndex, conversation, archiveOpen, sessionsOpen, studioWorkbench, studioAnalyzerOpen, studioAnomalyPhase, clubMessage, arcadeMessage, studioMessage, mapOpen, inventoryOpen, activeScene, paused, onPause, concertPhase, gameOpen, frequencyPhase, rooftopPuzzle, lostShipPanel, parthenonPanel, invasionPanel, chapter10Sequence, storeInvaded, combatHearts]);
+  }, [onClose, standalone, jukeboxOpen, activeVideoIndex, conversation, archiveOpen, sessionsOpen, studioWorkbench, studioAnalyzerOpen, studioAnomalyPhase, clubMessage, arcadeMessage, studioMessage, mapOpen, inventoryOpen, activeScene, paused, onPause, concertPhase, gameOpen, frequencyPhase, rooftopPuzzle, lostShipPanel, parthenonPanel, invasionPanel, chapter10Sequence, storeInvaded, combatHearts, underworldDialogue, underworldMessage, cathedralDialogue, cathedralFinalOpen, cathedralMessage]);
   useEffect(() => {
     if (studioAnomalyPhase !== "active" || activeScene !== "studio") return;
     let frame = 0;
@@ -1438,6 +1711,24 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     if (actionId === "open-sessions") setSessionsOpen(true);
   }
 
+  function playCathedralDoorTone() {
+    try {
+      const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+      if(!AudioContextClass)return;
+      const context=new AudioContextClass();
+      const oscillator=context.createOscillator();
+      const gain=context.createGain();
+      oscillator.type="sine";
+      oscillator.frequency.setValueAtTime(92,context.currentTime);
+      oscillator.frequency.exponentialRampToValueAtTime(48,context.currentTime+.62);
+      gain.gain.setValueAtTime(.0001,context.currentTime);
+      gain.gain.exponentialRampToValueAtTime(.065,context.currentTime+.05);
+      gain.gain.exponentialRampToValueAtTime(.0001,context.currentTime+.68);
+      oscillator.connect(gain);gain.connect(context.destination);
+      oscillator.onended=()=>{void context.close();};
+      oscillator.start();oscillator.stop(context.currentTime+.7);
+    } catch { /* The transition remains playable when audio is unavailable. */ }
+  }
   function enterScenario(destination) {
     if (frequencyPhaseRef.current !== "idle") return;
     if (concertPhase !== "idle") stopConcert();
@@ -1450,6 +1741,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     setArcadeGameId(null);
     setRooftopPuzzle(null);
     setLostShipPanel(null);
+    clearUnderworldDialogue();
     setUnderworldMessage(null);
     setLostShipMessage(null);
     setParthenonPanel(null); setParthenonMessage(null);setMatrixPanel(null);setMatrixMessage(null);setMatrixCinematic(null); setParthenonBossStatus({ phase: "idle", health: 6, maxHealth: 6, petrification: 0, phaseNumber: 1 });
@@ -1503,11 +1795,21 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     } else if(destination==="matrix"){
       if(!parthenonProgressRef.current.frequencyFragment02Analyzed){closeMap();return;}
       commitMatrix("enter");setNearby(null);setFirstPerson(false);setJumping(false);setActiveScene("matrix");
+    } else if (destination === "cathedral") {
+      if (!underworldProgressRef.current.completed) { closeMap(); return; }
+      const firstEntry=!cathedralProgressRef.current.entered;
+      playCathedralDoorTone();
+      commitCathedral("enter");
+      setNearby(null); setFirstPerson(false); setJumping(false);
+      setCathedralMessage(firstEntry?"Tras la puerta roja, los ecos de la Catedral murmuran sobre memoria, tiempo y verdad.":null);
+      setCathedralDialogue(null);setCathedralFinalOpen(false);setCathedralTransition(true);
+      setActiveScene("cathedral");
     } else if (destination === "underworld") {
+      if (activeScene === "cathedral") underworldPlayerRef.current={x:0,z:-47.9,yaw:0,viewYaw:0};
       if (!chapter10ProgressRef.current.chapterCompleted) { closeMap(); return; }
       setNearby(null); setFirstPerson(false); setJumping(false);
       combatHeartsRef.current=3;setCombatHearts(3);
-      setUnderworldMessage(null); setActiveScene("underworld");
+      setUnderworldSceneReady(false); setUnderworldMessage(null); setActiveScene("underworld");
     } else if (destination === "discography") {
       if(matrixProgressRef.current.archiveRead)commitMatrix("return-home");
       if (arcadeProgressRef.current.recordStoreFutureVisionSeen &&
@@ -2015,29 +2317,115 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     <footer className="studio-footer"><span>FREQUENCY 09</span><span>DIMENSIÓN INTERIOR</span><span>1999 / ?</span></footer>
   </div>;
 
+  if (activeScene === "cathedral") return <div ref={storeRef} className="neon-record-store neon-recording-studio neon-underworld neon-cathedral" data-frequency-vision={cathedralProgress.visionActive ? "active" : "inactive"} role={standalone ? "region" : "dialog"} aria-modal={standalone ? undefined : "true"} aria-label="Capítulo 12, La Catedral de los Condenados">
+    <RecordStoreScene scenario="cathedral" albums={DISCOGRAPHY_ALBUMS}
+      onNearby={setNearby} onExamine={examineCathedral} onViewChange={setFirstPerson} onJumpChange={setJumping}
+      interactionLocked={paused || mapOpen || inventoryOpen || Boolean(cathedralMessage) || Boolean(cathedralDialogue) || cathedralFinalOpen || cathedralTransition || cathedralReveal}
+      paused={paused || mapOpen || inventoryOpen || Boolean(cathedralMessage) || Boolean(cathedralDialogue) || cathedralFinalOpen || cathedralTransition || cathedralReveal}
+      firstPerson={firstPerson} playerSnapshotRef={cathedralPlayerRef} lostShipProgress={lostShipProgress}
+      cathedralProgress={cathedralProgress} cathedralCue={cathedralLine} onCathedralEvent={commitCathedral}
+      onCathedralFeedback={handleCathedralFeedback} cathedralSequenceSkip={cathedralSequenceSkip}
+      cathedralPresentationPaused={paused || mapOpen || inventoryOpen}
+      orbApiRef={orbApiRef} onOrbStatus={setOrbStatus} orbStatus={orbStatus} />
+    <header className="studio-header"><div><span>NEONBOY UNIVERSE / CAPÍTULO 12</span><h2>LA CATEDRAL DE LOS CONDENADOS</h2><p>Los ecos guardan una transmisión imposible</p>
+        <div className="cathedral-controls" aria-label="Controles del teclado">
+          <span><kbd>WASD</kbd> Caminar</span><span>Arrastrar · Mirar</span><span><kbd>E</kbd> Examinar</span>
+          <span><kbd>V</kbd> Vista</span><span><kbd>F</kbd> Orbe</span><span><kbd>R</kbd> Recuperar</span>
+        </div></div>
+      <div className="studio-header-actions">{inventoryButton}<button type="button" onClick={() => setCathedralDiaryOpen((open) => !open)}>DIARIO</button><button type="button" onClick={openMap}><MapPinned size={17} /> MAPA</button>{cathedralProgress.completed && <button type="button" onClick={() => setCathedralFinalOpen(true)}>REGISTRO FINAL</button>}</div></header>
+    <UniverseMissionCard className={"underworld-mission cathedral-mission" + (cathedralDiaryOpen ? " is-diary-open" : "")} title="CAPÍTULO 12 / LA PRIMERA VOZ" kind="signal"
+      objective={cathedralObjective(cathedralProgress)} complete={cathedralProgress.completed}
+      details={[cathedralProgress.archiveOpen ? "ARCHIVO · ABIERTO" : "SELLOS · "+cathedralProgress.seals.length+"/3",
+        "RECUERDOS · "+cathedralProgress.memories.length+"/3", cathedralProgress.altarOpen && "ALTAR · ABIERTO",
+        cathedralProgress.custodianMet && "CUSTODIO · ENCONTRADO",
+        cathedralProgress.anomalyHeard && "ANOMALÍA · SEÑAL DIVIDIDA",
+        cathedralProgress.completed && "TRANSMISIÓN · LOCALIZADA"]}
+      footer={cathedralDiaryOpen && <div className="cathedral-diary-notes"><strong>DIARIO DE NEONBOY</strong>
+        <p>La inscripción habla de memoria, tiempo y verdad.</p>
+        {cathedralProgress.archiveOpen && <p>El Archivo conserva ecos de la Nave Perdida, el Partenón Maldito y la Realidad Fracturada.</p>}
+        {cathedralProgress.custodianMet && <p>El Custodio afirma que las puertas no fueron creadas por demonios y que mis recuerdos podrían estar incompletos.</p>}
+        {cathedralProgress.anomalyHeard && <p>Los fragmentos de frecuencia forman parte de una transmisión original dividida deliberadamente.</p>}
+        {cathedralProgress.altarHintHeard && <p>El Custodio señaló el Altar de la Primera Voz: responderá a una frecuencia conocida.</p>}
+        {cathedralProgress.altarOpen && <p>El Archivo reconstruyó tres recuerdos, pero aún no conozco su origen.</p>}
+        {cathedralProgress.completed && <p>El Altar contenía una grabación imposible: una melodía mía registrada hace más de mil años. Las respuestas aguardan en el Trono del Abismo.</p>}
+      </div>} />
+    <div className="underworld-vision-control"><button type="button" className={cathedralProgress.visionActive ? "is-active" : ""} aria-pressed={cathedralProgress.visionActive} onClick={() => commitCathedral("vision-toggle")} disabled={paused || mapOpen || inventoryOpen || Boolean(cathedralDialogue) || cathedralFinalOpen || cathedralReveal}>◈ VISIÓN DE FRECUENCIA <kbd>C</kbd> · {cathedralProgress.visionActive ? "ACTIVA" : "INACTIVA"}</button></div>
+    <div className="parthenon-hearts" role="status" aria-label={"Salud " + combatHearts + " de 3"}>{Array.from({ length: 3 }, (_, i) => <span key={i}>{i < combatHearts ? "♥" : "♡"}</span>)}</div>
+    <NeonOrbHud progress={lostShipProgress} status={orbStatus} label="CATEDRAL"
+      locked={paused || mapOpen || inventoryOpen || Boolean(cathedralMessage) || Boolean(cathedralDialogue) || cathedralFinalOpen || cathedralTransition || cathedralReveal}
+      onFire={() => orbApiRef.current?.fire()} onRecall={() => orbApiRef.current?.recall()} />
+    {nearby?.kind === "examine" && !cathedralMessage && !cathedralDialogue && !paused && !cathedralFinalOpen && !cathedralReveal && <InteractionPrompt className="studio-examine-cue">[E] {nearby.label}</InteractionPrompt>}
+    {cathedralFeedback && !cathedralDialogue && !cathedralFinalOpen && !paused && !mapOpen && !inventoryOpen && <aside className="cathedral-recall-toast" role="status" style={{"--recall-color":cathedralFeedback.color}}>
+      <small>{cathedralFeedback.heading}</small><strong>{cathedralFeedback.title}</strong>
+      <p><span>NEONBOY</span> {cathedralFeedback.line}</p>
+      {cathedralProgress.altarOpen && <em>La transmisión vuelve a unirse. El Altar de la Primera Voz está abierto.</em>}
+      <button type="button" aria-label="Cerrar recuerdo" onClick={()=>setCathedralFeedback(null)}>×</button>
+    </aside>}
+    {cathedralCinema && !cathedralDialogue && !paused && !mapOpen && !inventoryOpen && <button type="button" className="cathedral-skip-sequence" onClick={skipCathedralSequence}>Omitir secuencia</button>}
+    {cathedralReveal && <div className="cathedral-revelation" aria-live="polite"><span>RECONSTRUYENDO LA PRIMERA VOZ</span></div>}
+    {cathedralLine && <RecordStoreConversation key={cathedralLine.id}
+      npc={CATHEDRAL_CONVERSATION_NPC}
+      node={{ id: cathedralLine.id, kicker: "CAPÍTULO 12 · LA CATEDRAL DE LOS CONDENADOS",
+        lines: [{speaker:cathedralLine.speaker,text:cathedralLine.text}],
+        options:[{id:"continue",label:cathedralDialogue.index===CATHEDRAL_DIALOGUES[cathedralDialogue.type].length-1?"Terminar":"Continuar"},
+          {id:"skip",label:"Omitir"}] }}
+      lastChoice="" overlayClassName="underworld-conversation-overlay" lineId={cathedralLine.id}
+      sequenceId={cathedralDialogue.type} voiceUrlOverride={getCathedralVoiceUrl(cathedralLine.id)}
+      onChoose={(choiceId)=>advanceCathedralDialogue(choiceId==="skip")}
+      onClose={()=>advanceCathedralDialogue(true)}
+      onVoiceEnded={()=>advanceCathedralDialogue()} />}
+    {cathedralMessage && !cathedralLine && <div className="underworld-message" role="status"><small>CATEDRAL / ECO</small><p>{cathedralMessage}</p><button type="button" onClick={() => setCathedralMessage(null)}>Continuar</button></div>}
+    {cathedralFinalOpen && <div className="cathedral-final-backdrop"><section className="cathedral-final-panel" role="dialog" aria-modal="true" aria-label="Transmisión original localizada">
+      <small>CAPÍTULO 12 / LA PRIMERA VOZ</small>
+      <h3>{cathedralProgress.completed?"CAPÍTULO 12 COMPLETADO":"TRANSMISIÓN ORIGINAL LOCALIZADA"}</h3>
+      <p>{cathedralProgress.completed?"LA CATEDRAL DE LOS CONDENADOS · NUEVO DESTINO IDENTIFICADO: EL TRONO DEL ABISMO":
+        "REGISTRO TEMPORAL: INCOMPATIBLE · ORIGEN: DESCONOCIDO. Una melodía de NeonBoy fue registrada hace más de mil años."}</p>
+      <strong>SIGUIENTE DESTINO: EL TRONO DEL ABISMO</strong><span>Próximamente</span>
+      {!cathedralProgress.completed && <button type="button" onClick={()=>startCathedralDialogue("farewell")}>Escuchar al Custodio</button>}
+      <button type="button" onClick={() => setCathedralFinalOpen(false)}>Seguir explorando</button>
+    </section></div>}
+    {(cathedralDialogue?.type==="altar" || cathedralReveal) && <div className="cathedral-ritual-fx" aria-hidden="true" />}
+    {cathedralTransition && <div className="cathedral-entry-transition" aria-hidden="true"><span>CAPÍTULO 12 · LA CATEDRAL DE LOS CONDENADOS</span></div>}
+    {mapOpen && <NeonUniverseMap onClose={closeMap} onEnter={enterScenario} unlockedScenarios={unlockedScenarios} />}
+    {inventoryPanel}{inventoryToast}
+    <footer className="studio-footer"><span>CAPÍTULO 12 / INFRAMUNDO</span><span>{firstPerson ? "PRIMERA PERSONA" : "TERCERA PERSONA"}</span><span>{cathedralProgress.completed ? "TRANSMISIÓN ORIGINAL" : "LA PRIMERA VOZ"}</span></footer>
+  </div>;
+
   if (activeScene === "underworld") return <div ref={storeRef} className="neon-record-store neon-recording-studio neon-underworld" data-frequency-vision={underworldProgress.visionActive ? "active" : "inactive"} role={standalone ? "region" : "dialog"} aria-modal={standalone ? undefined : "true"} aria-label="Capítulo 11, Puente de las Almas">
     <RecordStoreScene key={"underworld-" + combatRetryKey} scenario="underworld" albums={DISCOGRAPHY_ALBUMS}
-      onNearby={setNearby} onExamine={examineUnderworld} onViewChange={setFirstPerson} onJumpChange={setJumping}
-      interactionLocked={paused || mapOpen || inventoryOpen || Boolean(underworldMessage) || combatHearts === 0}
-      paused={paused || mapOpen || inventoryOpen || Boolean(underworldMessage) || combatHearts === 0}
+      onNearby={setNearby} onExamine={examineUnderworld} onViewChange={setFirstPerson} onJumpChange={setJumping} onSceneReady={() => setUnderworldSceneReady(true)}
+      interactionLocked={paused || mapOpen || inventoryOpen || Boolean(underworldMessage) || Boolean(underworldDialogue) || combatHearts === 0}
+      paused={paused || mapOpen || inventoryOpen || Boolean(underworldMessage) || Boolean(underworldDialogue) || combatHearts === 0}
       firstPerson={firstPerson} playerSnapshotRef={underworldPlayerRef} lostShipProgress={lostShipProgress}
-      underworldProgress={underworldProgress} onUnderworldEvent={commitUnderworld} onCombatDamage={onCombatDamage}
+      underworldProgress={underworldProgress} onUnderworldEvent={handleUnderworldEvent} onCombatDamage={onCombatDamage}
       orbApiRef={orbApiRef} onOrbStatus={setOrbStatus} orbStatus={orbStatus} />
     <header className="studio-header"><div><span>NEONBOY UNIVERSE / CAPÍTULO 11</span><h2>PUENTE DE LAS ALMAS</h2><p>Primer ingreso al Inframundo</p></div>
-      <div className="studio-header-actions">{inventoryButton}<button type="button" onClick={openMap}><MapPinned size={17} /> MAPA</button></div></header>
+      <div className="studio-header-actions">{inventoryButton}<button type="button" onClick={openMap}><MapPinned size={17} /> MAPA</button>{import.meta.env.DEV && <button type="button" className="underworld-dev-reset" onClick={restartUnderworldForTesting}>↻ Reiniciar nivel · DEV</button>}</div></header>
     <div className="studio-control-hint">WASD: caminar | Arrastrar: mirar | C: visión | E: examinar | F/Click: Orbe Neón | R: recuperar | M: mapa</div>
     <UniverseMissionCard className="underworld-mission" title="CAPÍTULO 11 / PUENTE DE LAS ALMAS" kind="signal"
       objective={underworldObjective(underworldProgress)} complete={underworldProgress.completed}
-      details={[underworldProgress.bridgeCrossed && "PUENTE · CRUZADO", `CENTINELAS · ${underworldProgress.enemies.filter((health) => health === 0).length}/2`, underworldProgress.completed && "UMBRAL · ACTIVO"]} />
-    <div className="underworld-vision-control"><button type="button" className={underworldProgress.visionActive ? "is-active" : ""} aria-pressed={underworldProgress.visionActive} onClick={() => commitUnderworld("vision-toggle")} disabled={paused || mapOpen || inventoryOpen || combatHearts === 0}>◈ VISIÓN DE FRECUENCIA <kbd>C</kbd> · {underworldProgress.visionActive ? "ACTIVA" : "INACTIVA"}</button></div>
+      details={[underworldProgress.bridgeCrossed && "PUENTE · CRUZADO", `CENTINELAS · ${underworldProgress.enemies.filter((health) => health === 0).length}/2`, underworldProgress.enemies.some((health)=>health===0) && "GÁRGOLA · "+(UNDERWORLD_MAX_HEALTH.gargola-underworldProgress.gargolaHealth)+"/"+UNDERWORLD_MAX_HEALTH.gargola, underworldProgress.gargolaHealth===0 && "TESTIGO · "+(UNDERWORLD_MAX_HEALTH.testigo-underworldProgress.testigoHealth)+"/"+UNDERWORLD_MAX_HEALTH.testigo, underworldProgress.completed && "UMBRAL · ACTIVO"]} />
+    <div className="underworld-vision-control"><button type="button" className={underworldProgress.visionActive ? "is-active" : ""} aria-pressed={underworldProgress.visionActive} onClick={() => commitUnderworld("vision-toggle")} disabled={paused || mapOpen || inventoryOpen || Boolean(underworldDialogue) || combatHearts === 0}>◈ VISIÓN DE FRECUENCIA <kbd>C</kbd> · {underworldProgress.visionActive ? "ACTIVA" : "INACTIVA"}</button></div>
     <div className="parthenon-hearts" role="status" aria-label={"Salud " + combatHearts + " de 3"}>{Array.from({ length: 3 }, (_, i) => <span key={i}>{i < combatHearts ? "♥" : "♡"}</span>)}</div>
     <NeonOrbHud progress={lostShipProgress} status={orbStatus} label="INFRAMUNDO"
-      locked={paused || mapOpen || inventoryOpen || Boolean(underworldMessage) || combatHearts === 0}
+      locked={paused || mapOpen || inventoryOpen || Boolean(underworldMessage) || Boolean(underworldDialogue) || combatHearts === 0}
       onFire={() => orbApiRef.current?.fire()} onRecall={() => orbApiRef.current?.recall()} />
-    {nearby?.kind === "examine" && !underworldMessage && !paused && <InteractionPrompt className="studio-examine-cue">[E] {nearby.label}</InteractionPrompt>}
-    {underworldMessage && <div className="underworld-message" role="status"><small>INFRAMUNDO / ECO</small><p>{underworldMessage}</p><button type="button" onClick={() => setUnderworldMessage(null)}>Continuar</button></div>}
+    {nearby?.kind === "examine" && !underworldMessage && !underworldDialogue && !paused && <InteractionPrompt className="studio-examine-cue">[E] {nearby.label}</InteractionPrompt>}
+    {underworldLine && underworldDialogue.mode === "conversation" && <RecordStoreConversation
+      npc={UNDERWORLD_CONVERSATION_NPCS[underworldDialogue.key.split("-")[0]]}
+      node={{ id: underworldLine.id, kicker: "CAPÍTULO 11 · PUENTE DE LAS ALMAS", lines: [{ speaker: underworldLine.speaker, text: underworldLine.text }], options: [
+        { id: "continue", label: underworldDialogue.index === UNDERWORLD_SEQUENCES[underworldDialogue.key].ids.length - 1 ? "Terminar" : "Continuar" },
+        { id: "skip", label: "Omitir" },
+      ] }}
+      lastChoice="" overlayClassName="underworld-conversation-overlay" lineId={underworldLine.id} sequenceId={underworldDialogue.key}
+      onChoose={(choiceId) => advanceUnderworldDialogue(choiceId === "skip")} onClose={() => advanceUnderworldDialogue(true)} />}
+    {underworldLine && underworldDialogue.mode === "auto" && <div className="underworld-message underworld-subtitle" role="status" aria-live="polite" data-line-id={underworldLine.id} data-sequence={underworldDialogue.key}>
+      <small>{underworldLine.speaker}</small><p>{underworldLine.text}</p>
+      <button type="button" className="underworld-subtitle-close" onClick={() => advanceUnderworldDialogue(true)} aria-label="Omitir subtítulo">×</button>
+    </div>}
+    {underworldMessage && !underworldLine && <div className="underworld-message" role="status"><small>{underworldMessage.speaker || "INFRAMUNDO / ECO"}</small><p>{underworldMessage.text || underworldMessage}</p><button type="button" onClick={() => setUnderworldMessage(null)}>Continuar</button></div>}
     {damageTick > 0 && <div key={damageTick} className="parthenon-damage" aria-hidden="true" />}
-    {combatHearts === 0 && <div className="parthenon-fallen"><section className="parthenon-fallen-card" role="dialog" aria-modal="true" aria-label="Has caído en el Inframundo"><h2>LA FRECUENCIA SE APAGÓ</h2><p>La inscripción y los centinelas derrotados se conservan.</p><div className="parthenon-fallen-actions"><button type="button" onClick={retryCombat}>Reintentar desde el puente</button><button type="button" onClick={() => enterScenario("recording-studio")}>Volver al estudio</button></div></section></div>}
+    {combatHearts === 0 && <div className="parthenon-fallen"><section className="parthenon-fallen-card" role="dialog" aria-modal="true" aria-label="Has caído en el Inframundo"><h2>LA FRECUENCIA SE APAGÓ</h2><p>La inscripción y los enemigos derrotados se conservan.</p><div className="parthenon-fallen-actions"><button type="button" onClick={retryCombat}>Reintentar desde el puente</button>{import.meta.env.DEV && <button type="button" onClick={restartUnderworldForTesting}>Reiniciar nivel · DEV</button>}<button type="button" onClick={() => enterScenario("recording-studio")}>Volver al estudio</button></div></section></div>}
     {mapOpen && <NeonUniverseMap onClose={closeMap} onEnter={enterScenario} unlockedScenarios={unlockedScenarios} />}
     {inventoryPanel}{inventoryToast}
     <footer className="studio-footer"><span>CAPÍTULO 11 / INFRAMUNDO</span><span>{firstPerson ? "PRIMERA PERSONA" : "TERCERA PERSONA"}</span><span>{underworldProgress.completed ? "UMBRAL ACTIVADO" : "SEÑAL 666"}</span></footer>

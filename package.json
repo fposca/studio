@@ -18,6 +18,9 @@
     "desktop": "corepack pnpm run build && electron .",
     "dist:win": "corepack pnpm run build && node desktop/build-windows.js",
     "dev:discografia": "vite --config apps/neonboy-discografia/vite.config.js --host 127.0.0.1 --port 5174 --strictPort",
+    "dev:interbanking": "vite --config apps/interbanking/vite.config.js --host 127.0.0.1 --port 5176 --strictPort",
+    "build:interbanking": "vite build --config apps/interbanking/vite.config.js --configLoader runner",
+    "preview:interbanking": "vite preview --config apps/interbanking/vite.config.js --host 127.0.0.1 --port 4176 --strictPort",
     "build:discografia": "vite build --config apps/neonboy-discografia/vite.config.js --configLoader runner",
     "preview:discografia": "vite preview --config apps/neonboy-discografia/vite.config.js --host 127.0.0.1 --port 4174 --strictPort",
     "dev:halloween": "vite --config apps/neonboy-halloween/vite.config.js --host 127.0.0.1 --port 5175 --strictPort",
@@ -34,14 +37,14 @@
     "ffmpeg-static": "^5.2.0",
     "firebase": "^12.19.0",
     "lucide-react": "^0.542.0",
-    "multer": "^2.0.2",
+    "multer": "^2.5.0",
     "paper": "^0.12.18",
     "pdfjs-dist": "^6.3.289",
     "potrace": "^2.1.8",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "three": "^0.186.0",
-    "vite": "^7.1.4"
+    "vite": "^7.3.8"
   },
   "devDependencies": {
     "@gltf-transform/cli": "4.5.1",

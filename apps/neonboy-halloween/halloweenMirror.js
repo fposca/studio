@@ -76,7 +76,7 @@ export function createHalloweenMirror({ mobile = false, lowPower = false, reflec
   const capture = surface.onBeforeRender;
   const mirrorPosition = new THREE.Vector3(), cameraPosition = new THREE.Vector3(), normal = new THREE.Vector3();
   const rotation = new THREE.Quaternion();
-  const interval = 1000 / (lowPower ? 10 : mobile ? 15 : 24);
+  let interval = 1000 / (lowPower ? 10 : mobile ? 15 : 24);
   let enabled = reflectionEnabled, player = null, nextFrame = 0, active = false, failed = false;
   surface.onBeforeRender = function(renderer, scene, camera) {
     if (!enabled || failed) return;
@@ -115,6 +115,7 @@ export function createHalloweenMirror({ mobile = false, lowPower = false, reflec
     setDepth(depth) { surface.position.z = depth; bezel.children.forEach(edge => { edge.position.z = depth-.008; }); },
     setPlayer(value) { player = value; },
     setEnabled(value) { enabled = value; },
+    setQuality(tier) { interval = 1000 / (tier === "low" ? 6 : tier === "medium" ? 10 : tier === "ultra" ? 24 : 15); },
     invalidate() { nextFrame = 0; failed = false; surface.material.uniforms.reflectionReady.value = 0; },
     setVision(value) {
       if (active === value) return;

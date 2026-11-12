@@ -14,13 +14,15 @@ function extractAnimation(name) {
   if (input.readUInt32LE(binaryHeader + 4) !== 0x004e4942) throw new Error(`Falta BIN: ${name}`);
   const binaryStart = binaryHeader + 8;
   const animations = structuredClone(gltf.animations || []);
-  if (name === "neonboy-new-walk" || name === "neonboy-new-jump" || name === "neonboy-running") {
+  if (name === "neonNewWalk" || name === "neonboy-new-walk" || name === "neonboy-new-jump" || name === "neonboy-running") {
     const idle = readFileSync(assetDirectory + "neon-inactivo-hd.glb");
     const idleJsonLength = idle.readUInt32LE(12);
     const idleGltf = JSON.parse(idle.toString("utf8", 20, 20 + idleJsonLength));
     const compatibleBones = new Set(idleGltf.nodes.map((node) => node.name));
     for (const animation of animations) {
-      const channels = animation.channels.filter((channel) => compatibleBones.has(gltf.nodes[channel.target.node]?.name));
+      const channels = animation.channels.filter((channel) =>
+        compatibleBones.has(gltf.nodes[channel.target.node]?.name) &&
+        !(name === "neonNewWalk" && channel.target.path === "scale"));
       const usedSamplers = [...new Set(channels.map((channel) => channel.sampler))];
       const samplerMap = new Map(usedSamplers.map((id, index) => [id, index]));
       animation.channels = channels.map((channel) => ({ ...channel, sampler: samplerMap.get(channel.sampler) }));

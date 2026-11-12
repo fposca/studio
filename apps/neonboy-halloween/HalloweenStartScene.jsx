@@ -7,6 +7,7 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { createOrbGlowTexture, createPlasmaOrb, createOrbTrail } from "../../src/game/neonOrbVisuals.js";
 import { createHolographicGroundRing } from "../../src/game/holographicGroundRing.js";
 import { disposeObjects } from "../../src/game/disposeGameObjects.js";
+import { graphicsPixelRatio, readGraphicsSettings } from "./halloweenGraphicsQuality.js";
 
 const IDLE_URL = new URL("./models/neon-inactivo-hd.mobile.glb", import.meta.url).href;
 const POWER_URL = new URL("../../src/assets/neonboy-animaciones/neonboy-power.anim.glb", import.meta.url).href;
@@ -64,6 +65,8 @@ export default function HalloweenStartScene() {
       return;
     }
     const mobile = window.matchMedia("(pointer: coarse)").matches;
+    const graphicsSettings = readGraphicsSettings();
+    const graphicsTier = graphicsSettings.mode === "auto" ? (mobile ? "medium" : "high") : graphicsSettings.mode;
     renderer.setClearColor(0x000000, 0);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.16;
@@ -206,7 +209,7 @@ export default function HalloweenStartScene() {
 
     function resize() {
       const width = Math.max(1, canvas.clientWidth), height = Math.max(1, canvas.clientHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.2 : 1.5, Math.sqrt(900000 / (width * height))));
+      renderer.setPixelRatio(graphicsPixelRatio(width, height, window.devicePixelRatio || 1, graphicsTier));
       renderer.setSize(width, height, false);
       camera.aspect = width / height;
       // Portrait and narrow desktop columns still show the entire figure.

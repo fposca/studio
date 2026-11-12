@@ -22,8 +22,8 @@ export default function HalloweenRealityKey() {
       </g>
     </svg>
     <div><small>OBJETO OBTENIDO</small><h3>La llave de la realidad</h3>
-      <p>Encontraste una llave antigua. El ojo grabado coincide con el de una caja de madera.</p>
-      <strong>Dentro est&aacute;n las gafas de realidad de NeonBoy.</strong>
+      <p>Esta llave abre una caja de madera escondida en la tienda.</p>
+      <strong>Dentro de la caja est&aacute;n las gafas de realidad de NeonBoy.</strong>
       <span>Guardaste la llave.</span>
     </div>
   </section>;

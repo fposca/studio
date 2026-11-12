@@ -7,10 +7,6 @@ const REACTIONS = [
   "Un sonido rompe el silencio. Belfegor te respondi\u00f3.",
 ];
 
-export function canRevealRealityKey(attempts) {
-  return attempts >= BELFEGOR_REQUIRED_ATTEMPTS;
-}
-
 export function advanceBelfegorAttempt(current) {
   const attempts = Math.min(BELFEGOR_REQUIRED_ATTEMPTS, Math.max(0, current) + 1);
   return { attempts, responded: attempts === BELFEGOR_REQUIRED_ATTEMPTS };

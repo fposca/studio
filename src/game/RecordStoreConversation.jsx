@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import { MessageCircle, Volume2, X } from "lucide-react";
 import { getStoreVoiceUrl } from "./recordStoreVoices.js";
 
-export default function RecordStoreConversation({ npc, node, lastChoice, onChoose, onClose, onVoiceEnded }) {
+export default function RecordStoreConversation({ npc, node, lastChoice, onChoose, onClose, onVoiceEnded, overlayClassName = "", lineId, sequenceId, voiceUrlOverride }) {
   const firstOption = useRef(null);
   const dialogRef = useRef(null);
   const voiceRef = useRef(null);
   const [voiceStatus, setVoiceStatus] = useState("idle");
-  const voiceUrl = getStoreVoiceUrl(npc.id, node);
+  const voiceUrl = voiceUrlOverride === undefined ? getStoreVoiceUrl(npc.id, node) : voiceUrlOverride;
   useEffect(() => {
     if (node.id === "altered:tito:intro") {
       dialogRef.current?.focus({ preventScroll: true });
@@ -51,7 +51,7 @@ export default function RecordStoreConversation({ npc, node, lastChoice, onChoos
     );
   }
 
-  return <div className="record-store-conversation-overlay">
+  return <div className={`record-store-conversation-overlay ${overlayClassName}`} data-line-id={lineId} data-sequence={sequenceId}>
     <section ref={dialogRef} tabIndex={-1} className="record-store-conversation" role="dialog" aria-modal="true" aria-label={`Conversación con ${npc.name}`}>
       <div className="record-store-conversation-head">
         <span className="record-store-conversation-avatar" aria-hidden="true">{npc.avatar || (npc.id === "tito" ? "TS" : npc.id === "rulo" ? "RD" : npc.id === "roxy" ? "RX" : npc.id === "freddy" ? "FR" : npc.id === "skeleton-holy" ? "HF" : "UF")}</span>
@@ -70,7 +70,7 @@ export default function RecordStoreConversation({ npc, node, lastChoice, onChoos
       </button>}
       <div className="record-store-dialogue-options" role="group" aria-label="Respuestas de Neonboy">
         {node.options.map((choice, index) => <button key={choice.id} type="button" ref={index === 0 ? firstOption : undefined}
-          onClick={() => onChoose(choice.id, choice.label)}><span>{String(index + 1).padStart(2, "0")}</span>{choice.label}</button>)}
+          aria-label={choice.label} onClick={() => onChoose(choice.id, choice.label)}><span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>{choice.label}</button>)}
       </div>
       <small className="record-store-conversation-hint">Elegí una respuesta · Escape para salir</small>
     </section>

@@ -263,7 +263,7 @@ export function createHalloweenJudgeEncounter(scene, { isSafe = () => true, onDa
     startAttack(nextAttack, player);
   }
   return {
-    root, mount, setPhase, update, armShot, hit,
+    root, setParticleScale: visuals.setParticleScale, mount, setPhase, update, armShot, hit,
     getTarget() { if (phase !== "combat" || !health || pendingTeleport) return null; target.position.set(root.position.x, 1.3, root.position.z); return target; },
     get phase() { return phase; }, get health() { return health; }, get position() { return root.position; },
     stop() { mixer?.stopAllAction(); },

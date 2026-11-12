@@ -21,16 +21,18 @@ import {MATRIX_LAYOUT} from "./matrixLayout.js";
 import {MATRIX_INITIAL,normalizeMatrixProgress} from "./matrixQuest.js";
 import { STORE_INVASION_INITIAL, normalizeStoreInvasionProgress } from "./storeInvasionQuest.js";
 import { CHAPTER10_INITIAL, normalizeChapter10Progress } from "./chapter10Quest.js";
-import { UNDERWORLD_LAYOUT, canStandInUnderworld } from "./underworldLayout.js";
+import { UNDERWORLD_LAYOUT, UNDERWORLD_PORTAL_STOP_Z, canStandInUnderworld } from "./underworldLayout.js";
 import { UNDERWORLD_INITIAL, normalizeUnderworldProgress } from "./underworldQuest.js";
+import { CATHEDRAL_LAYOUT, canStandInCathedral } from "./cathedralLayout.js";
+import { CATHEDRAL_INITIAL, normalizeCathedralProgress } from "./cathedralQuest.js";
 
 export const UNIVERSE_SAVES_KEY = "neonboy.universe.saves.v1";
 export const UNIVERSE_SAVE_SLOTS = ["autosave", "slot-1", "slot-2", "slot-3"];
-const SCENES = ["store", "studio", "club", "arcade", "rooftop", "lost-ship", "parthenon", "matrix", "underworld"];
-const LAYOUTS = { store: STORE_LAYOUT, studio: STUDIO_LAYOUT, club: ROCK_CLUB_LAYOUT, arcade: ARCADE_LAYOUT, rooftop: ROOFTOP_LAYOUT, "lost-ship": LOST_SHIP_LAYOUT, parthenon: PARTHENON_LAYOUT, matrix: MATRIX_LAYOUT, underworld: UNDERWORLD_LAYOUT };
+const SCENES = ["store", "studio", "club", "arcade", "rooftop", "lost-ship", "parthenon", "matrix", "underworld", "cathedral"];
+const LAYOUTS = { store: STORE_LAYOUT, studio: STUDIO_LAYOUT, club: ROCK_CLUB_LAYOUT, arcade: ARCADE_LAYOUT, rooftop: ROOFTOP_LAYOUT, "lost-ship": LOST_SHIP_LAYOUT, parthenon: PARTHENON_LAYOUT, matrix: MATRIX_LAYOUT, underworld: UNDERWORLD_LAYOUT, cathedral: CATHEDRAL_LAYOUT };
 const ALBUM_IDS = new Set(DISCOGRAPHY_ALBUMS.map((album) => album.id));
 const GROUPS = new Set(["instrumental", "band"]);
-const UNLOCKS = new Set(["recording-studio", "rock-club", "arcade-1999", "neonboy-rooftop", "lost-ship", "parthenon", "matrix", "underworld"]);
+const UNLOCKS = new Set(["recording-studio", "rock-club", "arcade-1999", "neonboy-rooftop", "lost-ship", "parthenon", "matrix", "underworld", "cathedral", "abyss-throne"]);
 
 export function createNewUniverseGame() {
   return {
@@ -44,8 +46,8 @@ export function createNewUniverseGame() {
     arcadeProgress: { ...INITIAL_ARCADE_PROGRESS, met: [] },
     rooftopProgress: { ...INITIAL_ROOFTOP_PROGRESS, switches: [] },
     lostShipProgress: { ...INITIAL_LOST_SHIP_PROGRESS },
-    parthenonProgress: { ...PARTHENON_INITIAL }, matrixProgress: { ...MATRIX_INITIAL }, storeInvasionProgress: { ...STORE_INVASION_INITIAL }, chapter10Progress: { ...CHAPTER10_INITIAL, channelInput: [] }, underworldProgress: { ...UNDERWORLD_INITIAL, enemies: [2, 2] }, combatHearts: 3,
-    mapUnlocks: [], positions: { store: null, studio: null, club: null, arcade: null, rooftop: null, "lost-ship": null, parthenon: null, matrix: null, underworld: null },
+    parthenonProgress: { ...PARTHENON_INITIAL }, matrixProgress: { ...MATRIX_INITIAL }, storeInvasionProgress: { ...STORE_INVASION_INITIAL }, chapter10Progress: { ...CHAPTER10_INITIAL, channelInput: [] }, underworldProgress: { ...UNDERWORLD_INITIAL, enemies: [3, 3] }, cathedralProgress: { ...CATHEDRAL_INITIAL, seals: [], memories: [] }, combatHearts: 3,
+    mapUnlocks: [], positions: { store: null, studio: null, club: null, arcade: null, rooftop: null, "lost-ship": null, parthenon: null, matrix: null, underworld: null, cathedral: null },
   };
 }
 
@@ -84,6 +86,7 @@ export function normalizeUniverseGame(data) {
   const storeInvasionProgress = normalizeStoreInvasionProgress(data.storeInvasionProgress, matrixProgress.archiveRead && (matrixProgress.returnedHome || data.scene === "store"));
   const chapter10Progress = normalizeChapter10Progress(data.chapter10Progress, storeInvasionProgress.bossDefeated);
   const underworldProgress = normalizeUnderworldProgress(data.underworldProgress, chapter10Progress.chapterCompleted);
+  const cathedralProgress = normalizeCathedralProgress(data.cathedralProgress, underworldProgress.completed);
   const narrativeUnlocks = [
     ...(phase.phase === "new" ? [] : ["recording-studio"]),
     ...(clubQuest.credentialGranted ? ["rock-club"] : []),
@@ -93,9 +96,11 @@ export function normalizeUniverseGame(data) {
     ...(lostShipProgress.orbReceiverActivated ? ["parthenon"] : []),
     ...(parthenonProgress.frequencyFragment02Analyzed ? ["matrix"] : []),
     ...(chapter10Progress.chapterCompleted ? ["underworld"] : []),
+    ...(underworldProgress.completed ? ["cathedral"] : []),
+    ...(cathedralProgress.completed ? ["abyss-throne"] : []),
   ];
   return {
-    scene: data.scene === "underworld" && !chapter10Progress.chapterCompleted ? "store" : data.scene === "matrix" && !parthenonProgress.frequencyFragment02Analyzed ? "lost-ship" : data.scene === "parthenon" && !lostShipProgress.orbReceiverActivated
+    scene: data.scene === "cathedral" && !underworldProgress.completed ? (chapter10Progress.chapterCompleted ? "underworld" : "store") : data.scene === "underworld" && !chapter10Progress.chapterCompleted ? "store" : data.scene === "matrix" && !parthenonProgress.frequencyFragment02Analyzed ? "lost-ship" : data.scene === "parthenon" && !lostShipProgress.orbReceiverActivated
       ? (lostShipProgress.linkActivated ? "lost-ship" : rooftopProgress.missionCompleted ? "rooftop" : "store")
       : data.scene === "lost-ship" && !lostShipProgress.linkActivated
         ? (rooftopProgress.missionCompleted ? "rooftop" : "store") : data.scene,
@@ -105,7 +110,7 @@ export function normalizeUniverseGame(data) {
     storyProgress: validatedProgress(loadStoreProgress, STORE_DIALOGUE_SAVE_KEY, data.storyProgress),
     studioProgress,
     rooftopProgress,
-    lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress,
+    lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress, cathedralProgress,
     combatHearts: Number.isInteger(data.combatHearts) ? Math.max(0, Math.min(3, data.combatHearts)) : 3,
     masterTape: phase,
     clubQuest,
@@ -117,11 +122,13 @@ export function normalizeUniverseGame(data) {
       rikyFrequencyClueKnown: canDiscoverRikyClue(rikyProgress, phase) && rikyProgress.rikyFrequencyClueKnown,
       postShowSeen: clubQuest.anomalySeen && rikyProgress.postShowSeen,
     },
-    mapUnlocks: [...new Set([...(Array.isArray(data.mapUnlocks) ? data.mapUnlocks.filter((id) => UNLOCKS.has(id) && (id !== "rock-club" || clubQuest.credentialGranted) && (id !== "arcade-1999" || clubQuest.anomalySeen) && (id !== "neonboy-rooftop" || studioProgress.rooftopClueKnown) && (id !== "lost-ship" || lostShipProgress.linkActivated) && (id !== "parthenon" || lostShipProgress.orbReceiverActivated) && (id !== "matrix" || parthenonProgress.frequencyFragment02Analyzed) && (id !== "underworld" || chapter10Progress.chapterCompleted)) : []), ...narrativeUnlocks])],
+    mapUnlocks: [...new Set([...(Array.isArray(data.mapUnlocks) ? data.mapUnlocks.filter((id) => UNLOCKS.has(id) && (id !== "rock-club" || clubQuest.credentialGranted) && (id !== "arcade-1999" || clubQuest.anomalySeen) && (id !== "neonboy-rooftop" || studioProgress.rooftopClueKnown) && (id !== "lost-ship" || lostShipProgress.linkActivated) && (id !== "parthenon" || lostShipProgress.orbReceiverActivated) && (id !== "matrix" || parthenonProgress.frequencyFragment02Analyzed) && (id !== "underworld" || chapter10Progress.chapterCompleted) && (id !== "cathedral" || underworldProgress.completed) && (id !== "abyss-throne" || cathedralProgress.completed)) : []), ...narrativeUnlocks])],
     positions: Object.fromEntries(SCENES.map((scene) => {
       const position = safePosition(data.positions?.[scene], LAYOUTS[scene]);
+      if (scene === "cathedral" && position && !canStandInCathedral(position.x, position.z, cathedralProgress)) return [scene, { ...position, x: 0, z: cathedralProgress.archiveOpen ? -22 : CATHEDRAL_LAYOUT.spawnZ }];
       if (scene !== "underworld" || !position || canStandInUnderworld(position.x, position.z, underworldProgress.visionActive)) return [scene, position];
-      return [scene, { ...position, x: 0, z: underworldProgress.bridgeCrossed ? -33 : UNDERWORLD_LAYOUT.spawnZ }];
+      return [scene, { ...position, x: 0, z: position.z < UNDERWORLD_PORTAL_STOP_Z && underworldProgress.bridgeCrossed
+        ? -47.9 : underworldProgress.bridgeCrossed ? -33 : UNDERWORLD_LAYOUT.spawnZ }];
     })),
   };
 }

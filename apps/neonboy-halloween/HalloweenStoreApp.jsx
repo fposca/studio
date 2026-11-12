@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronsUp, Coins, Disc3, ExternalLink, Headphones, MessageCircle, Phone, PhoneOff, Play, Radio, Save, ScanEye, Volume2, VolumeX, X } from "lucide-react";
+import { ChevronsUp, Coins, Disc3, ExternalLink, Headphones, MessageCircle, Phone, PhoneOff, Play, Radio, Save, ScanEye, SlidersHorizontal, Volume2, VolumeX, X } from "lucide-react";
 import HalloweenStoreScene from "./HalloweenStoreScene.jsx";
 import InteractionPrompt from "../../src/game/InteractionPrompt.jsx";
 import { advanceVisionClock, toggleVisionClock } from "./halloweenEncounterLogic.js";
@@ -7,9 +7,10 @@ import { SECRET_COVERS, MIRROR_MESSAGES, PHONE_LINES, HALLOWEEN_NPC_IDS, nextPho
 import { createHalloweenSfx } from "./halloweenSfx.js";
 import { COMBAT_MAX_HEARTS, receiveCombatDamage } from "../../src/game/combatHeartsLogic.js";
 import HalloweenJoystick from "./HalloweenJoystick.jsx";
-import { Capacitor } from "@capacitor/core";
+import { GRAPHICS_MODES, GRAPHICS_PROFILES, readGraphicsSettings, saveGraphicsSettings } from "./halloweenGraphicsQuality.js";
 import HalloweenConversation from "./HalloweenConversation.jsx";
-import { advanceBelfegorAttempt, canRevealRealityKey } from "./halloweenBelfegorLogic.js";
+import { advanceBelfegorAttempt } from "./halloweenBelfegorLogic.js";
+import HalloweenFullscreenButton from "./HalloweenFullscreenButton.jsx";
 import HalloweenRealityKey from "./HalloweenRealityKey.jsx";
 import { advanceRealityChest, EMPTY_REALITY_CHEST } from "./halloweenRealityChestLogic.js";
 import HalloweenYouTubePlayer from "./HalloweenYouTubePlayer.jsx";
@@ -149,7 +150,6 @@ export default function HalloweenStoreApp({ initialSave, saveSlot, onSave, onExi
   const [touchRun, setTouchRun] = useState(false);
   const [orbStatus, setOrbStatus] = useState({ phase: "ready", cooldown: 0 });
   const touchMoveRef = useRef({ x: 0, y: 0 });
-  const nativeAndroid = Capacitor.getPlatform() === "android";
   const [ready, setReady] = useState(null);
   const [contextLost, setContextLost] = useState(false);
   const [loading, setLoading] = useState({ percent: 0, label: "Preparando la tienda..." });
@@ -178,6 +178,9 @@ export default function HalloweenStoreApp({ initialSave, saveSlot, onSave, onExi
   const [pageVisible, setPageVisible] = useState(() => !document.hidden);
   const [showHelp, setShowHelp] = useState(!initialSave || (initialSave.demonHealth === 3 && initialSave.discoveredSecrets.length === 0));
   const [reduceFlashing, setReduceFlashing] = useState(() => window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  const [graphicsSettings, setGraphicsSettings] = useState(readGraphicsSettings);
+  const [performanceStats, setPerformanceStats] = useState(null);
+  useEffect(() => { saveGraphicsSettings(graphicsSettings); }, [graphicsSettings]);
   const [lightingEvent, setLightingEvent] = useState(null);
   const lightingRef = useRef(null);
   const [sequence, setSequence] = useState(null);
@@ -834,23 +837,26 @@ export default function HalloweenStoreApp({ initialSave, saveSlot, onSave, onExi
     let remaining = nextPhoneInterval(Math.random, true);
     const timer = window.setInterval(() => {
       if (phoneCallIndexRef.current >= PHONE_LINES.length) return;
-      if (phoneRingingRef.current) {
-        sfxRef.current?.play("telefono-ring", { loop: true });
-        return;
-      }
+      if (phoneRingingRef.current) return;
       if (clockPausedRef.current || audioBusyRef.current || judgePhaseRef.current !== "inactive") return;
       remaining -= 1;
       if (remaining > 0) return;
       remaining = nextPhoneInterval();
       phoneRingingRef.current = true;
       setPhoneRinging(true);
-      sfxRef.current?.play("telefono-ring", { loop: true });
     }, 1000);
     return () => window.clearInterval(timer);
   }, [ready, gameOver, encounterKey]);
+  useEffect(() => {
+    // An unanswered call stays pending while an album or another overlay is open.
+    if (phoneRinging && !panel && pageVisible && !gameOver && !musicBusy) {
+      sfxRef.current?.play("telefono-ring", { loop: true });
+    } else {
+      sfxRef.current?.stop("telefono-ring");
+    }
+  }, [phoneRinging, panel, pageVisible, gameOver, musicBusy]);
   const onInteract = (target) => {
     if (target.kind === "realityKey") {
-      if (!canRevealRealityKey(jasonAttemptsRef.current)) return;
       if (!realityChestRef.current.keyOwned) {
         updateRealityChest("takeKey");
         sfxRef.current?.play("reality-key");
@@ -875,8 +881,12 @@ export default function HalloweenStoreApp({ initialSave, saveSlot, onSave, onExi
       const next = updateRealityChest("collect");
       if (!wasCollected && next.collected) {
         sfxRef.current?.play("vhs-pickup");
-        setVisionClock((clock) => clock.phase === "locked" ? { ...clock, phase: "ready" } : clock);
-        setCoinNotice("GAFAS DE REALIDAD OBTENIDAS. Presion\u00e1 C para ver la verdad.");
+        const nextClock = toggleVisionClock({ ...visionClockRef.current, phase: "ready", remaining: 0 });
+        visionClockRef.current = nextClock;
+        setVisionClock(nextClock);
+        sfxRef.current?.play("matrix-activate");
+        sfxRef.current?.play("matrix-glitch");
+        setPanel("matrix-guide");
       }
       return;
     }
@@ -1094,16 +1104,20 @@ export default function HalloweenStoreApp({ initialSave, saveSlot, onSave, onExi
               : nearby?.kind === "vinyl" ? "Ver vinilo del cuarto aniversario" : nearby?.kind === "secretVinyl" ? "Ver vinilo rosa de los secretos" : null;
 
   return <main className={`halloween-game${vision ? " is-matrix" : ""}${reduceFlashing ? " is-reduced-flashing" : ""}${["spawning", "intro", "quiz", "quiz-result", "outcome", "dying"].includes(judgePhase) ? " is-judge-dialogue" : ""}${judgePhase === "combat" ? " is-judge-combat" : ""}`}>
-    <HalloweenStoreScene key={encounterKey} initialSave={initialSave} onPlayerPosition={(position) => { playerPositionRef.current = position; }} albums={albums} vision={vision} damageActive={damageActive} locked={Boolean(panel) || gameOver || !pageVisible || ["spawning", "intro", "quiz", "quiz-result", "outcome", "dying"].includes(judgePhase)} glassesCollected={glassesCollected} chestOpen={realityChest.open} realityKeyOwned={realityChest.keyOwned} belfegorAttempts={belfegorAttempts} visionActivation={visionClock.activation} hideDefeatedDemon={hideDefeatedDemon} onDemonApproach={() => {
+    <HalloweenStoreScene key={encounterKey} initialSave={initialSave} onPlayerPosition={(position) => { playerPositionRef.current = position; }} albums={albums} vision={vision} damageActive={damageActive} locked={Boolean(panel) || gameOver || !pageVisible || ["spawning", "intro", "quiz", "quiz-result", "outcome", "dying"].includes(judgePhase)} glassesCollected={glassesCollected} chestOpen={realityChest.open} realityKeyOwned={realityChest.keyOwned} visionActivation={visionClock.activation} hideDefeatedDemon={hideDefeatedDemon} onDemonApproach={() => {
       showDemonLine(1);
       if (!heroCombatQueuedRef.current) {
         heroCombatQueuedRef.current = true;
         queueHeroVoice(resolveCombatCue(HERO_AUDIO_URLS));
       }
-    }} onDemonHit={onDemonHit} onDemonTaunt={() => sfxRef.current?.play("demon-taunt")} onDemonShieldHit={() => sfxRef.current?.play("demon-shield")} onPlayerDamage={onPlayerDamage} judgePhase={judgePhase} onJudgeHit={onJudgeHit} onJudgeEvent={onJudgeEvent} onJudgeDeathComplete={onJudgeDeathComplete} credits={credits} onSelectAlbum={openAlbum} onInteract={onInteract} onNearby={setNearby} onReady={setReady} onProgress={setLoading} onViewChange={setFirstPerson} lightingEvent={lightingEvent} reduceFlashing={reduceFlashing} onAmbientOpportunity={setNearPair} touchRun={touchRun} touchMoveRef={touchMoveRef} onOrbStatus={setOrbStatus} vhsCollected={vhsCollected} anniversaryUnlocked={anniversaryUnlocked} phoneRinging={phoneRinging} onSecretDiscovered={onSecretDiscovered} onMirrorWhisper={onMirrorWhisper} secretVinylUnlocked={secretVinylUnlocked} onContextChange={setContextLost} />
+    }} onDemonHit={onDemonHit} onDemonTaunt={() => sfxRef.current?.play("demon-taunt")} onDemonShieldHit={() => sfxRef.current?.play("demon-shield")} onPlayerDamage={onPlayerDamage} judgePhase={judgePhase} onJudgeHit={onJudgeHit} onJudgeEvent={onJudgeEvent} onJudgeDeathComplete={onJudgeDeathComplete} credits={credits} onSelectAlbum={openAlbum} onInteract={onInteract} onNearby={setNearby} onReady={setReady} onProgress={setLoading} onViewChange={setFirstPerson} lightingEvent={lightingEvent} reduceFlashing={reduceFlashing} onAmbientOpportunity={setNearPair} touchRun={touchRun} touchMoveRef={touchMoveRef} onOrbStatus={setOrbStatus} vhsCollected={vhsCollected} anniversaryUnlocked={anniversaryUnlocked} phoneRinging={phoneRinging} onSecretDiscovered={onSecretDiscovered} onMirrorWhisper={onMirrorWhisper} secretVinylUnlocked={secretVinylUnlocked} onContextChange={setContextLost} graphicsMode={graphicsSettings.mode} onPerformance={setPerformanceStats} overlayOpen={Boolean(panel)} />
     <div className="halloween-vignette" aria-hidden="true" />
     <div className={`halloween-damage-overlay${damageActive ? " is-active" : ""}`} aria-hidden="true" />
     <div className="halloween-ui">
+      {graphicsSettings.showFps && performanceStats && !panel && <output className="halloween-perf-hud" aria-label="Rendimiento gráfico">
+        <strong>{performanceStats.fps} FPS</strong><span>{GRAPHICS_PROFILES[performanceStats.tier].label} · {performanceStats.frameMs} ms</span>
+        <small>{performanceStats.drawCalls} llamadas · {Math.round(performanceStats.triangles / 1000)}k triángulos · DPR {performanceStats.pixelRatio.toFixed(2)}</small>
+      </output>}
       {firstPerson && ready === true && !panel && !gameOver && <div className={`halloween-aim-reticle${orbStatus.phase === "ready" ? "" : " is-cooling"}`} aria-hidden="true" />}
       <header className="halloween-header">
         <div className="halloween-title"><div className="halloween-brandline"><img src={NEONBOY_LOGO} alt="NeonBoy" /><small>MUSIC / HALLOWEEN</small></div><h1>LA TIENDA DE LOS DISCOS</h1><p>Explorá la discografía como en una disquería de los 90.</p></div>
@@ -1112,6 +1126,8 @@ export default function HalloweenStoreApp({ initialSave, saveSlot, onSave, onExi
           <button id="halloween-people-button" type="button" onClick={() => { stopNpcSound(); setPanel("people"); }}><MessageCircle size={17} /> PERSONAJES</button>
           <span className="halloween-credit-counter" role="status" aria-live="polite"><Coins size={17} /> {credits}/10 FICHAS</span>
           <button type="button" className="halloween-save-nav" onClick={() => setPanel("save")}><Save size={17} /> PARTIDA</button>
+          <HalloweenFullscreenButton className="halloween-fullscreen-nav" />
+          <button type="button" className="halloween-graphics-button" onClick={() => setPanel("graphics")} aria-label="Configuración gráfica" title="Configuración gráfica"><SlidersHorizontal size={17} /> <span>GRÁFICOS</span></button>
           <button type="button" onClick={() => { stopNpcSound(); setPanel("jukebox"); }}><Radio size={17} /> ROCKOLA</button>
           <button type="button" className={`halloween-ambient-toggle${ambientEnabled ? " is-ambient-on" : ""}`} onClick={toggleAmbient}
             aria-pressed={ambientEnabled} aria-label={ambientEnabled ? "Silenciar música ambiental Freezer" : "Activar música ambiental Freezer"}
@@ -1138,19 +1154,17 @@ export default function HalloweenStoreApp({ initialSave, saveSlot, onSave, onExi
           <span>Juez: semidemonio + 4 llamadas + VHS + 7 charlas + espejo con C</span>
         </div>
       </details>
-      {showHelp && !panel && judgePhase === "inactive" && <section className="halloween-help" aria-label="Cómo jugar"><button className="halloween-help-close" onClick={() => setShowHelp(false)} aria-label="Cerrar ayuda"><X size={16} /></button><strong>ENTRÁ Y RECORRÉ LA TIENDA</strong><p>Acercate a los discos y a los personajes para descubrir sus historias.</p><span className="halloween-keyboard-hint">WASD caminar · Shift correr &nbsp;|&nbsp; Arrastrar mirar &nbsp;|&nbsp; E interactuar &nbsp;|&nbsp; F/Clic orbe · R recuperar &nbsp;|&nbsp; V vista &nbsp;|&nbsp; C visión Matrix</span><span className="halloween-touch-hint">{nativeAndroid ? "Mové la ruedita para caminar; cuanto más la desplaces, más rápido avanzás. Tocá CORRER para correr, ORBE para disparar y R para recuperarlo; arrastrá para mirar." : "Usá las flechas para moverte. Tocá CORRER para alternar entre caminar y correr; arrastrá para mirar."}</span></section>}
-      {!panel && !["spawning", "intro", "quiz", "quiz-result", "outcome", "dying"].includes(judgePhase) && <div className="halloween-touch-controls" aria-label="Controles tactiles">{nativeAndroid ? <HalloweenJoystick inputRef={touchMoveRef} /> : <div className="halloween-touch-pad">
-        {touchButton("KeyW", "\u2191", "up")}{touchButton("KeyA", "\u2190", "left")}{touchButton("KeyS", "\u2193", "down")}{touchButton("KeyD", "\u2192", "right")}
-      </div>}<div className="halloween-touch-actions"><button type="button" className={touchRun ? "run-toggle is-active" : "run-toggle"} aria-label="Correr" aria-pressed={touchRun} onClick={() => setTouchRun((value) => !value)}><ChevronsUp size={17} /><span>CORRER</span></button><button type="button" className="orb-fire" aria-label="Lanzar Orbe Neón" disabled={orbStatus.phase !== "ready"} onClick={() => { touchInput("KeyF", true); touchInput("KeyF", false); }}><span className="orb-fire-icon" aria-hidden="true" /><small>ORBE</small></button><button type="button" className="orb-recall" aria-label="Recuperar Orbe Neón" disabled={!(["launching", "traveling"].includes(orbStatus.phase))} onClick={() => { touchInput("KeyR", true); touchInput("KeyR", false); }}>R</button>{touchButton("KeyV", "V", "view", "Cambiar de vista")}<button type="button" className="interact" aria-label="Interactuar" onClick={() => { touchInput("KeyE", true); touchInput("KeyE", false); }}>E</button></div></div>}
+      {showHelp && !panel && judgePhase === "inactive" && <section className="halloween-help" aria-label="Cómo jugar"><button className="halloween-help-close" onClick={() => setShowHelp(false)} aria-label="Cerrar ayuda"><X size={16} /></button><strong>ENTRÁ Y RECORRÉ LA TIENDA</strong><p>Acercate a los discos y a los personajes para descubrir sus historias.</p><span className="halloween-keyboard-hint">WASD caminar · Shift correr &nbsp;|&nbsp; Arrastrar mirar &nbsp;|&nbsp; E interactuar &nbsp;|&nbsp; F/Clic orbe · R recuperar &nbsp;|&nbsp; V vista &nbsp;|&nbsp; C visión Matrix</span><span className="halloween-touch-hint">Mové la ruedita para caminar; cuanto más la desplaces, más rápido avanzás. Tocá CORRER para correr, ORBE para disparar y R para recuperarlo; arrastrá para mirar.</span></section>}
+      {!panel && !["spawning", "intro", "quiz", "quiz-result", "outcome", "dying"].includes(judgePhase) && <div className="halloween-touch-controls" aria-label="Controles tactiles"><HalloweenJoystick inputRef={touchMoveRef} /><div className="halloween-touch-actions"><button type="button" className={touchRun ? "run-toggle is-active" : "run-toggle"} aria-label="Correr" aria-pressed={touchRun} onClick={() => setTouchRun((value) => !value)}><ChevronsUp size={17} /><span>CORRER</span></button><button type="button" className="orb-fire" aria-label="Lanzar Orbe Neón" disabled={orbStatus.phase !== "ready"} onClick={() => { touchInput("KeyF", true); touchInput("KeyF", false); }}><span className="orb-fire-icon" aria-hidden="true" /><small>ORBE</small></button><button type="button" className="orb-recall" aria-label="Recuperar Orbe Neón" disabled={!(["launching", "traveling"].includes(orbStatus.phase))} onClick={() => { touchInput("KeyR", true); touchInput("KeyR", false); }}>R</button>{touchButton("KeyV", "V", "view", "Cambiar de vista")}<button type="button" className="interact" aria-label="Interactuar" onClick={() => { touchInput("KeyE", true); touchInput("KeyE", false); }}>E</button></div></div>}
       {ready === false && <div className="halloween-load-status" role="status">No se pudo iniciar la escena 3D en este navegador. Podés explorar los discos y personajes desde los botones superiores.</div>}
 
       {nearPrompt && !panel && <div className="halloween-interaction-dock">
         <InteractionPrompt className="halloween-prompt" disabled={gameOver || ready !== true} onClick={() => { touchInput("KeyE", true); touchInput("KeyE", false); }}>{nearPrompt}</InteractionPrompt>
         {nearby?.kind === "glasses" && realityChest.open && <button type="button" className="halloween-chest-close" disabled={gameOver || ready !== true} onClick={() => onInteract({ kind: "glassesChest" })}>Cerrar caja</button>}
       </div>}
-      {phoneRinging && !panel && <div className={nativeAndroid ? "halloween-phone-ring is-android" : "halloween-phone-ring"} role="status">
-        {nativeAndroid && <Phone size={17} aria-hidden="true" />}
-        <div><strong>TELÉFONO 1999 / LLAMADA {Math.min(phoneCallIndexRef.current + 1, PHONE_LINES.length)}/{PHONE_LINES.length}</strong><span>{nativeAndroid ? "Mostrador · acercate y tocá E" : "Suena junto al mostrador. Acercate y presioná E."}</span></div>
+      {phoneRinging && !panel && <div className="halloween-phone-ring is-side-hud" role="status">
+        <Phone size={17} aria-hidden="true" />
+        <div><strong>TELÉFONO 1999 / LLAMADA {Math.min(phoneCallIndexRef.current + 1, PHONE_LINES.length)}/{PHONE_LINES.length}</strong><span>Mostrador · acercate e interactuá</span></div>
       </div>}
       {coinNotice && !panel && <div className="halloween-coin-notice" role="status"><Coins size={18} /> {coinNotice}</div>}
       {sequence && sequence.index < sequence.lines.length && <div className="halloween-ambient-subtitle" role="status" aria-live="polite"><strong>{sequence.lines[sequence.index].speaker.toUpperCase()}</strong><span>{sequence.lines[sequence.index].text}</span>{!sequence.kind.startsWith("judge-") && <button type="button" onClick={() => { if (sequence.kind === "anniversary") finishAnniversary(); setSequence(null); }} aria-label="Omitir charla"><X size={15} /></button>}</div>}
@@ -1187,8 +1201,8 @@ export default function HalloweenStoreApp({ initialSave, saveSlot, onSave, onExi
       </div>
     </div>}
     {panel && <div className="halloween-panel-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) close(); }}>
-      <section className={`halloween-panel${panel === "npc" ? " halloween-conversation-panel" : ""}${panel === "npc" && !npc?.topics.length ? " is-quiet-conversation" : ""}${panel === "phone" ? " halloween-phone-dialog" : ""}`} role="dialog" aria-modal="true" aria-labelledby={panel === "npc" ? "halloween-dialogue-title" : undefined} aria-label={panel === "album" ? "Discograf\u00eda" : panel === "npc" ? "Conversaci\u00f3n" : panel === "jukebox" ? "Rockola" : panel === "phone" ? "Llamada telef\u00f3nica" : panel === "mirror" ? "Espejo de las almas" : panel === "vhs" ? "Archivo VHS" : panel === "anniversary-vinyl" ? "Vinilo del cuarto aniversario" : panel === "secret-vinyl" ? "Vinilo rosa de los secretos" : panel === "reality-key" ? "Llave de la realidad" : panel === "save" ? "Partida guardada" : "Personajes"}>
-        {panel !== "npc" && <div className="halloween-panel-top"><div><small>NEONBOY MUSIC / HALLOWEEN</small><h2>{panel === "album" ? "LOS DISCOS" : panel === "npc" ? npc?.name : panel === "jukebox" ? "LA ROCKOLA" : panel === "save" ? "TU PARTIDA" : panel === "phone" ? "LLAMADA DESCONOCIDA" : panel === "mirror" ? "EL ESPEJO DE LAS ALMAS" : panel === "vhs" ? "ARCHIVO VHS" : panel === "anniversary-vinyl" ? "VINILO DEL CUARTO ANIVERSARIO" : panel === "secret-vinyl" ? "VINILO ROSA / ARCHIVO COMPLETO" : panel === "reality-key" ? "LA LLAVE DE LA REALIDAD" : "LA GENTE DE LA TIENDA"}</h2></div><button onClick={close} aria-label="Cerrar"><X size={22} /></button></div>}
+      <section className={`halloween-panel${panel === "npc" ? " halloween-conversation-panel" : ""}${panel === "npc" && !npc?.topics.length ? " is-quiet-conversation" : ""}${panel === "phone" ? " halloween-phone-dialog" : ""}`} role="dialog" aria-modal="true" aria-labelledby={panel === "npc" ? "halloween-dialogue-title" : undefined} aria-label={panel === "album" ? "Discograf\u00eda" : panel === "npc" ? "Conversaci\u00f3n" : panel === "jukebox" ? "Rockola" : panel === "phone" ? "Llamada telef\u00f3nica" : panel === "mirror" ? "Espejo de las almas" : panel === "vhs" ? "Archivo VHS" : panel === "anniversary-vinyl" ? "Vinilo del cuarto aniversario" : panel === "secret-vinyl" ? "Vinilo rosa de los secretos" : panel === "reality-key" ? "Llave de la realidad" : panel === "matrix-guide" ? "Visión Matrix" : panel === "save" ? "Partida guardada" : panel === "graphics" ? "Configuración gráfica" : "Personajes"}>
+        {panel !== "npc" && <div className="halloween-panel-top"><div><small>NEONBOY MUSIC / HALLOWEEN</small><h2>{panel === "album" ? "LOS DISCOS" : panel === "npc" ? npc?.name : panel === "jukebox" ? "LA ROCKOLA" : panel === "save" ? "TU PARTIDA" : panel === "graphics" ? "CALIDAD GRÁFICA" : panel === "phone" ? "LLAMADA DESCONOCIDA" : panel === "mirror" ? "EL ESPEJO DE LAS ALMAS" : panel === "vhs" ? "ARCHIVO VHS" : panel === "anniversary-vinyl" ? "VINILO DEL CUARTO ANIVERSARIO" : panel === "secret-vinyl" ? "VINILO ROSA / ARCHIVO COMPLETO" : panel === "reality-key" ? "LA LLAVE DE LA REALIDAD" : panel === "matrix-guide" ? "VISIÓN MATRIX ACTIVADA" : "LA GENTE DE LA TIENDA"}</h2></div><button onClick={close} aria-label="Cerrar"><X size={22} /></button></div>}
         {panel === "album" && <div className="halloween-album-layout">
           <div className="halloween-album-catalog">
             <div className="halloween-album-groups" role="group" aria-label="Tipo de discos">
@@ -1212,6 +1226,23 @@ export default function HalloweenStoreApp({ initialSave, saveSlot, onSave, onExi
           onGreeting={() => { setTopicIndex(null); playDialogueId(npc.introId); }}
           onReplay={replayNpcSound} onToggleVoice={toggleNpcSound} onInsist={tryJason} onAmbient={startAmbient} onClose={close}
         />}
+        {panel === "graphics" && <div className="halloween-graphics-panel">
+          <p>Elegí el nivel visual. En Automática, el juego mide los fotogramas y ajusta la calidad gradualmente.</p>
+          <div className="halloween-graphics-modes" role="group" aria-label="Calidad gráfica">
+            {GRAPHICS_MODES.map((mode) => <button type="button" key={mode} className={graphicsSettings.mode === mode ? "is-selected" : ""}
+              aria-pressed={graphicsSettings.mode === mode} onClick={() => setGraphicsSettings((current) => ({ ...current, mode }))}>
+              <strong>{mode === "auto" ? "AUTOMÁTICA" : GRAPHICS_PROFILES[mode].label.toUpperCase()}</strong>
+              <small>{mode === "auto" ? "Se adapta al rendimiento" : mode === "low" || mode === "medium" ? "Objetivo 30 FPS" : "Objetivo 60 FPS"}</small>
+            </button>)}
+          </div>
+          <label className="halloween-graphics-fps"><input type="checkbox" checked={graphicsSettings.showFps}
+            onChange={(event) => setGraphicsSettings((current) => ({ ...current, showFps: event.target.checked }))} /> Mostrar FPS y métricas en pantalla</label>
+          <div className="halloween-graphics-current" role="status">
+            <span>PERFIL ACTUAL <strong>{graphicsSettings.mode !== "auto" ? GRAPHICS_PROFILES[graphicsSettings.mode].label.toUpperCase() : performanceStats ? GRAPHICS_PROFILES[performanceStats.tier].label.toUpperCase() : "INICIANDO"}</strong></span>
+            {performanceStats && <span>ÚLTIMA MEDICIÓN <strong>{performanceStats.fps} FPS · {performanceStats.drawCalls} llamadas · {Math.round(performanceStats.triangles / 1000)}k triángulos</strong></span>}
+          </div>
+          <small>Los FPS son una medición del dispositivo actual; los objetivos de cada perfil no son una garantía. La partida se guarda por separado.</small>
+        </div>}
         {panel === "save" && <div className="halloween-save-panel">
           <div className="halloween-save-disc" aria-hidden="true"><Disc3 size={48} /></div>
           <small>ESPACIO {String(saveSlot + 1).padStart(2, "0")} / GUARDADO LOCAL</small>
@@ -1222,6 +1253,14 @@ export default function HalloweenStoreApp({ initialSave, saveSlot, onSave, onExi
             <button type="button" onClick={() => { if (saveNowRef.current?.(true)) onExit(); }}>GUARDAR Y VOLVER AL INICIO</button>
           </div>
           <small>Si guardás durante el combate final, el encuentro vuelve a empezar al cargar.</small>
+        </div>}
+        {panel === "matrix-guide" && <div className="halloween-secret-panel halloween-matrix-guide-panel">
+          <div className="halloween-matrix-guide-icon" aria-hidden="true"><ScanEye size={42} /></div>
+          <small>GAFAS DE REALIDAD / NEONBOY</small>
+          <h3>Estás viendo otra realidad</h3>
+          <p>Lo que ves normalmente es solo una muestra de la realidad. La Visión Matrix revela otras realidades ocultas en la tienda: pistas, mensajes y formas que antes no podías ver.</p>
+          <span>La visión ya está activa. Dura 10 segundos y luego se recarga; tocá VISIÓN C para volver a usarla.</span>
+          <button type="button" onClick={close}>Explorar con Visión Matrix</button>
         </div>}
         {panel === "reality-key" && <div className="halloween-secret-panel halloween-key-panel">
           <HalloweenRealityKey />

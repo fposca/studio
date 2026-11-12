@@ -45,3 +45,43 @@
   .neon-underworld .underworld-vision-control button { padding: 8px 9px; font-size: 9px; }
   .neon-underworld .underworld-message { bottom: 90px; }
 }
+.neon-underworld .underworld-conversation-overlay { z-index: 36; }
+.neon-underworld .underworld-conversation-overlay .record-store-dialogue-options button {
+  min-height: 42px; align-items: center;
+}
+.neon-underworld .underworld-message {
+  border: 2px solid #c980d5; background: linear-gradient(135deg, #201326f5, #100f20f8 65%);
+  box-shadow: 0 0 0 4px #180c20, 0 0 32px #ed54c04d, 0 20px 55px #000b;
+  font-family: var(--store-font);
+}
+.neon-underworld .underworld-message small { color: #f0a8d3; }
+.neon-underworld .underworld-message button { border-color: #b67aaa; background: #321e38; }
+.neon-underworld .underworld-subtitle {
+  bottom: 132px; width: min(610px, calc(100% - 32px)); padding: 13px 36px 12px 17px;
+  text-align: left; pointer-events: none;
+}
+.neon-underworld .underworld-subtitle p { margin: 7px 0 0; font-size: 13px; }
+.neon-underworld .underworld-subtitle .underworld-subtitle-close {
+  position: absolute; top: 5px; right: 7px; min-width: 32px; min-height: 32px;
+  padding: 2px 7px; border: 0; background: transparent; font-size: 20px;
+  pointer-events: auto;
+}
+@media (max-width: 800px), (max-height: 560px) {
+  .neon-underworld .underworld-subtitle { bottom: 100px; width: min(430px, 67vw); max-height: 32vh; overflow-y: auto; }
+  .neon-underworld .underworld-conversation-overlay { padding-bottom: 40px; }
+  .neon-underworld .underworld-conversation-overlay .record-store-conversation { max-height: 72vh; }
+}
+
+.neon-underworld .studio-header button.underworld-dev-reset {
+  border-color: #af718f; color: #f6cae3; background: #241327e8;
+  font-size: 10px; letter-spacing: .02em;
+}
+.neon-underworld .studio-header button.underworld-dev-reset:hover { background: #5a2a4b; }
+.neon-underworld .studio-header button.underworld-dev-reset:focus-visible {
+  outline: 2px solid #8fe7f1; outline-offset: 2px;
+}
+@media (max-width: 700px) {
+  .neon-underworld .studio-header button.underworld-dev-reset {
+    position: absolute; top: 135px; right: 10px; padding: 7px 9px;
+  }
+}

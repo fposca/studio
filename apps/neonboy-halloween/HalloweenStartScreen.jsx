@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ArrowUpRight, Disc3, HardDrive, Play, Plus, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
 import HalloweenStartScene from "./HalloweenStartScene.jsx";
+import HalloweenFullscreenButton from "./HalloweenFullscreenButton.jsx";
 import { getAnniversaryProgress } from "./halloweenSecretsLogic.js";
 import { HALLOWEEN_SAVE_SLOTS } from "./halloweenSaves.js";
 import "./halloweenStart.css";
@@ -27,7 +28,7 @@ export default function HalloweenStartScreen({ slots, onLoad, onNew, onDelete, e
     <div className="halloween-start-content">
       <div className="halloween-start-masthead">
         <img src={logo} alt="NeonBoy" />
-        <span className="halloween-start-edition"><i /> HALLOWEEN <b>31 / 10</b></span>
+        <div className="halloween-start-masthead-actions"><span className="halloween-start-edition"><i /> HALLOWEEN <b>31 / 10</b></span><HalloweenFullscreenButton className="halloween-fullscreen-start" /></div>
       </div>
       <div className="halloween-start-hero">
         <div className="halloween-start-copy">

@@ -8,7 +8,7 @@ const clamp = (value) => Math.max(0, Math.min(1, value));
 
 // The connected scenes share NeonBoy's idle, walk, run and jump poses.
 // Keeping this separate avoids bundling every enemy and weapon from the main game.
-export function createRecordStoreCharacter({ scene, idleClip, walkClip, runClip = null, jumpClip, powerClip = null }) {
+export function createRecordStoreCharacter({ scene, idleClip, walkClip, runClip = null, jumpClip, powerClip = null, proceduralWalkPose = true }) {
   const root = new THREE.Group();
   root.name = "Neonboy";
   const visual = new THREE.Group();
@@ -106,7 +106,7 @@ export function createRecordStoreCharacter({ scene, idleClip, walkClip, runClip 
       wasAirborne = airborne;
       walkWeight = THREE.MathUtils.damp(walkWeight, moving && !running ? 1 : 0, 14, dt);
       runWeight = THREE.MathUtils.damp(runWeight, running ? 1 : 0, 14, dt);
-      heavyWalkWeight = THREE.MathUtils.damp(heavyWalkWeight, moving && !running ? 1 : 0, 9, dt);
+      heavyWalkWeight = THREE.MathUtils.damp(heavyWalkWeight, proceduralWalkPose && moving && !running ? 1 : 0, 9, dt);
       jumpWeight = THREE.MathUtils.damp(jumpWeight, airborne ? 1 : 0, 18, dt);
       showWeight = THREE.MathUtils.damp(showWeight, showing ? 1 : 0, 8, dt);
       powerAge += dt;

@@ -7,10 +7,12 @@ import { buildRecordStore } from "../../src/game/recordStoreScenery.js";
 import { createRecordStoreCharacter } from "../../src/game/recordStoreCharacter.js";
 import { createRecordStoreNpcActors } from "../../src/game/recordStoreNpcActors.js";
 import { createFirstPersonMotion } from "../../src/game/firstPersonMotion.js";
+import { createHalloweenThirdPersonMotion, smoothHalloweenHeading } from "./halloweenThirdPersonMotion.js";
 import { createHalloweenOrbAbility } from "./halloweenOrbReactions.js";
 import { STORE_NPCS } from "../../src/game/recordStoreDialogue.js";
 import { STORE_LAYOUT, STORE_ALBUM_POSITIONS, STORE_OBSTACLES } from "../../src/game/recordStoreLayout.js";
 import { createHalloweenTextureCache } from "./halloweenTextures.js";
+import { instanceStaticShopBoxes } from "./halloweenShopInstancing.js";
 import { createHalloweenCodeVision } from "./halloweenCodeVision.js";
 import { createHalloweenSecretProps, SECRET_POSITIONS } from "./halloweenSecretProps.js";
 import { createHalloweenSecretCovers } from "./halloweenSecretCovers.js";
@@ -18,18 +20,18 @@ import { createHalloweenFootsteps } from "./halloweenFootsteps.js";
 import { createHalloweenDemonEncounter } from "./halloweenDemonEncounter.js";
 import { createHalloweenGlassesChest, REALITY_CHEST, chestBlocksMovement } from "./halloweenGlassesChest.js";
 import { createHalloweenRealityKeyPickup, REALITY_KEY_POSITION } from "./halloweenRealityKeyPickup.js";
-import { canRevealRealityKey } from "./halloweenBelfegorLogic.js";
+import { clampHalloweenCamera } from "./halloweenCameraBounds.js";
 import { createHalloweenJudgeEncounter } from "./halloweenJudgeEncounter.js";
 import { JUDGE_ENTRANCE_SECONDS, JUDGE_RETURN_SECONDS, JUDGE_INTRO_HOLD_SECONDS, judgeEntranceCameraPose, judgeReturnCameraPose } from "./halloweenJudgeCamera.js";
 import { createHalloweenMatrixMessages } from "./halloweenMatrixMessages.js";
 import { HALLOWEEN_ORB_RANGE, resolveHalloweenOrbAim } from "./halloweenCombatAim.js";
 import { outageLightLevel } from "./halloweenLighting.js";
-import { chooseHalloweenPixelRatio } from "./halloweenRenderQuality.js";
+import { createAdaptiveGraphicsQuality, GRAPHICS_PROFILES, graphicsPixelRatio } from "./halloweenGraphicsQuality.js";
 import { disposeObjects } from "../../src/game/disposeGameObjects.js";
 import { COIN_TABLE_POSITION, JUKEBOX_POSITION } from "../../src/game/recordStoreJukeboxScenery.js";
 
 const IDLE_URL = new URL("./models/neon-inactivo-hd.mobile.glb", import.meta.url).href;
-const WALK_URL = new URL("../../src/assets/neonboy-animaciones/neonboy-new-walk.anim.glb", import.meta.url).href;
+const WALK_URL = new URL("../../src/assets/neonboy-animaciones/neonNewWalk.anim.glb", import.meta.url).href;
 const RUN_URL = new URL("../../src/assets/neonboy-animaciones/neonboy-running.anim.glb", import.meta.url).href;
 const JUMP_URL = new URL("../../src/assets/neonboy-animaciones/neonboy-new-jump.anim.glb", import.meta.url).href;
 const COIN_URL = new URL("../../src/assets/neonboy-animaciones/moneda.optimized.glb", import.meta.url).href;
@@ -79,10 +81,10 @@ function inPlaceClip(source, name) {
   return clip;
 }
 
-export default function HalloweenStoreScene({ initialSave, onPlayerPosition, albums, vision, damageActive, locked, credits, onSelectAlbum, onInteract, onNearby, onReady, onProgress, onViewChange, lightingEvent, reduceFlashing, onAmbientOpportunity, touchRun, touchMoveRef, onOrbStatus, glassesCollected, chestOpen, realityKeyOwned, belfegorAttempts, visionActivation, hideDefeatedDemon, onDemonApproach, onDemonHit, onDemonTaunt, onDemonShieldHit, onPlayerDamage, judgePhase, onJudgeHit, onJudgeEvent, onJudgeDeathComplete, vhsCollected, anniversaryUnlocked, secretVinylUnlocked, phoneRinging, onSecretDiscovered, onMirrorWhisper, onContextChange }) {
+export default function HalloweenStoreScene({ initialSave, onPlayerPosition, albums, vision, damageActive, locked, credits, onSelectAlbum, onInteract, onNearby, onReady, onProgress, onViewChange, lightingEvent, reduceFlashing, onAmbientOpportunity, touchRun, touchMoveRef, onOrbStatus, glassesCollected, chestOpen, realityKeyOwned, visionActivation, hideDefeatedDemon, onDemonApproach, onDemonHit, onDemonTaunt, onDemonShieldHit, onPlayerDamage, judgePhase, onJudgeHit, onJudgeEvent, onJudgeDeathComplete, vhsCollected, anniversaryUnlocked, secretVinylUnlocked, phoneRinging, onSecretDiscovered, onMirrorWhisper, onContextChange, graphicsMode = "auto", onPerformance, overlayOpen = false }) {
   const canvasRef = useRef(null);
   const propsRef = useRef(null);
-  propsRef.current = { initialSave, onPlayerPosition, vision, locked, credits, onSelectAlbum, onInteract, onNearby, onReady, onProgress, onViewChange, lightingEvent, reduceFlashing, onAmbientOpportunity, touchRun, touchMoveRef, onOrbStatus, glassesCollected, chestOpen, realityKeyOwned, belfegorAttempts, visionActivation, hideDefeatedDemon, onDemonApproach, onDemonHit, onDemonTaunt, onDemonShieldHit, onPlayerDamage, judgePhase, onJudgeHit, onJudgeEvent, onJudgeDeathComplete, vhsCollected, anniversaryUnlocked, secretVinylUnlocked, phoneRinging, onSecretDiscovered, onMirrorWhisper, onContextChange };
+  propsRef.current = { initialSave, onPlayerPosition, vision, locked, credits, onSelectAlbum, onInteract, onNearby, onReady, onProgress, onViewChange, lightingEvent, reduceFlashing, onAmbientOpportunity, touchRun, touchMoveRef, onOrbStatus, glassesCollected, chestOpen, realityKeyOwned, visionActivation, hideDefeatedDemon, onDemonApproach, onDemonHit, onDemonTaunt, onDemonShieldHit, onPlayerDamage, judgePhase, onJudgeHit, onJudgeEvent, onJudgeDeathComplete, vhsCollected, anniversaryUnlocked, secretVinylUnlocked, phoneRinging, onSecretDiscovered, onMirrorWhisper, onContextChange, graphicsMode, onPerformance, overlayOpen };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -90,11 +92,14 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
     let renderer;
     const touchDevice = window.matchMedia("(pointer: coarse)").matches;
     const lowPowerMobile = touchDevice && ((navigator.deviceMemory || 4) <= 2 || (navigator.hardwareConcurrency || 8) <= 4);
-    const renderRatio = (width, height) => chooseHalloweenPixelRatio(width, height, window.devicePixelRatio || 1, touchDevice, lowPowerMobile);
+    const adaptiveQuality = createAdaptiveGraphicsQuality(touchDevice ? "medium" : "high");
+    let activeTier = adaptiveQuality.tier;
+    let activeProfile = GRAPHICS_PROFILES[activeTier];
+    const renderRatio = (width, height) => graphicsPixelRatio(width, height, window.devicePixelRatio || 1, activeTier);
     try { renderer = new THREE.WebGLRenderer({ canvas, antialias: !touchDevice, powerPreference: "high-performance" }); }
     catch { propsRef.current.onReady?.(false); return; }
     renderer.setPixelRatio(renderRatio(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight));
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = activeProfile.shadows;
     renderer.shadowMap.type = lowPowerMobile ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.06;
@@ -113,6 +118,11 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
     scene.environment = environment.texture;
     scene.environmentIntensity = .3;
     const shop = buildRecordStore(scene, albums, STORE_ALBUM_POSITIONS, STORE_OBSTACLES);
+    const roomWalls = shop.root.children.filter((object) =>
+      object.isMesh && object.material === shop.materials.wall);
+    // Keep these three walls separate: the shop's static-box batching would
+    // otherwise merge them and prevent hiding only the wall behind the camera.
+    for (const wall of roomWalls) wall.name = "Halloween / exterior wall";
     const secretProps = createHalloweenSecretProps(scene, { mobile: touchDevice, lowPower: lowPowerMobile, reflectionEnabled: false });
     const secretCovers = createHalloweenSecretCovers(scene, shop, albums);
     // Each coin-table sign needs its own readable back face; DoubleSide mirrors text.
@@ -127,6 +137,8 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       back.name = "Coin table sign, readable reverse";
       shop.table.add(back);
     }
+    const batching = instanceStaticShopBoxes(shop);
+    canvas.dataset.instancedBoxes = String(batching.instancedMeshes);
     const fills = [[0, -9, 0xffe2b9], [-7, -1, 0xcba9e1], [7, 4, 0xffcd9b], [0, 11, 0xffddb1]].map(([x, z, color]) => {
       const light = new THREE.PointLight(color, 24, 15, 2);
       light.position.set(x, 4.3, z);
@@ -135,7 +147,8 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
     });
     const playerLight = new THREE.PointLight(0xd7bbff, 11, 5, 2);
     scene.add(playerLight);
-    const fixtureLights = new Set(shop.ceilingFixtures.map(({ light }) => light).filter(Boolean));
+    const fixtureLightList = shop.ceilingFixtures.map(({ light }) => light).filter(Boolean);
+    const fixtureLights = new Set(fixtureLightList);
     const regularLights = [];
     scene.traverse((object) => {
       if (object.isLight && object !== playerLight && !fixtureLights.has(object)) regularLights.push([object, object.intensity]);
@@ -197,6 +210,8 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
     const expectedModels = playerUrls.length + new Set(npcs.map((npc) => npc.model)).size + 5 + 2 + DEMON_URLS.length + JUDGE_URLS.length + Object.keys(SECRET_MODEL_URLS).length;
     const modelFractions = new Map();
     let alive = true, coversLoaded = false, assetsReady = false, playerFailed = false, loadFinished = false, orbGraphicsPrepared = false;
+    let activeLoads = 0;
+    const loadQueue = [];
     let lastPercent = -1, lastLabel = "", finishTimer = 0;
     function publishProgress(label) {
       if (!alive) return;
@@ -207,26 +222,37 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       lastLabel = label;
       propsRef.current.onProgress?.({ percent, label });
     }
+    function pumpModelQueue() {
+      while (alive && activeLoads < 4 && loadQueue.length) {
+        const { url, resolve, reject } = loadQueue.shift();
+        activeLoads++;
+        loader.loadAsync(url, (event) => {
+          if (!event.total) return;
+          modelFractions.set(url, Math.max(modelFractions.get(url) || 0, Math.min(1, event.loaded / event.total)));
+          publishProgress(coversLoaded ? "Cargando personajes..." : "Cargando portadas y personajes...");
+        }).then((asset) => {
+          modelFractions.set(url, 1);
+          publishProgress(coversLoaded ? "Cargando personajes..." : "Cargando portadas y personajes...");
+          resolve(asset);
+        }, (error) => {
+          modelFractions.set(url, 1);
+          publishProgress("Preparando la tienda...");
+          reject(error);
+        }).finally(() => { activeLoads--; pumpModelQueue(); });
+      }
+    }
     function loadModel(url) {
       modelFractions.set(url, modelFractions.get(url) ?? 0);
-      return loader.loadAsync(url, (event) => {
-        if (!event.total) return;
-        modelFractions.set(url, Math.max(modelFractions.get(url) || 0, Math.min(1, event.loaded / event.total)));
-        publishProgress(coversLoaded ? "Cargando personajes..." : "Cargando portadas y personajes...");
-      }).then((asset) => {
-        modelFractions.set(url, 1);
-        publishProgress(coversLoaded ? "Cargando personajes..." : "Cargando portadas y personajes...");
-        return asset;
-      }).catch((error) => {
-        modelFractions.set(url, 1);
-        publishProgress("Preparando la tienda...");
-        throw error;
+      return new Promise((resolve, reject) => {
+        loadQueue.push({ url, resolve, reject });
+        pumpModelQueue();
       });
     }
     const npcActors = createRecordStoreNpcActors(scene, { loadAsync: loadModel }, shop.clickable, disposeObjects, { deferLoad: true, npcs });
     const demon = createHalloweenDemonEncounter(scene);
     if (propsRef.current.initialSave) demon.restoreHealth(propsRef.current.initialSave.demonHealth);
     const glassesChest = createHalloweenGlassesChest(scene);
+    const keyPosition = REALITY_KEY_POSITION;
     const realityKey = createHalloweenRealityKeyPickup(scene);
     codeVision.register(glassesChest.root);
     codeVision.register(realityKey.root);
@@ -268,7 +294,7 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       const jumpClip = inPlaceClip(jump.animations.find((clip) => clip.duration > .25), "jump");
       const powerClip = inPlaceClip(power.animations.find((clip) => clip.duration > .25), "power");
       if (idleClip && walkClip && jumpClip) {
-        character = createRecordStoreCharacter({ scene: idle.scene, idleClip, walkClip, runClip, jumpClip, powerClip });
+        character = createRecordStoreCharacter({ scene: idle.scene, idleClip, walkClip, runClip, jumpClip, powerClip, proceduralWalkPose: false });
         scene.add(character.root);
         secretProps.setMirrorPlayer(character.root);
         textureCache.prepare(character.root);
@@ -347,9 +373,35 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
     }).catch(() => { if (alive) propsRef.current.onReady?.(false); });
 
     const camera = new THREE.PerspectiveCamera(63, 1, .05, 75);
+    let nextSizeCheck = 0;
+    const keyLight = shop.keyLight;
+    function applyGraphicsTier(tier) {
+      if (tier === activeTier && camera.far === activeProfile.far) return;
+      activeTier = tier;
+      activeProfile = GRAPHICS_PROFILES[tier];
+      renderer.shadowMap.enabled = activeProfile.shadows;
+      if (keyLight) {
+        keyLight.castShadow = activeProfile.shadows;
+        if (activeProfile.shadowSize) keyLight.shadow.mapSize.set(activeProfile.shadowSize, activeProfile.shadowSize);
+      }
+      fixtureLightList.forEach((light, index) => { light.visible = index < activeProfile.lampCount; });
+      fills.forEach(({ light }, index) => { light.visible = index < activeProfile.fillCount; });
+      playerLight.visible = tier !== "low";
+      judge.setParticleScale(activeProfile.particleScale);
+      secretProps.setReflectionQuality(tier);
+      camera.far = activeProfile.far;
+      camera.updateProjectionMatrix();
+      renderer.shadowMap.needsUpdate = true;
+      nextSizeCheck = 0;
+    }
+    // Apply the first profile even though the tier name has not changed.
+    camera.far = 0;
+    adaptiveQuality.setMode(propsRef.current.graphicsMode);
+    applyGraphicsTier(adaptiveQuality.tier);
     const player = { x: propsRef.current.initialSave?.player?.x ?? 0, y: 0, z: propsRef.current.initialSave?.player?.z ?? STORE_LAYOUT.spawnZ, yaw: propsRef.current.initialSave?.player?.yaw ?? Math.PI, speed: 0, grounded: true, running: false, velocityY: 0, landing: 0, raiseArmsOnJump: true };
     const view = { yaw: (propsRef.current.initialSave?.player?.yaw ?? Math.PI) - Math.PI, pitch: .34, firstPitch: 0, distance: 4.5, firstPerson: propsRef.current.initialSave?.firstPerson ?? false };
     const firstMotion = createFirstPersonMotion(view.yaw);
+    const thirdMotion = createHalloweenThirdPersonMotion();
     const held = new Set();
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
@@ -362,7 +414,7 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
     const judgePlayerLook = new THREE.Vector3();
     let judgeCameraMode = "inactive", judgeCameraStartTime = 0;
     let nextSavePosition = 0;
-    let previousFrameTime = performance.now();
+    let previousFrameTime = performance.now(), lastOverlayFrame = 0;
     let dragging = null, nearKey = "", nearInteraction = null, nearPairKey = null, nextAmbientScan = 0, frameId = 0, elapsed = 0, nextResourceScan = 0;
     let lastMirrorWhisperActivation = -1;
     const mirrorProjection = new THREE.Vector3();
@@ -396,13 +448,14 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       makeOrbCollider(-STORE_LAYOUT.sideWallX, 2.2, STORE_LAYOUT.roomCenterZ, .2, 4.4, STORE_LAYOUT.roomDepth),
       makeOrbCollider(STORE_LAYOUT.sideWallX, 2.2, STORE_LAYOUT.roomCenterZ, .2, 4.4, STORE_LAYOUT.roomDepth),
     ];
+    const orbCollidersWithLid = [...orbColliders, ...glassesChest.lid.children];
     const orb = createHalloweenOrbAbility(scene, {
       demon,
       onTaunt: () => propsRef.current.onDemonTaunt?.(),
       onShieldHit: () => propsRef.current.onDemonShieldHit?.(),
       getTargets: () => [demon.getOrbTarget(), judge.getTarget()].filter(Boolean),
       getMaxRange: () => HALLOWEEN_ORB_RANGE,
-      getColliders: () => [...orbColliders, ...glassesChest.lid.children],
+      getColliders: () => orbCollidersWithLid,
       onHit: (target) => {
         if (target.kind === "judge-of-abyss") { judge.hit(); return; }
         if (target.kind !== "halloween-demon") return;
@@ -472,6 +525,7 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       if (event.code === "KeyV") {
         view.firstPerson = !view.firstPerson;
         firstMotion.reset(view.yaw, view.firstPitch);
+        thirdMotion.reset();
         if (!view.firstPerson && document.pointerLockElement === canvas) document.exitPointerLock();
         propsRef.current.onViewChange?.(view.firstPerson);
       }
@@ -499,7 +553,7 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       dragging = null;
     }
     function onWheel(event) { view.distance = THREE.MathUtils.clamp(view.distance + event.deltaY * .005, 3, 7); }
-    function onBlur() { held.clear(); dragging = null; firstMotion.reset(view.yaw, view.firstPitch); footsteps.reset(); }
+    function onBlur() { held.clear(); dragging = null; firstMotion.reset(view.yaw, view.firstPitch); thirdMotion.reset(); footsteps.reset(); }
     const unlockFootstepsOnTouch = () => { if (!propsRef.current.locked) footsteps.unlock(); };
     window.addEventListener("pointerdown", unlockFootstepsOnTouch, { capture: true });
     window.addEventListener("keydown", onKeyDown);
@@ -513,21 +567,29 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
     function frame() {
       frameId = requestAnimationFrame(frame);
       const frameTime = performance.now();
+      if (propsRef.current.overlayOpen && frameTime - lastOverlayFrame < 1000 / 12) return;
+      lastOverlayFrame = frameTime;
       const dt = Math.min((frameTime - previousFrameTime) / 1000, .05);
       previousFrameTime = frameTime;
+      if (contextLost || document.hidden) { adaptiveQuality.resetTiming(); return; }
       elapsed += dt;
-      if (contextLost) return;
-      const rect = canvas.getBoundingClientRect();
-      if (rect.width && rect.height) {
-        const ratio = renderRatio(rect.width, rect.height);
-        if (Math.abs(renderer.getPixelRatio() - ratio) > .015) renderer.setPixelRatio(ratio);
-        if (canvas.width !== Math.round(rect.width * renderer.getPixelRatio()) || canvas.height !== Math.round(rect.height * renderer.getPixelRatio())) {
-          renderer.setSize(rect.width, rect.height, false);
-          camera.aspect = rect.width / rect.height;
-          camera.updateProjectionMatrix();
+      adaptiveQuality.setMode(propsRef.current.graphicsMode);
+      if (adaptiveQuality.tier !== activeTier) applyGraphicsTier(adaptiveQuality.tier);
+      if (elapsed >= nextSizeCheck) {
+        nextSizeCheck = elapsed + .5;
+        const width = canvas.clientWidth, height = canvas.clientHeight;
+        if (width && height) {
+          const ratio = renderRatio(width, height);
+          if (Math.abs(renderer.getPixelRatio() - ratio) > .015) renderer.setPixelRatio(ratio);
+          if (canvas.width !== Math.round(width * renderer.getPixelRatio()) || canvas.height !== Math.round(height * renderer.getPixelRatio())) {
+            renderer.setSize(width, height, false);
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+          }
         }
       }
-      if (elapsed >= nextResourceScan) {
+      // Each asynchronous model mount registers its own textures and Matrix materials.
+      if (!assetsReady && elapsed >= nextResourceScan) {
         textureCache.prepare(scene);
         codeVision.register();
         nextResourceScan = elapsed + .75;
@@ -541,7 +603,8 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       secretProps.setSecretVinylUnlocked(propsRef.current.secretVinylUnlocked);
       secretProps.update(propsRef.current.locked ? 0 : dt, elapsed);
       glassesChest.update(dt, propsRef.current.chestOpen);
-      realityKey.setAvailable(canRevealRealityKey(propsRef.current.belfegorAttempts) && !propsRef.current.realityKeyOwned);
+      realityKey.setAvailable(!propsRef.current.realityKeyOwned);
+      realityKey.update(dt, elapsed);
       demon.setChestOpen(glassesChest.accessible);
       demon.setVision(propsRef.current.vision);
       judge.setPhase(propsRef.current.judgePhase || "inactive");
@@ -551,6 +614,10 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       codeVision.update(dt, player, reducedMotion, demon.root, propsRef.current.reduceFlashing);
       canvas.dataset.frequencyVision = propsRef.current.vision ? "active" : "inactive";
       const motionLocked = propsRef.current.locked;
+      if (motionLocked) {
+        thirdMotion.reset();
+        if (view.firstPerson) firstMotion.reset(view.yaw, view.firstPitch);
+      }
       const touchMove = propsRef.current.touchMoveRef?.current;
       const touchActive = touchMove && Math.hypot(touchMove.x, touchMove.y) > 0;
       const forward = motionLocked ? 0 : touchActive ? touchMove.y : Number(held.has("KeyW") || held.has("ArrowUp")) - Number(held.has("KeyS") || held.has("ArrowDown"));
@@ -563,17 +630,19 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
         view.yaw = motion.yaw; view.firstPitch = motion.pitch;
         dx = motion.dx; dz = motion.dz;
       } else {
-        const length = Math.max(1, Math.hypot(forward, right));
-        dx = (right * Math.cos(view.yaw) - forward * Math.sin(view.yaw)) / length * speed * dt;
-        dz = (-right * Math.sin(view.yaw) - forward * Math.cos(view.yaw)) / length * speed * dt;
+        const motion = thirdMotion.update(dt, forward, right, speed, view.yaw);
+        dx = motion.dx; dz = motion.dz;
       }
-      if (canMove(player.x + dx, player.z)) player.x += dx;
-      if (canMove(player.x, player.z + dz)) player.z += dz;
+      const movedX = canMove(player.x + dx, player.z);
+      if (movedX) player.x += dx;
+      const movedZ = canMove(player.x, player.z + dz);
+      if (movedZ) player.z += dz;
+      if (!view.firstPerson && (!movedX || !movedZ)) thirdMotion.block({ x: !movedX, z: !movedZ });
       const movementDistance = Math.hypot(player.x - px, player.z - pz);
       player.speed = dt > 0 ? movementDistance / dt : 0;
       player.running = speed > 4;
       if (view.firstPerson) player.yaw = Math.PI + view.yaw;
-      else if (player.speed > .2) player.yaw = Math.atan2(player.x - px, player.z - pz);
+      else if (player.speed > .2) player.yaw = smoothHalloweenHeading(player.yaw, Math.atan2(player.x - px, player.z - pz), dt);
       if (elapsed >= nextSavePosition) {
         nextSavePosition = elapsed + .75;
         propsRef.current.onPlayerPosition?.({ x: player.x, z: player.z, yaw: player.yaw });
@@ -591,12 +660,16 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       }
       if (view.firstPerson) {
         desiredCamera.set(player.x, player.y + 1.68, player.z);
+        clampHalloweenCamera(desiredCamera);
         camera.position.lerp(desiredCamera, 1 - Math.exp(-18 * dt));
+        clampHalloweenCamera(camera.position);
         lookAt.set(camera.position.x - Math.sin(view.yaw) * Math.cos(view.firstPitch), camera.position.y - Math.sin(view.firstPitch), camera.position.z - Math.cos(view.yaw) * Math.cos(view.firstPitch));
       } else {
-        desiredCamera.set(player.x + Math.sin(view.yaw) * view.distance, player.y + 2.5 + Math.sin(view.pitch) * 1.5, Math.min(player.z + Math.cos(view.yaw) * view.distance, 14.95));
-        camera.position.lerp(desiredCamera, 1 - Math.exp(-9 * dt));
         lookAt.set(player.x, player.y + 1.2, player.z);
+        desiredCamera.set(player.x + Math.sin(view.yaw) * view.distance,
+          player.y + 2.5 + Math.sin(view.pitch) * 1.5,
+          Math.min(player.z + Math.cos(view.yaw) * view.distance, 14.95));
+        camera.position.lerp(desiredCamera, 1 - Math.exp(-9 * dt));
       }
       const cameraJudgePhase = propsRef.current.judgePhase || "inactive";
       if (cameraJudgePhase === "spawning") {
@@ -618,6 +691,15 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
         if (judgeReturnCameraPose(judge.position, judgeCameraReturnStart, judgeCameraReturnLook, desiredCamera, judgePlayerLook,
           reducedMotion ? JUDGE_RETURN_SECONDS : Math.max(0, (performance.now() - judgeCameraStartTime) / 1000 - JUDGE_INTRO_HOLD_SECONDS), camera.position, lookAt)) judgeCameraMode = "done";
       } else if (cameraJudgePhase !== "intro") judgeCameraMode = "inactive";
+      // The usual third-person camera stays at its chosen distance. If it
+      // passes behind an exterior wall, hide only that wall from this frame.
+      for (const wall of roomWalls) {
+        wall.visible = wall.position.z < STORE_LAYOUT.backWallZ + .5
+          ? camera.position.z > STORE_LAYOUT.backWallZ + .2
+          : wall.position.x > 0
+            ? camera.position.x < STORE_LAYOUT.sideWallX - .2
+            : camera.position.x > -STORE_LAYOUT.sideWallX + .2;
+      }
       camera.lookAt(lookAt);
       playerLight.position.set(player.x - .8, player.y + 2.65, player.z + 1.45);
       character?.update(player, dt);
@@ -626,7 +708,8 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       judge.update(dt, elapsed, player, motionLocked, reducedMotion || propsRef.current.reduceFlashing);
       matrixMessages.update(dt, camera, player, { reducedMotion: reducedMotion || propsRef.current.reduceFlashing, locked: motionLocked });
       if (!motionLocked && !demon.defeated && Math.hypot(player.x - demon.position.x, player.z - demon.position.z) < 3.2) propsRef.current.onDemonApproach?.();
-      if (character) character.root.visible = !view.firstPerson && !(cameraJudgePhase === "spawning" || (cameraJudgePhase === "intro" && judgeCameraMode === "return"));
+      if (character) character.root.visible = !view.firstPerson &&
+        !(cameraJudgePhase === "spawning" || (cameraJudgePhase === "intro" && judgeCameraMode === "return"));
 
       let closest = null, nearest = Infinity;
       for (const spot of shop.albumTargets) {
@@ -643,9 +726,9 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
         const distance = Math.hypot(player.x - position.x, player.z - position.z);
         if (distance < npc.reach && distance < nearest) { nearest = distance; closest = { kind: "npc", id: npc.id }; }
       }
-      if (canRevealRealityKey(propsRef.current.belfegorAttempts) && !propsRef.current.realityKeyOwned) {
-        const keyDistance = Math.hypot(player.x - REALITY_KEY_POSITION.x, player.z - REALITY_KEY_POSITION.z);
-        if (keyDistance < REALITY_KEY_POSITION.reach && keyDistance < nearest) {
+      if (!propsRef.current.realityKeyOwned) {
+        const keyDistance = Math.hypot(player.x - keyPosition.x, player.z - keyPosition.z);
+        if (keyDistance < keyPosition.reach && keyDistance < nearest) {
           nearest = keyDistance;
           closest = { kind: "realityKey" };
         }
@@ -736,6 +819,15 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
         orbGraphicsPrepared = true;
       }
       renderer.render(scene, camera);
+      const sample = adaptiveQuality.frame(frameTime, assetsReady && !propsRef.current.locked);
+      if (sample) {
+        canvas.dataset.graphicsTier = sample.tier;
+        canvas.dataset.fps = String(sample.fps);
+        canvas.dataset.drawCalls = String(renderer.info.render.calls);
+        propsRef.current.onPerformance?.({ ...sample, drawCalls: renderer.info.render.calls,
+          triangles: renderer.info.render.triangles, geometries: renderer.info.memory.geometries,
+          textures: renderer.info.memory.textures, pixelRatio: renderer.getPixelRatio() });
+      }
       if (assetsReady && !loadFinished) {
         loadFinished = true;
         if (playerFailed) propsRef.current.onReady?.(false);
@@ -749,6 +841,7 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
     frame();
     return () => {
       alive = false;
+      while (loadQueue.length) loadQueue.shift().reject(new Error("Halloween scene disposed"));
       cancelAnimationFrame(frameId);
       window.clearTimeout(finishTimer);
       window.removeEventListener("pointerdown", unlockFootstepsOnTouch, { capture: true });

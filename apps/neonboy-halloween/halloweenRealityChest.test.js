@@ -3,9 +3,8 @@ import assert from "node:assert/strict";
 import * as THREE from "three";
 import { advanceRealityChest, EMPTY_REALITY_CHEST } from "./halloweenRealityChestLogic.js";
 import { createHalloweenGlassesChest, chestBlocksMovement, REALITY_CHEST, CONTAINED_GLASSES_POSITION } from "./halloweenGlassesChest.js";
-import { STORE_OBSTACLES } from "../../src/game/recordStoreLayout.js";
+import { STORE_LAYOUT, STORE_OBSTACLES } from "../../src/game/recordStoreLayout.js";
 import { createHalloweenRealityKeyPickup, REALITY_KEY_POSITION } from "./halloweenRealityKeyPickup.js";
-import { canRevealRealityKey } from "./halloweenBelfegorLogic.js";
 import { disposeObjects } from "../../src/game/disposeGameObjects.js";
 
 test("the dropped key unlocks the box after pickup; glasses require an open lid", () => {
@@ -61,23 +60,17 @@ test("the hinged wooden chest is solid, reachable, and reverses smoothly without
   disposeObjects([scene]);
 });
 
-test("the key stays hidden until four Belfegor attempts, then appears in another aisle", () => {
-  assert.ok(Math.hypot(REALITY_KEY_POSITION.x - REALITY_CHEST.x, REALITY_KEY_POSITION.z - REALITY_CHEST.z) > 10);
-  const approach = { x: REALITY_KEY_POSITION.x + .85, z: REALITY_KEY_POSITION.z };
-  assert.ok(Math.hypot(approach.x - REALITY_KEY_POSITION.x, approach.z - REALITY_KEY_POSITION.z) < REALITY_KEY_POSITION.reach);
-  assert.equal(STORE_OBSTACLES.some(({ x, z, hx, hz }) => Math.abs(x - approach.x) < hx + .46 && Math.abs(z - approach.z) < hz + .46), false);
+test("the rotating reality key is available at the entrance without Belfegor on every platform", () => {
+  assert.ok(Math.hypot(REALITY_KEY_POSITION.x, REALITY_KEY_POSITION.z - STORE_LAYOUT.spawnZ) < REALITY_KEY_POSITION.reach);
+  assert.equal(STORE_OBSTACLES.some(({ x, z, hx, hz }) => Math.abs(x - REALITY_KEY_POSITION.x) < hx + .46 && Math.abs(z - REALITY_KEY_POSITION.z) < hz + .46), false);
   const scene = new THREE.Scene();
   const key = createHalloweenRealityKeyPickup(scene);
-  const bounds = new THREE.Box3().setFromObject(key.root);
-  assert.ok(bounds.getSize(new THREE.Vector3()).x < .5);
-  assert.ok(bounds.max.y < .1);
-  assert.equal(key.root.visible, false);
-  for (let attempts = 0; attempts < 4; attempts++) {
-    key.setAvailable(canRevealRealityKey(attempts));
-    assert.equal(key.root.visible, false);
-  }
-  key.setAvailable(canRevealRealityKey(4));
-  assert.equal(key.root.visible, true);
+  key.setAvailable(true);
+  const before = key.root.position.y;
+  key.update(.25, 1);
+  assert.ok(key.root.visible);
+  assert.notEqual(key.root.position.y, before);
+  assert.ok(new THREE.Box3().setFromObject(key.root).max.y > 1);
   key.setAvailable(false);
   assert.equal(key.root.visible, false);
   disposeObjects([scene]);

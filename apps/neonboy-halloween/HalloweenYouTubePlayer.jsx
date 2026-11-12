@@ -32,6 +32,8 @@ export default function HalloweenYouTubePlayer({ videoId, title, onPlaybackChang
     let active = true;
     let player;
     callbackRef.current(null);
+    const pauseWhenHidden = () => { if (document.hidden) { try { player?.pauseVideo(); } catch { /* Player may already be gone. */ } } };
+    document.addEventListener("visibilitychange", pauseWhenHidden);
     loadYouTubeApi().then((YT) => {
       if (!active || !iframeRef.current) return;
       const report = (state) => {
@@ -51,6 +53,7 @@ export default function HalloweenYouTubePlayer({ videoId, title, onPlaybackChang
     });
     return () => {
       active = false;
+      document.removeEventListener("visibilitychange", pauseWhenHidden);
       if (player) {
         try {
           const currentTime = player.getCurrentTime();
