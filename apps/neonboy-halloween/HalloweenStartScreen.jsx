@@ -1,9 +1,8 @@
-import React, { useState } from "react";
-import { ArrowUpRight, Disc3, HardDrive, Play, Plus, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { ArrowUpRight, Disc3, Play, Plus, RotateCcw, ShieldCheck, Trash2 } from "lucide-react";
 import HalloweenStartScene from "./HalloweenStartScene.jsx";
 import HalloweenFullscreenButton from "./HalloweenFullscreenButton.jsx";
 import { getAnniversaryProgress } from "./halloweenSecretsLogic.js";
-import { HALLOWEEN_SAVE_SLOTS } from "./halloweenSaves.js";
 import "./halloweenStart.css";
 
 const logo = new URL("./boot-logo.webp", import.meta.url).href;
@@ -14,14 +13,24 @@ const formatDate = (value) => new Intl.DateTimeFormat("es-AR", {
 export default function HalloweenStartScreen({ slots, onLoad, onNew, onDelete, error }) {
   const [confirmSlot, setConfirmSlot] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const confirmationRef = useRef(null);
+  const confirmOpen = confirmSlot !== null || confirmDelete;
+  const cancelConfirmation = () => { setConfirmSlot(null); setConfirmDelete(false); };
+  useEffect(() => {
+    const dialog = confirmationRef.current;
+    if (confirmOpen && !dialog.open) dialog.showModal();
+    else if (!confirmOpen && dialog.open) dialog.close();
+  }, [confirmOpen]);
   const latest = slots.filter(Boolean).sort((a, b) => b.savedAt - a.savedAt)[0];
+  const progress = latest?.progress;
+  const summary = progress && getAnniversaryProgress({ demonHealth:progress.demonHealth, vhsCollected:progress.vhsCollected,
+    discovered:new Set(progress.discoveredSecrets), songsPlayed:Math.min(3,progress.songs.length) });
   const newGame = () => {
     if (!latest) {
       onNew(0);
       return;
     }
-    setConfirmSlot(0);
-    document.getElementById("halloween-save-slots")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    setConfirmSlot(latest.slot);
   };
   return <main className="halloween-start" aria-label="Inicio de NeonBoy Halloween">
     <div className="halloween-start-grain" aria-hidden="true" />
@@ -46,40 +55,26 @@ export default function HalloweenStartScreen({ slots, onLoad, onNew, onDelete, e
         </div>
         <HalloweenStartScene />
       </div>
-      <div className="halloween-start-archive-heading"><span>TU HISTORIA <b>/</b> PARTIDA ACTUAL</span><small><HardDrive size={12} /> EN ESTE DISPOSITIVO</small></div>
-      <section className="halloween-start-slots" id="halloween-save-slots" aria-label="Partida guardada">
-        {Array.from({ length: HALLOWEEN_SAVE_SLOTS }, (_, slot) => {
-          const record = slots[slot];
-          const progress = record?.progress;
-          const summary = progress && getAnniversaryProgress({
-            demonHealth: progress.demonHealth, vhsCollected: progress.vhsCollected,
-            discovered: new Set(progress.discoveredSecrets), songsPlayed: Math.min(3, progress.songs.length),
-          });
-          return <article className={"halloween-start-slot" + (record ? " is-saved" : " is-empty") + (latest?.slot === slot ? " is-latest" : "")} key={slot}>
-            <div className="halloween-start-slot-heading"><Disc3 size={19} /><strong>PARTIDA ACTUAL</strong><small>{record ? formatDate(record.savedAt) : "LIBRE"}</small></div>
-            {record ? <>
-              <p>{progress.judgeDefeated ? "Juez del Abismo derrotado" : progress.demonHealth === 0 ? "Misterio del espejo" : "La tienda te espera"}</p>
-              <div className="halloween-start-progress" role="progressbar" aria-label="Secretos descubiertos" aria-valuemin={0} aria-valuemax={summary.total} aria-valuenow={summary.completed}><span style={{ width: summary.completed / summary.total * 100 + "%" }} /></div>
-              <small>{summary.completed}/{summary.total} secretos <b>·</b> {progress.phoneCalls}/4 llamadas</small>
-              <div className="halloween-start-slot-actions">
-                <button type="button" aria-label="Cargar partida" onClick={() => onLoad(slot)}>CARGAR <ArrowUpRight size={13} /></button>
-                <button type="button" className="is-subtle" aria-label="Reiniciar partida" onClick={() => setConfirmSlot(slot)}><RotateCcw size={12} /> REINICIAR</button>
-              </div>
-            </> : <>
-              <p>Una nueva noche.<br /><span>Todos los secretos por descubrir.</span></p>
-              <div className="halloween-start-slot-actions"><button type="button" aria-label="Empezar partida" onClick={() => onNew(slot)}><Plus size={14} /> EMPEZAR</button></div>
-            </>}
-            {confirmSlot === slot && <div className="halloween-start-confirm">
-              <span>Se reemplazará esta partida guardada.</span>
-              <button type="button" onClick={() => { setConfirmSlot(null); onNew(slot); }}>SÍ, EMPEZAR DE NUEVO</button>
-              <button type="button" onClick={() => setConfirmSlot(null)}>CANCELAR</button>
-            </div>}
-          </article>;
-        })}
+      <section className="halloween-start-save-summary" aria-label="Partida guardada">
+        <Disc3 size={21} aria-hidden="true" />
+        <div><strong>{latest ? "TU PARTIDA" : "TU PRIMERA NOCHE"}</strong><span>{latest ? (latest.progress.judgeDefeated ? "Juez del Abismo derrotado" : latest.progress.demonHealth === 0 ? "Misterio del espejo" : "La tienda te espera") : "Escuchá, explorá y descubrí."}</span></div>
+        {latest && <div className="halloween-start-save-meta"><span>{formatDate(latest.savedAt)}</span><small>{summary.completed}/{summary.total} secretos &middot; {progress.phoneCalls}/4 llamadas</small></div>}
       </section>
       {error && <p className="halloween-start-error" role="alert">{error}</p>}
       <footer><span>Guardado local. El encuentro final se reinicia al cargar.</span><div className="halloween-start-footer-actions"><button type="button" className="halloween-start-delete" onClick={() => setConfirmDelete(true)} disabled={!latest}><Trash2 size={13} /> Borrar datos locales</button><strong>NEONBOY MUSIC <b>©</b> 2026</strong></div></footer>
-      {confirmDelete && <div className="halloween-start-delete-confirm" role="group" aria-label="Confirmar borrado de datos locales"><span>Se borrará la partida guardada en este dispositivo. Esta acción no se puede deshacer.</span><div><button type="button" onClick={() => { if (onDelete(0)) { setConfirmDelete(false); setConfirmSlot(null); } }}>SÍ, BORRAR DATOS</button><button type="button" onClick={() => setConfirmDelete(false)}>CANCELAR</button></div></div>}
+      <dialog ref={confirmationRef} className="halloween-start-confirm-dialog" aria-labelledby="halloween-start-confirm-title" onCancel={cancelConfirmation} onClose={cancelConfirmation}>
+        <div className="halloween-start-confirm-icon">{confirmDelete ? <Trash2 size={23} /> : <RotateCcw size={23} />}</div>
+        <small>NEONBOY / TU HISTORIA</small>
+        <h2 id="halloween-start-confirm-title">{confirmDelete ? "¿Borrar la partida?" : "¿Empezar una nueva noche?"}</h2>
+        <p>{confirmDelete ? "Se borrará el progreso guardado en este dispositivo." : "La nueva partida reemplazará tu progreso actual. Si querés seguir donde estabas, elegí Cancelar y después Continuar."}</p>
+        <div className="halloween-start-confirm-actions">
+          <button type="button" autoFocus onClick={cancelConfirmation}>Cancelar</button>
+          <button type="button" className="is-confirm" onClick={() => {
+            if (confirmDelete) { if (onDelete(latest.slot)) cancelConfirmation(); }
+            else { const slot = confirmSlot; cancelConfirmation(); onNew(slot); }
+          }}>{confirmDelete ? "Sí, borrar datos" : "Empezar nueva partida"}<ArrowUpRight size={16} /></button>
+        </div>
+      </dialog>
     </div>
   </main>;
 }

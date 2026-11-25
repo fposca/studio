@@ -4,15 +4,19 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { buildOffice } from "./officeScene.js";
+import { DEMO_COMPANY } from "./branding/brand.js";
 import { canStandInOffice, OFFICE_LIMITS } from "./officeNavigation.js";
-import { disposeObjects } from "../../src/game/disposeGameObjects.js";
-import { createInteractionPromptSprite } from "../../src/game/recordStoreInteractionPrompt.js";
+import { disposeObjects } from "./officeDispose.js";
+import { createInteractionPromptSprite } from "./officePrompt.js";
+import { applyCustomAvatar } from "./customAvatar3d.js";
 
 const MODELS = {
   fernandoIdle: new URL("./models/fernando-respira.office.glb", import.meta.url).href,
   fernandoWalk: new URL("./models/fernando-camina.office.glb", import.meta.url).href,
   victoriaIdle: new URL("./models/victoria-respira.office.glb", import.meta.url).href,
   victoriaWalk: new URL("./models/victoria-camina.office.glb", import.meta.url).href,
+  customIdle: new URL("./models/custom-respira.office.glb", import.meta.url).href,
+  customWalk: new URL("./models/custom-camina.office.glb", import.meta.url).href,
   roxy: new URL("./models/roxy.office.glb", import.meta.url).href,
   alfredo: new URL("./models/alfredo.office.glb", import.meta.url).href,
 };
@@ -55,10 +59,16 @@ function inPlaceClip(source, { idle = false } = {}) {
   return clip;
 }
 
-export default function OfficeScene({ avatar = "fernando", firstPerson = false, locked, onInteract, onNearby, onViewChange }) {
+export default function OfficeScene({ avatar = "fernando", customization, firstPerson = false, mobileInput = { forward: 0, side: 0 }, locked, onInteract, onNearby, onViewChange }) {
   const canvasRef = useRef(null);
-  const callbacksRef = useRef({ onInteract, onNearby, onViewChange, firstPerson, locked });
-  callbacksRef.current = { onInteract, onNearby, onViewChange, firstPerson, locked };
+  const avatarModelRef = useRef(null);
+  const customizationRef = useRef(customization);
+  customizationRef.current = customization;
+  useEffect(() => {
+    if (avatar === "custom" && avatarModelRef.current) applyCustomAvatar(avatarModelRef.current, customization);
+  }, [avatar, customization]);
+  const callbacksRef = useRef({ onInteract, onNearby, onViewChange, firstPerson, mobileInput, locked });
+  callbacksRef.current = { onInteract, onNearby, onViewChange, firstPerson, mobileInput, locked };
   const [status, setStatus] = useState("loading");
 
   useEffect(() => {
@@ -107,7 +117,7 @@ export default function OfficeScene({ avatar = "fernando", firstPerson = false, 
     let idleAction = null, walkAction = null, walkingWeight = 0;
 
     const roxyPrompt = createInteractionPromptSprite("Hablar", { subject: "Roxy · Recursos Humanos" });
-    const logoPrompt = createInteractionPromptSprite("Inspeccionar", { subject: "Interbanking" });
+    const logoPrompt = createInteractionPromptSprite("Inspeccionar", { subject: DEMO_COMPANY.name });
     const alfredoPrompt = createInteractionPromptSprite("Hablar", { subject: "Alfredo · Seguridad" });
     roxyPrompt.position.y = 2.0;
     logoPrompt.position.y = 2.78;
@@ -141,7 +151,8 @@ export default function OfficeScene({ avatar = "fernando", firstPerson = false, 
 
     const avatarModels = avatar === "victoria"
       ? [MODELS.victoriaIdle, MODELS.victoriaWalk]
-      : [MODELS.fernandoIdle, MODELS.fernandoWalk];
+      : avatar === "custom" ? [MODELS.customIdle, MODELS.customWalk]
+        : [MODELS.fernandoIdle, MODELS.fernandoWalk];
     Promise.all([
       loader.loadAsync(avatarModels[0]),
       loader.loadAsync(avatarModels[1]),
@@ -155,9 +166,11 @@ export default function OfficeScene({ avatar = "fernando", firstPerson = false, 
       const baseClip = inPlaceClip(idle.animations.find(clip => clip.duration > .1), { idle: true });
       const walkingClip = inPlaceClip(walk.animations.find(clip => clip.duration > .1));
       if (!baseClip || !walkingClip) throw new Error("Faltan las animaciones del avatar seleccionado.");
-      positionModel(idle.scene, 1.82);
+      positionModel(idle.scene, avatar === "victoria" ? 1.68 : 1.64);
+      if (avatar === "custom") applyCustomAvatar(idle.scene, customizationRef.current);
+      avatarModelRef.current = idle.scene;
       fernando = new THREE.Group();
-      fernando.name = avatar === "victoria" ? "Victoria" : "Fernando";
+      fernando.name = avatar === "victoria" ? "Victoria" : avatar === "custom" ? (customizationRef.current?.name || "Alex") : "Fernando";
       fernando.add(idle.scene);
       scene.add(fernando);
       fernandoMixer = new THREE.AnimationMixer(idle.scene);
@@ -167,7 +180,7 @@ export default function OfficeScene({ avatar = "fernando", firstPerson = false, 
       disposeObjects([walk.scene]);
       const roxyActor = mountNpc(roxyAsset, office.roxyPosition, 1.75, .25);
       roxy = roxyActor.root; roxyMixer = roxyActor.mixer;
-      const alfredoActor = mountNpc(alfredoAsset, office.alfredoPosition, 1.79, -.2);
+      const alfredoActor = mountNpc(alfredoAsset, office.alfredoPosition, 1.75, -.2);
       alfredo = alfredoActor.root; alfredo.name = "Alfredo · Seguridad";
       alfredoMixer = alfredoActor.mixer;
       playerShadow.visible = roxyShadow.visible = alfredoShadow.visible = true;
@@ -189,7 +202,11 @@ export default function OfficeScene({ avatar = "fernando", firstPerson = false, 
     observer.observe(canvas);
     resize();
 
+    const officeRoot = canvas.closest(".office-app");
+    requestAnimationFrame(() => canvas.focus({ preventScroll: true }));
     function onKeyDown(event) {
+      if (!officeRoot?.contains(document.activeElement) ||
+        event.target?.closest?.("input, textarea, select, [contenteditable=true]")) return;
       if (event.code === "KeyC" && !event.repeat && !callbacksRef.current.locked &&
         !event.altKey && !event.ctrlKey && !event.metaKey) {
         event.preventDefault();
@@ -211,6 +228,7 @@ export default function OfficeScene({ avatar = "fernando", firstPerson = false, 
     const onBlur = () => keys.clear();
     const onPointerDown = event => {
       if (event.button !== 0) return;
+      canvas.focus({ preventScroll: true });
       dragging = true; lastX = event.clientX; lastY = event.clientY;
       canvas.setPointerCapture(event.pointerId);
     };
@@ -240,7 +258,7 @@ export default function OfficeScene({ avatar = "fernando", firstPerson = false, 
       frameId = requestAnimationFrame(animate);
       const dt = Math.min(.05, (now - lastFrame) / 1000);
       lastFrame = now;
-      if (callbacksRef.current.locked) keys.clear();
+      if (callbacksRef.current.locked || !officeRoot?.contains(document.activeElement)) keys.clear();
       if (view.firstPerson !== callbacksRef.current.firstPerson) {
         view.firstPerson = callbacksRef.current.firstPerson;
         if (!view.firstPerson) {
@@ -253,8 +271,8 @@ export default function OfficeScene({ avatar = "fernando", firstPerson = false, 
         }
         canvas.dataset.view = view.firstPerson ? "first-person" : "third-person";
       }
-      const forward = Number(keys.has("KeyW") || keys.has("ArrowUp")) - Number(keys.has("KeyS") || keys.has("ArrowDown"));
-      const side = Number(keys.has("KeyD") || keys.has("ArrowRight")) - Number(keys.has("KeyA") || keys.has("ArrowLeft"));
+      const forward = Number(keys.has("KeyW") || keys.has("ArrowUp")) - Number(keys.has("KeyS") || keys.has("ArrowDown")) + callbacksRef.current.mobileInput.forward;
+      const side = Number(keys.has("KeyD") || keys.has("ArrowRight")) - Number(keys.has("KeyA") || keys.has("ArrowLeft")) + callbacksRef.current.mobileInput.side;
       const inputLength = Math.max(1, Math.hypot(forward, side));
       const running = keys.has("ShiftLeft") || keys.has("ShiftRight");
       const speed = running ? 3.8 : 2.35;
@@ -295,7 +313,7 @@ export default function OfficeScene({ avatar = "fernando", firstPerson = false, 
         alfredo.rotation.y += Math.atan2(Math.sin(turn - alfredo.rotation.y), Math.cos(turn - alfredo.rotation.y)) * Math.min(1, dt * 2.5);
       }
       if (view.firstPerson) {
-        const eyeY = avatar === "victoria" ? 1.58 : 1.66;
+        const eyeY = avatar === "victoria" ? 1.47 : 1.50;
         const level = Math.cos(view.pitch);
         camera.position.set(player.x, eyeY, player.z);
         targetLook.set(player.x - Math.sin(view.yaw) * level,
@@ -329,6 +347,7 @@ export default function OfficeScene({ avatar = "fernando", firstPerson = false, 
     frameId = requestAnimationFrame(animate);
     return () => {
       live = false;
+      avatarModelRef.current = null;
       cancelAnimationFrame(frameId);
       observer.disconnect();
       window.removeEventListener("keydown", onKeyDown);
@@ -350,7 +369,7 @@ export default function OfficeScene({ avatar = "fernando", firstPerson = false, 
   }, [avatar]);
 
   return <div className="office-scene" data-status={status}>
-    <canvas ref={canvasRef} className="office-canvas" aria-label="Oficina 3D de Interbanking" />
+    <canvas ref={canvasRef} className="office-canvas" tabIndex={0} aria-label={`Oficina 3D de ${DEMO_COMPANY.name}`} />
     {status !== "ready" && <div className="office-loading" role="status">
       {status === "error" ? "No se pudieron cargar los modelos de la oficina." : "Preparando la oficina y sus personajes…"}
     </div>}

@@ -3,6 +3,8 @@ import { createOrbGlowTexture, createOrbHalo, createPlasmaOrb } from "./neonOrbV
 import { disposeObjects } from "./disposeGameObjects.js";
 import { createCathedralResonance } from "./cathedralResonance.js";
 import { cathedralProfile } from "./cathedralQuality.js";
+import { CATHEDRAL_INTERACTIONS } from "./cathedralLayout.js";
+import { CATHEDRAL_CANVAS_FONT } from "./cathedralTypography.js";
 
 const TAU = Math.PI * 2;
 const PALETTES = [
@@ -47,7 +49,7 @@ export function createCathedralEnergy(parent) {
     const points = new THREE.Points(geometry, material);
     points.name = "Partículas de recuerdo"; group.add(points); return points;
   }
-  function frequencyClue(index, x, z) {
+  function frequencyClue(index, x, z, id) {
     const canvas = document.createElement("canvas"); canvas.width = canvas.height = 192;
     const ctx = canvas.getContext("2d");
     ctx.translate(96, 96);
@@ -57,7 +59,9 @@ export function createCathedralEnergy(parent) {
     ctx.beginPath(); ctx.moveTo(-30, -41); ctx.lineTo(30, -41); ctx.moveTo(-30, 41); ctx.lineTo(30, 41);
     ctx.strokeStyle = "#738f98"; ctx.stroke();
     ctx.fillStyle = "#d6fff1";
-    for (let i = 0; i <= index; i++) ctx.fillRect((i - index / 2) * 24 - 4, -22, 8, 44);
+    for (let i = 0; i <= index; i++) ctx.fillRect((i - index / 2) * 24 - 4, -28, 8, 38);
+    ctx.font = "700 20px " + CATHEDRAL_CANVAS_FONT; ctx.textAlign = "center";
+    ctx.fillText(`${index + 1} / ${id.toUpperCase()}`, 0, 44, 154);
     const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
     const material = new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, toneMapped: false });
     const clue = addMesh(root, new THREE.PlaneGeometry(.54, .54), material, "Pista de frecuencia / " + (index + 1));
@@ -97,11 +101,189 @@ export function createCathedralEnergy(parent) {
     }));
     reflection.name = "Luz sobre el pedestal"; reflection.rotation.x = -Math.PI / 2;
     reflection.position.set(x, altar ? 1.49 : 1.412, z); reflection.scale.setScalar(size); root.add(reflection);
-    const clue = altar ? null : frequencyClue(index, x, z);
-    const record = { id, group, plasma, particles, halo, orbits, reflection, clue, palette, y, index, altar, state: null };
+    const clue = altar ? null : frequencyClue(index, x, z, id);
+    // The Anomaly forges a convincing first-place marker in normal sight.
+    // Frequency Vision replaces it with the true third memory.
+    let falseClue = null;
+    if (id === "fracturada") {
+      const canvas = document.createElement("canvas"); canvas.width = 512; canvas.height = 128;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "rgba(28,12,31,.94)"; ctx.fillRect(0, 0, 512, 128);
+      ctx.strokeStyle = "#b85a82"; ctx.lineWidth = 5; ctx.strokeRect(7, 7, 498, 114);
+      ctx.fillStyle = "#ef9ab7"; ctx.font = "700 30px " + CATHEDRAL_CANVAS_FONT; ctx.textAlign = "center";
+      ctx.fillText("01 / REALIDAD FRACTURADA", 256, 78, 475);
+      const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+      falseClue = addMesh(root, new THREE.PlaneGeometry(1.15, .29),
+        new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, toneMapped: false }),
+        "Pista corrupta / falso primer recuerdo");
+      falseClue.position.set(x, 2.86, z + .57);
+    }
+    const record = { id, group, plasma, particles, halo, orbits, reflection, clue, falseClue, palette, y, index, altar, state: null };
     relics.push(record);
     return group;
   }
+  // Shared machined materials and geometry keep the three resonators inexpensive.
+  const stoneCanvas = document.createElement("canvas");
+  stoneCanvas.width = stoneCanvas.height = 256;
+  const stoneContext = stoneCanvas.getContext("2d");
+  const stonePixels = stoneContext.createImageData(256, 256);
+  let stoneSeed = 4179;
+  for (let pixel = 0; pixel < stonePixels.data.length; pixel += 4) {
+    stoneSeed = (Math.imul(stoneSeed, 1664525) + 1013904223) | 0;
+    const grain = 24 + ((stoneSeed >>> 24) & 31);
+    stonePixels.data[pixel] = grain;
+    stonePixels.data[pixel + 1] = grain - 2;
+    stonePixels.data[pixel + 2] = grain + 9;
+    stonePixels.data[pixel + 3] = 255;
+  }
+  stoneContext.putImageData(stonePixels, 0, 0);
+  stoneContext.strokeStyle = "rgba(148,138,151,.18)";
+  stoneContext.lineWidth = 1;
+  for (let line = 0; line < 28; line++) {
+    const x = (line * 97) % 256, y = (line * 53) % 256;
+    stoneContext.beginPath(); stoneContext.moveTo(x, y);
+    stoneContext.lineTo((x + 19 + line % 7) % 256, (y + 7) % 256); stoneContext.stroke();
+  }
+  const stoneMap = new THREE.CanvasTexture(stoneCanvas);
+  stoneMap.colorSpace = THREE.SRGBColorSpace;
+  stoneMap.wrapS = stoneMap.wrapT = THREE.RepeatWrapping;
+  stoneMap.anisotropy = 4;
+  const nodeStone = new THREE.MeshStandardMaterial({
+    map: stoneMap, bumpMap: stoneMap, bumpScale: .018, roughness: .84, metalness: .08,
+  });
+  const nodeMetal = new THREE.MeshStandardMaterial({ color: 0xa78a5d, metalness: .82, roughness: .29 });
+  const nodeMetalDark = new THREE.MeshStandardMaterial({ color: 0x554b49, metalness: .76, roughness: .42 });
+  const nodeGlass = new THREE.MeshPhysicalMaterial({
+    color: 0x454b5b, metalness: .18, roughness: .18, clearcoat: 1, clearcoatRoughness: .12,
+    transparent: true, opacity: .82, depthWrite: false, side: THREE.DoubleSide,
+  });
+  const baseGeometry = new THREE.LatheGeometry([
+    [0, 0], [.48, 0], [.53, .035], [.52, .08], [.47, .11],
+    [.48, .19], [.45, .24], [.38, .27], [.36, .33], [0, .33],
+  ].map(([r, y]) => new THREE.Vector2(r, y)), 48);
+  const stemGeometry = new THREE.CylinderGeometry(.13, .18, .46, 24);
+  const nodeCollarGeometry = new THREE.TorusGeometry(.18, .017, 8, 48);
+  const outerRimGeometry = new THREE.TorusGeometry(.35, .024, 10, 64);
+  const innerRimGeometry = new THREE.TorusGeometry(.235, .007, 8, 64);
+  const arcGeometry = new THREE.TorusGeometry(.285, .008, 8, 64, TAU * .7);
+  const coreGeometry = new THREE.IcosahedronGeometry(.13, 1);
+  const glassGeometry = new THREE.IcosahedronGeometry(.22, 1);
+  const labelGeometry = new THREE.PlaneGeometry(.78, .18);
+  const plaqueGeometry = new THREE.BoxGeometry(.85, .22, .035);
+  const tickGeometry = new THREE.BoxGeometry(.011, .045, .014);
+  const boltGeometry = new THREE.SphereGeometry(.016, 8, 6);
+  const shadowGeometry = new THREE.PlaneGeometry(1.42, 1.42);
+  const tuningNodes = CATHEDRAL_INTERACTIONS.filter((spot) => spot.id.startsWith("cathedral-tone-"))
+    .map((spot, index) => {
+      const id = spot.id.slice("cathedral-tone-".length);
+      const group = new THREE.Group(); group.name = "Primera Voz / resonador " + id;
+      group.position.set(spot.x, 0, spot.z); root.add(group);
+      addMesh(group, baseGeometry, nodeStone, "Pedestal de obsidiana tallada");
+      for (const [radius, y] of [[.505, .075], [.405, .265]]) {
+        const band = addMesh(group, new THREE.TorusGeometry(radius, .012, 6, 48),
+          nodeMetalDark, "Incrustacion perimetral de bronce");
+        band.rotation.x = Math.PI / 2; band.position.y = y;
+      }
+      const shadow = addMesh(group, shadowGeometry, new THREE.MeshBasicMaterial({
+        map: glowTexture, color: 0x08060b, transparent: true, opacity: .52, depthWrite: false,
+      }), "Sombra de contacto");
+      shadow.rotation.x = -Math.PI / 2; shadow.position.y = .009;
+      const stem = addMesh(group, stemGeometry, nodeMetalDark, "Columna conductora");
+      stem.position.y = .55;
+      const ribs = new THREE.InstancedMesh(new THREE.CylinderGeometry(.012, .012, .38, 8), nodeMetal, 4);
+      ribs.name = "Varillas conductoras embutidas";
+      const rib = new THREE.Object3D();
+      for (let i = 0; i < 4; i++) {
+        const angle = i * TAU / 4 + Math.PI / 4;
+        rib.position.set(Math.cos(angle) * .145, .55, Math.sin(angle) * .145);
+        rib.updateMatrix(); ribs.setMatrixAt(i, rib.matrix);
+      }
+      group.add(ribs);
+      for (const y of [.35, .75]) {
+        const collar = addMesh(group, nodeCollarGeometry, nodeMetal, "Collar torneado");
+        collar.rotation.x = Math.PI / 2; collar.position.y = y;
+      }
+      const head = addMesh(group, new THREE.CylinderGeometry(.27, .18, .1, 32),
+        nodeStone, "Casquillo de obsidiana");
+      head.position.y = .82;
+      const rim = addMesh(group, outerRimGeometry, nodeMetal, "Aro de metal mecanizado");
+      rim.position.set(0, 1.065, .012);
+      const innerRim = addMesh(group, innerRimGeometry, nodeMetalDark, "Aro de contencion");
+      innerRim.position.set(0, 1.065, .029);
+      const tick = new THREE.Object3D();
+      const ticks = new THREE.InstancedMesh(tickGeometry, nodeMetal, 24);
+      ticks.name = "Muescas radiales grabadas";
+      for (let i = 0; i < 24; i++) {
+        const angle = i * TAU / 24;
+        tick.position.set(Math.sin(angle) * .32, 1.065 + Math.cos(angle) * .32, .018);
+        tick.rotation.z = -angle; tick.scale.set(1, i % 3 ? .5 : 1, 1);
+        tick.updateMatrix(); ticks.setMatrixAt(i, tick.matrix);
+      }
+      group.add(ticks);
+      const coreMaterial = new THREE.MeshStandardMaterial({
+        color: 0x745579, emissive: 0x745579, emissiveIntensity: .35,
+        metalness: .22, roughness: .24,
+      });
+      const core = addMesh(group, coreGeometry, coreMaterial, "Corazon luminoso tallado");
+      core.position.set(0, 1.065, .085);
+      const glass = addMesh(group, glassGeometry, nodeGlass, "Cristal facetado de contencion");
+      glass.position.copy(core.position); glass.rotation.set(.22, .34, -.18);
+      const ringMaterial = new THREE.MeshStandardMaterial({
+        color: 0x745579, emissive: 0x745579, emissiveIntensity: .45,
+        metalness: .28, roughness: .22, transparent: true, opacity: .48, depthWrite: false,
+      });
+      const ring = addMesh(group, arcGeometry, ringMaterial, "Filamento de frecuencia");
+      ring.position.set(0, 1.065, .047);
+      const haloMaterial = new THREE.SpriteMaterial({
+        map: glowTexture, color: 0x745579, transparent: true, opacity: .08,
+        depthWrite: false, blending: THREE.AdditiveBlending,
+      });
+      const halo = new THREE.Sprite(haloMaterial); halo.name = "Reflejo dentro del cristal";
+      halo.position.set(0, 1.065, .01); halo.scale.set(.85, .85, 1); group.add(halo);
+      const plaque = addMesh(group, plaqueGeometry, nodeMetal, "Placa metalica remachada");
+      plaque.position.set(0, .18, .513);
+      const enamel = addMesh(group, plaqueGeometry, obsidian, "Esmalte oscuro de la placa");
+      enamel.position.set(0, .18, .537); enamel.scale.set(.94, .77, .3);
+      const bolts = new THREE.InstancedMesh(boltGeometry, nodeMetal, 2);
+      bolts.name = "Remaches de la placa";
+      for (const [i, x] of [-.39, .39].entries()) {
+        tick.position.set(x, .18, .558); tick.rotation.set(0, 0, 0); tick.scale.setScalar(1);
+        tick.updateMatrix(); bolts.setMatrixAt(i, tick.matrix);
+      }
+      group.add(bolts);
+      const canvas = document.createElement("canvas"); canvas.width = 512; canvas.height = 128;
+      const context = canvas.getContext("2d");
+      const map = new THREE.CanvasTexture(canvas); map.colorSpace = THREE.SRGBColorSpace;
+      const label = addMesh(group, labelGeometry, new THREE.MeshStandardMaterial({
+        map, emissive: 0x59736f, emissiveIntensity: .3, roughness: .27, metalness: .14,
+      }), "Inscripcion / resonador " + id);
+      label.position.set(0, .18, .56);
+      return { id, index, group, core, coreMaterial, glass, ring, ringMaterial,
+        halo, haloMaterial, context, map, labelMode: null };
+    });
+  function paintNodeLabel(node, vision) {
+    const ctx = node.context;
+    const finish = ctx.createLinearGradient(0, 0, 512, 128);
+    finish.addColorStop(0, "#141920");
+    finish.addColorStop(.48, "#282b2d");
+    finish.addColorStop(1, "#101317");
+    ctx.fillStyle = finish; ctx.fillRect(0, 0, 512, 128);
+    ctx.strokeStyle = vision ? "#9acbc4" : "#a88d67";
+    ctx.lineWidth = 3; ctx.strokeRect(5, 5, 502, 118);
+    ctx.strokeStyle = "rgba(219,190,143,.36)";
+    ctx.lineWidth = 1; ctx.strokeRect(13, 13, 486, 102);
+    ctx.fillStyle = vision ? "#c3f3e8" : "#dfccb0";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "700 43px " + CATHEDRAL_CANVAS_FONT;
+    const name = node.id.toUpperCase();
+    ctx.fillText(name, 256, 66, 430);
+    for (const x of [36, 476]) {
+      ctx.beginPath(); ctx.moveTo(x, 64); ctx.lineTo(x + 10, 54);
+      ctx.lineTo(x + 20, 64); ctx.lineTo(x + 10, 74); ctx.closePath(); ctx.fill();
+    }
+    node.map.needsUpdate = true;
+  }
+
   function portal(x, y, z) {
     const group = new THREE.Group(); group.name = "Umbral del Abismo / frecuencia abierta";
     group.position.set(x, y, z); group.visible = false; root.add(group);
@@ -189,6 +371,28 @@ export function createCathedralEnergy(parent) {
           r.clue.visible = vision;
           if (camera) r.clue.quaternion.copy(camera.quaternion);
         }
+        if (r.falseClue) r.falseClue.visible = !vision && !restored;
+      }
+      for (const node of tuningNodes) {
+        const open = Boolean(progress?.altarOpen);
+        node.group.visible = open;
+        if (!open) continue;
+        if (node.labelMode !== vision) { node.labelMode = vision; paintNodeLabel(node, vision); }
+        const active = progress?.altarActivated || progress?.altarSequence?.includes(node.id);
+        const color = active ? 0xb2f2d6 : vision ? 0xaacfee : 0x8c6f87;
+        node.coreMaterial.color.setHex(active ? 0x627e79 : vision ? 0x435e6c : 0x4b3d50);
+        node.coreMaterial.emissive.setHex(color);
+        node.coreMaterial.emissiveIntensity = active ? .78 : vision ? .46 : .22;
+        node.ringMaterial.color.setHex(color);
+        node.ringMaterial.emissive.setHex(color);
+        node.ringMaterial.emissiveIntensity = active ? .8 : .45;
+        node.ringMaterial.opacity = active ? .86 : vision ? .7 : .43;
+        node.haloMaterial.color.setHex(color);
+        node.haloMaterial.opacity = (active ? .16 : vision ? .12 : .055) * profile.haloScale;
+        node.halo.visible = !camera || camera.position.distanceTo(node.group.position) < profile.effectDistance;
+        node.ring.rotation.z = reducedMotion ? 0 : time * (active ? .42 : .15) + node.index * .65;
+        node.glass.rotation.y = reducedMotion ? .34 : .34 + time * .12;
+        node.core.scale.setScalar(active ? 1.12 : 1 + (reducedMotion ? 0 : .035 * Math.sin(time * 1.5 + node.index)));
       }
       for (const p of portals) {
         p.group.visible = Boolean(progress?.completed);

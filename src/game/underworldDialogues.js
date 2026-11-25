@@ -92,6 +92,43 @@ register("testigo-defeat", { priority: 100, mode: "conversation", condition: "el
   ["neonboy-testigo-05", "NEONBOY", "Fantástico... Ahora resulta que tengo admiradores interdimensionales."],
 ]);
 
+register("flames-awaken", { priority: 55, mode: "auto", condition: "six flames lit" }, [
+  ["neonboy-puente-nuevo-01", "NEONBOY", "Genial... Encend\u00ed las luces y ahora parece que el puente quiere matarme."],
+]);
+register("bridge-trial-end", { priority: 55, mode: "auto", condition: "dangerous bridge crossed" }, [
+  ["neonboy-puente-nuevo-02", "NEONBOY", "Sobreviv\u00ed al puente. Ahora tengo que encontrar al Barquero."],
+]);
+register("barquero-prueba", { priority: 85, mode: "conversation", condition: "bridge trial completed", completionEvent: "ferryman-start" }, [
+  ["barquero-prueba-01", "BARQUERO", "Encendiste las llamas. Pero todav\u00eda no ganaste el derecho a cruzar."],
+  ["neonboy-prueba-01", "NEONBOY", "\u00bfAhora tambi\u00e9n hay que sacar turno para cruzar el infierno?"],
+  ["barquero-prueba-02", "BARQUERO", "Tres recuerdos fueron arrancados de este lugar. Recuperalos y el r\u00edo abrir\u00e1 su camino."],
+  ["neonboy-prueba-02", "NEONBOY", "Perfecto... Una b\u00fasqueda del tesoro en un horno gigante."],
+]);
+register("barquero-memory-hint", { priority: 70, mode: "conversation", condition: "symbol hunt active" }, [
+  ["barquero-prueba-03", "BARQUERO", "El primer recuerdo duerme en una inscripci\u00f3n; el segundo solo existe en otra frecuencia. El tercero espera al Orbe Ne\u00f3n."],
+  ["barquero-prueba-04", "BARQUERO", "El ciclo nunca termina. Solo cambia de forma."],
+]);
+register("barquero-ready", { priority: 80, mode: "conversation", condition: "all three symbols recovered" }, [
+  ["barquero-listo-01", "BARQUERO", "Los recuerdos han regresado. La traves\u00eda puede comenzar."],
+  ["neonboy-listo-01", "NEONBOY", "Espero que esta cosa tenga seguro contra incendios."],
+]);
+register("ferry-ride", { priority: 50, mode: "auto", condition: "ferry boarded" }, [
+  ["neonboy-barca-01", "NEONBOY", "Che, \u00bfy hace cu\u00e1nto trabaj\u00e1s de esto?"],
+  ["barquero-barca-01", "BARQUERO", "Desde antes de que existiera el tiempo."],
+  ["neonboy-barca-02", "NEONBOY", "\u00bfY vacaciones?"],
+  ["barquero-barca-02", "BARQUERO", "No existen."],
+  ["neonboy-barca-03", "NEONBOY", "Bueno... Ahora entiendo esa cara."],
+]);
+register("alma-mecanismo", { priority: 80, mode: "conversation", condition: "ritual mechanism encountered" }, [
+  ["alma-mecanismo-01", "ALMA ERRANTE", "Primero recordamos qui\u00e9nes fuimos. Despu\u00e9s olvidamos. Y al final... algo vuelve a nacer."],
+]);
+register("ambush-start", { priority: 40, mode: "auto", condition: "three rings aligned" }, [
+  ["neonboy-emboscada-01", "NEONBOY", "\u00a1Dale! \u00a1Ni en el infierno me dejan terminar un tr\u00e1mite tranquilo!"],
+]);
+register("testigo-shield", { priority: 60, mode: "auto", condition: "witness enters second phase" }, [
+  ["testigo-escudo-01", "TESTIGO DE LAS CENIZAS", "La se\u00f1al te reconoce... Pero todav\u00eda no comprende lo que sos."],
+  ["neonboy-escudo-01", "NEONBOY", "Yo tampoco, amigo. Pero tengo una guitarra y bastante mala paciencia."],
+]);
 const randomEntries = [
   ["neonboy-infierno-random-01", "NEONBOY", "Si salgo vivo de esta, voy a necesitar unas vacaciones."],
   ["neonboy-infierno-random-02", "NEONBOY", "Con este calor, hasta mi amplificador se derretiría."],
@@ -118,9 +155,12 @@ export const UNDERWORLD_FUTURE_CREATURE_AUDIO = Object.freeze([
 ]);
 
 export function underworldConversationFor(id, progress) {
-  if (id === "alma") return progress?.almaMet ? "alma-followup" : "alma-first";
+  if (id === "alma") return progress?.ferryCompleted && !progress?.mechanismSolved ? "alma-mecanismo" : progress?.almaMet ? "alma-followup" : "alma-first";
   if (id === "barquero") {
     if (!progress?.barqueroMet) return "barquero-first";
+    if (progress?.bridgeTrialComplete && !progress?.ferrymanTrialStarted) return "barquero-prueba";
+    if (progress?.ferrymanTrialStarted && progress?.memorySymbols?.length === 3 && !progress?.ferryCompleted) return "barquero-ready";
+    if (progress?.ferrymanTrialStarted && progress?.memorySymbols?.length < 3) return "barquero-memory-hint";
     if (progress?.enemies?.every((health) => health === 0) && !progress?.barqueroAfterSentinelsHeard)
       return "barquero-after";
     return "barquero-hint";

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 240" role="img" aria-labelledby="title">
+  <title id="title">NEXORA Corporate Experience</title>
+  <defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#78e7e2"/><stop offset=".55" stop-color="#8bd0f8"/><stop offset="1" stop-color="#74b4e8"/></linearGradient></defs>
+  <rect width="560" height="240" fill="none"/>
+  <path d="M53 69 98 36l45 33v67l-45 33-45-33z" fill="none" stroke="url(#g)" stroke-width="8" stroke-linejoin="round"/>
+  <path d="m66 119 32-52 32 52M68 78l60 56" fill="none" stroke="url(#g)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="98" cy="67" r="6" fill="#78e7e2"/><circle cx="130" cy="119" r="6" fill="#74b4e8"/>
+  <text x="170" y="119" fill="#f7f8fd" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="58" letter-spacing="4">NEXORA</text>
+  <text x="174" y="157" fill="#aab6d1" font-family="Arial,Helvetica,sans-serif" font-size="18" letter-spacing="5">CORPORATE EXPERIENCE</text>
+</svg>

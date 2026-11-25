@@ -1,8 +1,12 @@
 ﻿import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import path from "node:path";
 
-const assetDirectory = fileURLToPath(new URL("../src/assets/neonboy-animaciones/", import.meta.url));
-const sources = process.argv.slice(2).length ? process.argv.slice(2) : ["mujer-caminando", "mujer-tocando-guitarra", "freddy-caminar", "jason-walk", "esqueleto-sosteniendo-disco-holyFire", "neonBoy-walking-alta", "neonboy-new-walk", "neonboy-new-jump", "newJump"];
+const args = process.argv.slice(2);
+const customDirectory = args[0] === "--asset-dir" ? args.splice(0, 2)[1] : null;
+const assetDirectory = customDirectory ? path.resolve(customDirectory) + path.sep :
+  fileURLToPath(new URL("../src/assets/neonboy-animaciones/", import.meta.url));
+const sources = args.length ? args : ["mujer-caminando", "mujer-tocando-guitarra", "freddy-caminar", "jason-walk", "esqueleto-sosteniendo-disco-holyFire", "neonBoy-walking-alta", "neonboy-new-walk", "neonboy-new-jump", "newJump"];
 const align4 = (value) => (value + 3) & ~3;
 
 function extractAnimation(name) {

@@ -7,7 +7,7 @@ async function openBridge(page) {
       chapter10Progress: { coreAnalyzed: true, signalDetected: true, hugoConsulted: true,
         signalReconstructed: true, underworldUnlocked: true, chapterCompleted: true },
       underworldProgress: { arrivalRead: true, introSeen: true, visionActive: true,
-        bridgeCrossed: false, enemies: [3, 3] },
+        bridgeCrossed: false, flames: [0,1,2,3,4,5], enemies: [3, 3] },
       positions: { underworld: { x: 0, z: -13.2, yaw: Math.PI, viewYaw: 0 } },
     };
     localStorage.setItem("neonboy.universe.saves.v1", JSON.stringify({ version: 1,

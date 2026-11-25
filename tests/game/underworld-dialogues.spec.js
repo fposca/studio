@@ -50,7 +50,7 @@ test("the first-visit introduction can be skipped and stays completed after relo
 test("Alma replies in order and the second interaction uses the follow-up", async ({ page }) => {
   const data = chapter11Save(
     { arrivalRead: true, introSeen: true, visionActive: false, bridgeCrossed: false, enemies: [3, 3] },
-    { x: 2.3, z: -11.5, yaw: Math.PI, viewYaw: 0 },
+    { x: -1.1, z: -4.4, yaw: Math.PI, viewYaw: 0 },
   );
   const level = await enterChapter(page, data);
   await expect(level.getByRole("status").filter({ hasText: /Alma Errante/ })).toBeVisible();
@@ -68,7 +68,10 @@ test("Alma replies in order and the second interaction uses the follow-up", asyn
 test("the Witness warns NeonBoy before combat and remembers the encounter", async ({ page }) => {
   const data = chapter11Save(
     { arrivalRead: true, introSeen: true, visionActive: true, bridgeCrossed: true,
-      enemies: [0, 0], gargolaHealth: 0, testigoHealth: 5, testigoIntroSeen: false },
+      flames: [0,1,2,3,4,5], bridgeTrialComplete: true, ferrymanTrialStarted: true,
+      memoryClueRead: true, memorySymbols: ["memory","oblivion","rebirth"], ferryCompleted: true,
+      mechanismSolved: true, ambushHealth: [0,0], enemies: [0, 0], gargolaHealth: 0,
+      testigoHealth: 5, testigoIntroSeen: false },
     { x: 0, z: -43, yaw: Math.PI, viewYaw: 0 },
   );
   const level = await enterChapter(page, data);

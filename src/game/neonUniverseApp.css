@@ -93,3 +93,7 @@
   .universe-no-save { margin: -2px 0 0 46px; font-size: 10px; }
   .universe-footer-note { bottom: 9px; }
 }
+
+.universe-loading { min-height: 100dvh; display: grid; place-items: center; text-align: center;
+  padding: 24px; color: #f5d7eb; background: radial-gradient(circle at 50% 44%, #39203c, #100b18 66%);
+  font: 700 15px "Bahnschrift", "Segoe UI", sans-serif; letter-spacing: .09em; }

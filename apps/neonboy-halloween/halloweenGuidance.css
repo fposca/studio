@@ -1,0 +1,147 @@
+/* Gameplay actions and side captions share the measured control safe area. */
+.halloween-game { --guide-controls-floor: 62px; }
+.halloween-objective { position:absolute; z-index:9; top:155px; left:clamp(20px,3vw,48px); display:flex; align-items:flex-start; gap:12px; width:min(360px,calc(100vw - 40px)); padding:14px; border:1px solid #b8d7db55; border-radius:12px; background:linear-gradient(125deg,#142530f5,#14131ff5); color:#f3f4ef; text-align:left; box-shadow:0 8px 28px #0005,inset 3px 0 #9ae6dc; }
+.halloween-objective-icon { display:grid; place-items:center; flex:none; width:34px; height:34px; border:1px solid #b5eee533; border-radius:10px; color:#a7e6dc; background:#83e5d912; }
+.halloween-objective > span:nth-child(2) { display:grid; gap:6px; }
+.halloween-objective small { color:#a4d4d0; font-size:9px; font-weight:700; letter-spacing:.16em; }
+.halloween-objective strong { font-size:15px; line-height:1.25; }
+.halloween-objective em { color:#c2cbd1; font-size:12px; font-style:normal; line-height:1.5; }
+.halloween-objective-more { flex:none; color:#a7e6dc; margin-left:auto; }
+.halloween-nav .halloween-guide-nav { color:#c5f4e9; border-color:#8fc9c2; background:#182b32f2; }
+.halloween-guide-marker { position:absolute; top:0; left:0; z-index:5; justify-items:center; gap:2px; max-width:145px; text-align:center; pointer-events:none; color:#e0fff4; filter:drop-shadow(0 2px 4px #000); }
+.guide-marker-arrow { font:700 32px/1 system-ui,sans-serif; color:#a8f1df; }
+.halloween-guide-marker strong { padding:3px 8px; border:1px solid #8cd2c366; border-radius:5px; background:#10252deb; font:600 11px/1.3 system-ui,sans-serif; }
+.halloween-guide-marker small { font:600 10px/1.3 system-ui,sans-serif; }
+.halloween-bottom-stack { position:absolute; z-index:13; left:50%; bottom:calc(var(--guide-controls-floor) + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); width:min(620px,calc(100vw - 36px)); display:flex; flex-direction:column-reverse; align-items:center; gap:8px; pointer-events:none; }
+.halloween-bottom-stack .halloween-interaction-dock,.halloween-bottom-stack .halloween-coin-notice { position:relative; top:auto; bottom:auto!important; left:auto; right:auto; transform:none; margin:0; width:100%; max-width:100%; }
+.halloween-bottom-stack .halloween-interaction-dock { width:auto; }
+.halloween-bottom-stack .halloween-coin-notice { padding:10px 14px; font-size:12px; }
+/* The current objective already points to a ringing phone. */
+.halloween-game .halloween-phone-ring.is-side-hud { display:none; }
+.halloween-chest-reveal { position:absolute; z-index:20; bottom:32px; left:50%; transform:translateX(-50%); display:grid; gap:7px; width:min(520px,calc(100% - 32px)); padding:18px 24px; border:1px solid #ddc59d77; border-radius:14px; background:#161c26f2; box-shadow:0 16px 50px #0007; text-align:center; }
+.halloween-chest-reveal small { color:#c9dcca; font-size:9px; font-weight:700; letter-spacing:.16em; }
+.halloween-chest-reveal strong { font-size:22px; color:#fff0d8; }
+.halloween-chest-reveal span { font-size:13px; color:#d0d7db; }
+.halloween-chest-reveal button { justify-self:center; min-height:44px; padding:8px 20px; border:1px solid #9ec8be66; border-radius:7px; background:#a8e5d81a; color:#d6faed; font-size:12px; }
+.is-guide-reveal .halloween-nav,.is-guide-reveal .halloween-archive-status { visibility:hidden; pointer-events:none; }
+.halloween-guide-backdrop { position:absolute; z-index:35; inset:0; display:grid; place-items:center; padding:20px; background:#070c14b8; }
+.halloween-guide-panel { display:flex; flex-direction:column; width:min(780px,100%); max-height:calc(100dvh - 40px); border:1px solid #9ec6c752; border-radius:18px; background:linear-gradient(135deg,#192932,#141623 60%); color:#f2f2eb; font-family:system-ui,sans-serif; box-shadow:0 25px 80px #0009; overflow:hidden; }
+.halloween-guide-panel header { display:flex; justify-content:space-between; align-items:center; padding:24px 28px; border-bottom:1px solid #ffffff12; }
+.halloween-guide-panel header small { color:#9dcec7; font-size:9px; letter-spacing:.18em; font-weight:700; }
+.halloween-guide-panel h2 { margin:7px 0 0; font-size:28px; letter-spacing:-.035em; }
+.halloween-guide-panel header button { width:44px; height:44px; flex:none; border:1px solid #b6d9da30; border-radius:50%; background:#ffffff05; color:#e1eeec; }
+.halloween-guide-body { min-height:0; overflow:auto; display:grid; grid-template-columns:1fr 1fr; gap:25px; padding:24px 28px; }
+.halloween-guide-current { align-self:start; padding:22px; border:1px solid #86cbb33d; border-radius:12px; background:#9cead009; }
+.halloween-guide-current > svg { color:#a7e6dc; }
+.halloween-guide-current h3 { margin:12px 0; font-size:21px; letter-spacing:-.02em; }
+.halloween-guide-current p { margin:0 0 20px; color:#d2dfdc; font-size:14px; line-height:1.65; }
+.halloween-guide-current small { display:block; color:#97acae; font-size:11px; line-height:1.5; margin-top:16px; }
+.halloween-guide-current button { display:flex; gap:8px; align-items:center; min-height:44px; padding:9px 12px; border:1px solid #c4dfba55; border-radius:7px; background:#a8dfbd10; color:#daeed6; font-size:12px; }
+.halloween-guide-checklist h3 { margin:0 0 16px; font-size:14px; }
+.halloween-guide-checklist ul { margin:0; padding:0; list-style:none; display:grid; gap:14px; }
+.halloween-guide-checklist li { display:flex; gap:11px; color:#e6e8e5; font-size:12px; line-height:1.4; }
+.guide-check { width:20px; height:20px; flex:none; display:grid; place-items:center; border:1px solid #b5caca40; border-radius:50%; color:#b3edca; }
+.is-done .guide-check { border-color:#a3dcba66; background:#a3dcba18; }
+.halloween-guide-checklist small { display:block; color:#98acae; font-size:11px; margin-top:3px; }
+.halloween-guide-checklist .is-done small { color:#a7d7be; }
+.halloween-guide-panel footer { display:flex; justify-content:space-between; align-items:center; gap:22px; padding:18px 28px; border-top:1px solid #ffffff12; }
+.halloween-guide-panel footer p { margin:0; max-width:440px; color:#a3b5ba; font-size:11px; line-height:1.55; }
+.halloween-guide-panel footer button { display:flex; gap:12px; align-items:center; justify-content:center; flex:none; min-height:44px; padding:10px 18px; border:1px solid #b9dfd5; border-radius:7px; background:#b9dfd5; color:#122a2d; font-size:12px; font-weight:700; }
+@media(pointer:coarse) { .halloween-game { --guide-controls-floor:202px; } .halloween-objective { top:145px; } }
+@media(orientation:landscape) and (max-height:520px) {
+  .halloween-game { min-height:0; }
+  .halloween-objective { top:83px; left:max(12px,env(safe-area-inset-left)); width:290px; padding:10px 12px; gap:9px; border-radius:9px; }
+  .halloween-objective-icon { width:27px; height:27px; }
+  .halloween-objective small { font-size:8px; }
+  .halloween-objective strong { font-size:12px; }
+  .halloween-objective em { font-size:10px; line-height:1.45; }
+  .has-subtitle .halloween-objective em { display:none; }
+  .halloween-objective > span:nth-child(2) { gap:4px; }
+  .halloween-objective-more { width:13px; }
+  .halloween-game .halloween-archive-status { display:none; }
+  .halloween-game .halloween-matrix-hud { display:none; }
+  .halloween-bottom-stack { width:min(550px,calc(100vw - 100px)); gap:6px; }
+  .halloween-interaction-dock .halloween-prompt { min-height:44px; }
+  .halloween-guide-backdrop { padding:8px; }
+  .halloween-guide-panel { max-height:calc(100dvh - 16px); border-radius:12px; }
+  .halloween-guide-panel header { padding:12px 18px; }
+  .halloween-guide-panel h2 { margin-top:3px; font-size:22px; }
+  .halloween-guide-body { padding:14px 18px; gap:18px; }
+  .halloween-guide-current { padding:14px; }
+  .halloween-guide-current h3 { font-size:17px; margin:8px 0; }
+  .halloween-guide-current p { font-size:12px; margin-bottom:10px; }
+  .halloween-guide-checklist ul { gap:9px; }
+  .halloween-guide-panel footer { padding:9px 18px; }
+  .halloween-chest-reveal { bottom:12px; padding:12px 20px; gap:5px; }
+  .halloween-chest-reveal strong { font-size:18px; }
+}
+@media(orientation:portrait) and (max-width:650px) {
+  .halloween-objective { top:265px; left:16px; }
+  .halloween-guide-body { grid-template-columns:1fr; }
+  .halloween-guide-panel header { padding:16px; }
+  .halloween-guide-panel footer { padding:12px 16px; flex-wrap:wrap; gap:12px; }
+  .halloween-game .halloween-archive-status { display:none; }
+  .halloween-bottom-stack { width:calc(100vw - 24px); }
+}
+
+.halloween-guide-optional { margin-top:18px; padding-top:14px; border-top:1px solid #ffffff15; font-size:11px; color:#bed3d4; }
+.halloween-guide-optional summary { cursor:pointer; min-height:32px; }
+.halloween-guide-optional p { font-size:11px; color:#99adaf; }
+.halloween-guide-optional li { justify-content:space-between; }
+
+@media(orientation:landscape) and (max-height:520px) {
+  .halloween-guide-checklist > ul { gap:9px; }
+  .halloween-guide-checklist > ul > li { font-size:11px; align-items:center; }
+  .halloween-guide-checklist > ul > li > span:last-child { display:flex; flex:1; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:3px 10px; }
+  .halloween-guide-checklist > ul > li small { margin:0; font-size:10px; }
+  .halloween-guide-checklist .guide-check { width:18px; height:18px; }
+  .has-subtitle .halloween-objective { padding:6px 10px; top:80px; }
+  .has-subtitle .halloween-objective small { display:none; }
+}
+
+.halloween-chest-reveal p { margin:2px 0 0; padding-top:9px; border-top:1px solid #a9d1c52b; color:#b6d7ce; font:500 12px/1.5 system-ui,sans-serif; }
+.halloween-chest-reveal[data-reveal="demon"],.halloween-chest-reveal[data-reveal="people"],.halloween-chest-reveal[data-reveal="mirror"] { width:min(620px,calc(100% - 32px)); }
+.halloween-guide-current button + button { margin-top:8px; }
+.halloween-guide-people { margin-top:16px; border-top:1px solid #ffffff15; padding-top:12px; }
+.halloween-guide-people summary { min-height:36px; cursor:pointer; font-size:12px; font-weight:600; color:#d1e7df; }
+.halloween-guide-people p { margin:0 0 12px; color:#a4bdbb; font-size:11px; line-height:1.5; }
+.halloween-guide-people li { align-items:center; justify-content:space-between; gap:10px; min-height:40px; }
+.halloween-guide-people li > span:first-child { text-transform:capitalize; }
+.halloween-guide-people button { display:flex; align-items:center; gap:7px; min-height:40px; padding:6px 10px; border:1px solid #a1d7c855; border-radius:7px; background:#a1d7c812; color:#d5eee7; font-size:11px; }
+.guide-person-done { display:flex; align-items:center; gap:5px; color:#a0d3b4; font-size:11px; }
+@media(orientation:landscape) and (max-height:520px) {
+  .halloween-chest-reveal[data-reveal="demon"],.halloween-chest-reveal[data-reveal="people"],.halloween-chest-reveal[data-reveal="mirror"] { left:auto; right:12px; top:82px; bottom:auto; transform:none; width:290px; padding:14px; text-align:left; }
+  .halloween-chest-reveal[data-reveal] strong { font-size:16px; line-height:1.2; }
+  .halloween-chest-reveal[data-reveal] span { font-size:12px; line-height:1.5; }
+  .halloween-chest-reveal p { font-size:11px; line-height:1.45; padding-top:7px; }
+}
+
+@media(orientation:landscape) and (max-height:520px) {
+  .halloween-chest-reveal[data-reveal="demon"],.halloween-chest-reveal[data-reveal="people"],.halloween-chest-reveal[data-reveal="mirror"] { max-height:calc(100dvh - 94px); overflow:auto; }
+}
+
+
+/* Keep spoken lines out of the aiming area and above the actual touch controls. */
+.halloween-game .halloween-demon-subtitle {
+  left:auto; right:max(16px,env(safe-area-inset-right,0px));
+  bottom:calc(var(--guide-controls-floor) + env(safe-area-inset-bottom,0px));
+  transform:none; width:min(300px,32vw); max-width:none; margin:0;
+  padding:11px 14px; gap:5px; text-align:left; border-radius:10px;
+  background:#111923ec; border:1px solid #d89cbe5c; border-left:3px solid #d89cbe;
+  box-shadow:0 5px 18px #0006; font-family:system-ui,sans-serif;
+}
+.halloween-game .halloween-hero-subtitle { border-color:#8edbd550; border-left-color:#8edbd5; }
+.halloween-game .halloween-demon-subtitle strong { font-size:9px; line-height:1.3; letter-spacing:.1em; text-transform:uppercase; }
+.halloween-game .halloween-demon-subtitle span { font-size:13px; line-height:1.45; font-weight:500; text-wrap:pretty; }
+.halloween-game .halloween-demon-subtitle:has(button) { padding-top:9px; }
+.halloween-game .halloween-demon-subtitle:has(button) strong { padding-right:32px; }
+.halloween-game .halloween-demon-subtitle button { position:absolute; top:0; right:0; width:40px; height:40px; display:grid; place-items:center; border:0; border-radius:9px; background:transparent; color:#d9dfe5; pointer-events:auto; }
+.halloween-game .halloween-demon-subtitle button:hover { background:#ffffff16; }
+@media(orientation:landscape) and (max-height:520px) {
+  .halloween-game .halloween-demon-subtitle { right:max(12px,env(safe-area-inset-right,0px)); width:min(280px,36vw); padding:8px 11px; gap:4px; }
+  .halloween-game .halloween-demon-subtitle span { font-size:12px; line-height:1.4; }
+  .halloween-game .halloween-demon-subtitle strong { font-size:9px; }
+}
+@media(orientation:portrait) and (max-width:650px) {
+  .halloween-game .halloween-demon-subtitle { width:min(280px,calc(100vw - 32px)); padding:10px 12px; }
+}

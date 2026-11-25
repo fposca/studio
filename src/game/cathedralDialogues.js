@@ -46,12 +46,17 @@ export const CATHEDRAL_DIALOGUES = Object.freeze({
     make("custodio-09", "CUSTODIO", "Alguien que conocía las consecuencias de escucharla completa."),
     make("neonboy-custodio-10", "NEONBOY", "Como siempre... todas las respuestas vienen con otra pregunta."),
   ]),
+  archiveHint: Object.freeze([
+    make("custodio-archivo-pista-01", "CUSTODIO", "La Anomal\u00eda dej\u00f3 una marca falsa en el Archivo. No conf\u00edes en lo que ves a simple vista."),
+    make("neonboy-archivo-pista-01", "NEONBOY", "Entonces tengo que mirar los recuerdos en otra frecuencia."),
+    make("custodio-archivo-pista-02", "CUSTODIO", "La se\u00f1al conserva lo que la piedra intenta olvidar."),
+  ]),
   hint: Object.freeze([
     make("custodio-10", "CUSTODIO", "Reconstruiste los recuerdos. Pero todavía falta escuchar aquello que los une."),
     make("neonboy-custodio-11", "NEONBOY", "¿Otra grabación imposible?"),
     make("custodio-11", "CUSTODIO", "La primera voz. La señal que existía antes de que las puertas fueran abiertas."),
     make("neonboy-custodio-12", "NEONBOY", "¿Y dónde está?"),
-    make("custodio-12", "CUSTODIO", "En el altar. Pero solo responderá a una frecuencia que ya conozca."),
+    make("custodio-12", "CUSTODIO", "Toda voz nace en un pulso, deja un eco y busca su origen. Escuch\u00e1 los resonadores."),
     make("neonboy-custodio-13", "NEONBOY", "Entonces probemos con la mía."),
   ]),
   altar: Object.freeze([

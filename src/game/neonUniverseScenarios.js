@@ -71,9 +71,14 @@ export const NEON_UNIVERSE_SCENARIOS = [
   },
   {
     id: "abyss-throne", name: "El Trono del Abismo",
-    description: "La transmisión original señala este destino. Todavía no se puede ingresar.",
-    status: "locked", position: null, destination: null,
+    description: "El Soberano custodia la transmisi\u00f3n original en el coraz\u00f3n del Inframundo.",
+    status: "locked", position: null, destination: "abyss-throne",
   },
+  { id: "buenos-aires-2049", name: "Buenos Aires 2049",
+    description: "La ciudad de los ausentes: el Obelisco, la 9 de Julio y los teatros de Corrientes bajo una nueva frecuencia.",
+    status: "locked", position: null, destination: "buenos-aires-2049" },
+  { id: "chapter15-studio", name: "Capítulo 15 · Neon Recording Studio", description: "El estudio de Hugo en 1999. Un cuarto canal altera la grabación original.", status: "locked", position: null, destination: "chapter15-studio" },
+  { id: "chapter15-store", name: "Capítulo 15 · Disquería de Tito", description: "Regresá a la tienda de 1999 y reuní las pruebas sobre Tito, Roxy y Rulo.", status: "locked", position: null, destination: "chapter15-store" },
 ];
 
 export const NEON_UNIVERSE_STATUS = {
@@ -87,7 +92,7 @@ export const NEON_UNIVERSE_STATUS = {
 // Set VITE_RECORDING_STUDIO_PREVIEW=true for a preview build or false in local dev.
 export function getScenarioStatus(scenario, unlockedScenarios = [], env = import.meta.env ?? {}) {
   if (scenario.id === "underworld" && unlockedScenarios.includes("underworld")) return "available";
-  if (scenario.id === "abyss-throne" && unlockedScenarios.includes("abyss-throne")) return "identified";
+  if (scenario.id === "abyss-throne" && unlockedScenarios.includes("abyss-throne")) return "available";
   if (scenario.destination && unlockedScenarios.includes(scenario.id)) return "available";
   if (scenario.id === "arcade-1999" && env.VITE_ARCADE_1999_PREVIEW === "true") return "available";
   if (scenario.id === "rock-club" && (env.VITE_ROCK_CLUB_PREVIEW === "true" || (env.DEV && env.VITE_ROCK_CLUB_PREVIEW !== "false"))) return "available";

@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test("development reset restarts only chapter 11 and saves the fresh state", async ({ page }) => {
+test("chapter 11 restart confirms the action and preserves previous chapter progress", async ({ page }) => {
   await page.addInitScript(() => {
     const data = {
       scene: "underworld",
@@ -20,8 +20,13 @@ test("development reset restarts only chapter 11 and saves the fresh state", asy
   await page.getByRole("button", { name: "Continuar" }).click();
   const level = page.locator(".neon-underworld");
   await expect(level.locator(".record-store-3d")).toHaveAttribute("data-ready", "true", { timeout: 90_000 });
-  await expect(level.getByRole("button", { name: /Reiniciar nivel · DEV/i })).toBeVisible();
-  await level.getByRole("button", { name: /Reiniciar nivel · DEV/i }).click();
+  await expect(level.getByRole("button", { name: /Reiniciar nivel/i })).toBeVisible();
+  await level.getByRole("button", { name: /Reiniciar nivel/i }).click();
+  await expect(level.getByRole("dialog", { name: "¿Reiniciar el nivel?" })).toBeVisible();
+  await level.getByRole("button", { name: "Cancelar" }).click();
+  await expect(level.locator(".underworld-mission")).not.toContainText("Examiná la inscripción");
+  await level.getByRole("button", { name: /Reiniciar nivel/i }).click();
+  await level.getByRole("button", { name: "Sí, reiniciar" }).click();
   await expect(level.locator(".underworld-mission")).toContainText("Examiná la inscripción");
   await expect(level.locator(".parthenon-hearts")).toHaveAttribute("aria-label", "Salud 3 de 3");
   await expect(level).toHaveAttribute("data-frequency-vision", "inactive");

@@ -1,0 +1,42 @@
+.city-fuego-backdrop { position:absolute; inset:0; z-index:90; display:grid; place-items:center; padding:20px; background:#030c19bf; backdrop-filter:blur(6px); color:#e4f6fc; font-family:Arial,sans-serif; }
+.city-fuego-panel { width:min(690px,100%); max-height:calc(100dvh - 40px); overflow:auto; background:linear-gradient(145deg,#102738,#07131f); border:1px solid #659eb6; border-radius:14px; box-shadow:0 24px 90px #000a; padding:24px; }
+.city-fuego-panel header { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; border-bottom:1px solid #335162; padding-bottom:16px; }
+.city-fuego-panel h2 { margin:8px 0 0; font-size:clamp(20px,3vw,29px); }
+.city-fuego-panel small { color:#8bd5e8; font-size:10px; letter-spacing:.13em; }
+.city-fuego-panel button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:10px 15px; background:#163b50; border:1px solid #6292a8; border-radius:7px; color:#ecfaff; cursor:pointer; font:600 13px Arial,sans-serif; touch-action:manipulation; }
+.city-fuego-panel button:disabled { opacity:.45; cursor:default; }
+.city-fuego-panel button:focus-visible { outline:3px solid #b9f2ff; outline-offset:3px; }
+.city-fuego-panel p { font-size:14px; line-height:1.65; }
+.city-fuego-panel .city-fuego-close { padding:8px; min-width:44px; background:transparent; }
+.city-fuego-intro { display:flex; gap:10px; flex-wrap:wrap; justify-content:space-between; color:#94cddd; font-size:11px!important; letter-spacing:.06em; }
+.city-fuego-intro span { color:#91f3d5; }
+.city-fuego-components { display:grid; gap:10px; margin:20px 0; }
+.city-fuego-components article { display:flex; gap:14px; align-items:center; padding:12px; border:1px solid #34576a; border-radius:9px; background:#0c1c2a; }
+.city-fuego-components img { width:64px; height:64px; }
+.city-fuego-components article > div { flex:1; }
+.city-fuego-components h3 { font-size:15px; margin:0; }
+.city-fuego-components p { font-size:10px; color:#9bc9d9; margin:5px 0 0; }
+.city-fuego-help { color:#a2bdca; }
+.city-fuego-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.city-fuego-panel .city-fuego-primary { background:#8ee5f5; color:#081a27; border-color:#beeeff; }
+.city-fuego-panel blockquote { margin:20px 0; padding:15px; border-left:3px solid #8ecfdd; background:#173c4d; color:#d6eff6; font-size:14px; line-height:1.6; }
+.city-fuego-options { display:grid; gap:10px; }
+.city-fuego-recovered { display:flex; align-items:center; justify-content:center; gap:20px; margin:20px 0; }
+.city-fuego-recovered img { width:95px; height:95px; }
+.city-fuego-code,.city-fuego-symbols { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:20px 0; }
+.city-fuego-code span { padding:16px 4px; text-align:center; border:1px solid #56788a; border-radius:5px; min-width:0; color:#b5dfef; font-size:12px; }
+.city-fuego-symbols button { flex-direction:column; padding:18px 8px; }
+.city-fuego-hint { background:#16394a; border-radius:7px; padding:12px; }
+.city-fuego-panel footer { display:flex; justify-content:space-between; gap:10px; border-top:1px solid #335162; margin-top:22px; padding-top:13px; color:#81a9b9; font-size:9px; letter-spacing:.08em; }
+.universe-inventory-item-icon img,.universe-inventory-detail-icon img { width:100%; height:100%; object-fit:contain; }
+@media(max-width:520px) { .city-fuego-backdrop { padding:10px; } .city-fuego-panel { padding:16px; max-height:calc(100dvh - 20px); } .city-fuego-components article { gap:8px; padding:8px; flex-wrap:wrap; } .city-fuego-components img { width:48px; height:48px; } .city-fuego-components button { width:100%; } .city-fuego-actions button { width:100%; } .city-fuego-components h3 {font-size:14px;} }
+
+@media (pointer:coarse), (max-width:800px), (max-height:560px) {
+  .neon-buenos-aires .studio-examine-cue { bottom:102px; left:50%; transform:translateX(-50%); max-width:calc(100% - 300px); z-index:20; }
+}
+@media(max-width:520px) {
+  .neon-buenos-aires .studio-examine-cue { bottom:236px; max-width:calc(100% - 24px); width:calc(100% - 24px); }
+}
+.city-fuego-record { border-bottom:1px solid #6fa6c0; padding-bottom:12px; margin-bottom:14px; color:#bbdcf8; }
+.city-fuego-record > strong { font-size:12px; letter-spacing:.09em; }
+.city-fuego-record > p { font-size:13px!important; line-height:1.6; }

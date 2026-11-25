@@ -1,0 +1,251 @@
+{
+  "sameLoad": true,
+  "stats": [
+    {
+      "tier": "high",
+      "near": 9,
+      "middle": 20,
+      "far": 28,
+      "off": 7,
+      "skeletons": 9,
+      "nearTriangles": 274776,
+      "total": 64,
+      "logicalCitizens": 11,
+      "synchronized": 0,
+      "player": {
+        "x": 0,
+        "z": 42
+      },
+      "calls": 232,
+      "triangles": 1207943
+    },
+    {
+      "tier": "high",
+      "near": 14,
+      "middle": 22,
+      "far": 28,
+      "off": 0,
+      "skeletons": 14,
+      "nearTriangles": 394716,
+      "total": 64,
+      "logicalCitizens": 11,
+      "synchronized": 0,
+      "player": {
+        "x": -35,
+        "z": -24
+      },
+      "calls": 143,
+      "triangles": 759217
+    },
+    {
+      "tier": "high",
+      "near": 14,
+      "middle": 22,
+      "far": 27,
+      "off": 1,
+      "skeletons": 14,
+      "nearTriangles": 371521,
+      "total": 64,
+      "logicalCitizens": 11,
+      "synchronized": 0,
+      "player": {
+        "x": 35,
+        "z": -24
+      },
+      "calls": 127,
+      "triangles": 800560
+    },
+    {
+      "tier": "high",
+      "near": 12,
+      "middle": 22,
+      "far": 28,
+      "off": 2,
+      "skeletons": 12,
+      "nearTriangles": 299563,
+      "total": 64,
+      "logicalCitizens": 11,
+      "synchronized": 0,
+      "player": {
+        "x": 0,
+        "z": -20
+      },
+      "calls": 130,
+      "triangles": 696685
+    },
+    {
+      "tier": "medium",
+      "near": 8,
+      "middle": 15,
+      "far": 22,
+      "off": 19,
+      "skeletons": 8,
+      "nearTriangles": 286118,
+      "total": 64,
+      "logicalCitizens": 11,
+      "synchronized": 0,
+      "player": {
+        "x": 0,
+        "z": 42
+      },
+      "calls": 217,
+      "triangles": 914621
+    },
+    {
+      "tier": "medium",
+      "near": 10,
+      "middle": 16,
+      "far": 22,
+      "off": 16,
+      "skeletons": 10,
+      "nearTriangles": 359310,
+      "total": 64,
+      "logicalCitizens": 11,
+      "synchronized": 0,
+      "player": {
+        "x": -35,
+        "z": -24
+      },
+      "calls": 132,
+      "triangles": 688848
+    },
+    {
+      "tier": "medium",
+      "near": 10,
+      "middle": 16,
+      "far": 22,
+      "off": 16,
+      "skeletons": 10,
+      "nearTriangles": 334762,
+      "total": 64,
+      "logicalCitizens": 11,
+      "synchronized": 0,
+      "player": {
+        "x": 35,
+        "z": -24
+      },
+      "calls": 122,
+      "triangles": 667977
+    },
+    {
+      "tier": "medium",
+      "near": 8,
+      "middle": 16,
+      "far": 22,
+      "off": 18,
+      "skeletons": 8,
+      "nearTriangles": 215477,
+      "total": 64,
+      "logicalCitizens": 11,
+      "synchronized": 0,
+      "player": {
+        "x": 0,
+        "z": -20
+      },
+      "calls": 121,
+      "triangles": 473037
+    },
+    {
+      "tier": "low",
+      "near": 3,
+      "middle": 10,
+      "far": 14,
+      "off": 37,
+      "skeletons": 3,
+      "nearTriangles": 124040,
+      "total": 64,
+      "logicalCitizens": 11,
+      "synchronized": 0,
+      "player": {
+        "x": 0,
+        "z": 42
+      },
+      "calls": 176,
+      "triangles": 626120
+    },
+    {
+      "tier": "low",
+      "near": 4,
+      "middle": 10,
+      "far": 14,
+      "off": 36,
+      "skeletons": 4,
+      "nearTriangles": 129883,
+      "total": 64,
+      "logicalCitizens": 11,
+      "synchronized": 0,
+      "player": {
+        "x": -35,
+        "z": -24
+      },
+      "calls": 105,
+      "triangles": 375041
+    },
+    {
+      "tier": "low",
+      "near": 3,
+      "middle": 10,
+      "far": 14,
+      "off": 37,
+      "skeletons": 3,
+      "nearTriangles": 109734,
+      "total": 64,
+      "logicalCitizens": 11,
+      "synchronized": 0,
+      "player": {
+        "x": 35,
+        "z": -24
+      },
+      "calls": 102,
+      "triangles": 532232
+    },
+    {
+      "tier": "low",
+      "near": 5,
+      "middle": 10,
+      "far": 14,
+      "off": 35,
+      "skeletons": 5,
+      "nearTriangles": 118942,
+      "total": 64,
+      "logicalCitizens": 11,
+      "synchronized": 0,
+      "player": {
+        "x": 0,
+        "z": -20
+      },
+      "calls": 100,
+      "triangles": 365681
+    }
+  ],
+  "unsafe": [],
+  "limits": [],
+  "inactiveFrozen": true,
+  "activation": true,
+  "duplicateDuring": false,
+  "duplicateAfter": false,
+  "members": 17,
+  "frozen": true,
+  "resumed": true,
+  "pausedSync": true,
+  "unique": 1,
+  "disconnectedSynced": false,
+  "ambientReaction": false,
+  "interactions": [
+    "ba-man-1",
+    "ba-woman-1",
+    "ba-executive-1",
+    "ba-elder-1",
+    "ba-man-2",
+    "ba-woman-2",
+    "ba-man-3",
+    "ba-woman-3",
+    "ba-executive-2",
+    "ba-elder-2",
+    "ba-disconnected"
+  ],
+  "mobile": [
+    "low",
+    "medium"
+  ]
+}

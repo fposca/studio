@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { DEMO_COMPANY } from "./branding/brand.js";
 
 function seeded(seed) {
   return () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
@@ -91,11 +92,11 @@ function screenTexture(variant) {
   return canvasTexture(768, 432, ctx => {
     const dark = variant === 2;
     ctx.fillStyle = dark ? "#182334" : "#e7ebf1"; ctx.fillRect(0, 0, 768, 432);
-    ctx.fillStyle = "#654385"; ctx.fillRect(0, 0, 768, 36);
-    ctx.fillStyle = "#fff"; ctx.font = "bold 14px sans-serif"; ctx.fillText("interbanking", 20, 24);
+    ctx.fillStyle = "#326996"; ctx.fillRect(0, 0, 768, 36);
+    ctx.fillStyle = "#fff"; ctx.font = "bold 14px sans-serif"; ctx.fillText(DEMO_COMPANY.name, 20, 24);
     ctx.fillStyle = dark ? "#202d42" : "#f9fafb"; ctx.fillRect(0, 36, 135, 396);
     for (let i = 0; i < 7; i++) {
-      ctx.fillStyle = i === variant ? "#a476c5" : "#94a0b1";
+      ctx.fillStyle = i === variant ? "#6da2ce" : "#94a0b1";
       ctx.fillRect(18, 71 + i * 38, 9, 9); ctx.fillRect(38, 73 + i * 38, 70, 5);
     }
     ctx.fillStyle = dark ? "#e6eaf1" : "#35435a";
@@ -104,12 +105,12 @@ function screenTexture(variant) {
       const x = 162 + i * 195;
       ctx.fillStyle = dark ? "#26364b" : "#fff"; ctx.fillRect(x, 103, 177, 84);
       ctx.fillStyle = "#9aa4b6"; ctx.fillRect(x + 13, 119, 95, 5);
-      ctx.fillStyle = "#9875b6"; ctx.fillRect(x + 13, 145, 44 + i * 22, 14);
+      ctx.fillStyle = "#619bca"; ctx.fillRect(x + 13, 145, 44 + i * 22, 14);
     }
     ctx.fillStyle = dark ? "#26364b" : "#fff"; ctx.fillRect(162, 205, 570, 193);
     ctx.strokeStyle = dark ? "#3a4a5e" : "#e4e8ef";
     for (let y = 238; y <= 371; y += 27) { ctx.beginPath(); ctx.moveTo(180, y); ctx.lineTo(710, y); ctx.stroke(); }
-    ctx.strokeStyle = "#9b70c0"; ctx.lineWidth = 3; ctx.beginPath();
+    ctx.strokeStyle = "#659dcc"; ctx.lineWidth = 3; ctx.beginPath();
     for (let i = 0; i < 12; i++) {
       const x = 185 + i * 46, y = 343 - i * 6 + Math.sin(i * 1.8 + variant) * 23;
       if (!i) ctx.moveTo(x, y); else ctx.lineTo(x, y);
@@ -182,7 +183,7 @@ export function createOfficeMaterials() {
     mousepad: standard(0x414b53, { bumpMap: fabricGrain, bumpScale: .002, roughness: .98 }),
     chrome: standard(0xa6b0b5, { metalness: .85, roughness: .3 }),
     wood: standard(0xffffff, { map: woodMap, bumpMap: woodMap, bumpScale: .003, roughness: .54 }),
-    purple: standard(0x8b4bb1, { emissive: 0x502675, emissiveIntensity: .12, roughness: .45 }),
+    blue: standard(0x3585bd, { emissive: 0x164e7e, emissiveIntensity: .12, roughness: .45 }),
     leaf: standard(0x3c6345, { side: THREE.DoubleSide, roughness: .57 }),
     leafLight: standard(0x64825a, { side: THREE.DoubleSide, roughness: .64 }),
     stem: standard(0x647342, { roughness: .9 }),

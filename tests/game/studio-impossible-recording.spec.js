@@ -61,7 +61,10 @@ test("the CRT offers a three-band puzzle and reveals the message only after deco
   await expect(analyzer.getByText(/LA PUERTA YA EST.* ABIERTA/)).toBeVisible();
   await analyzer.getByRole("button", { name: "Volver al archivo" }).click();
   await workbench.getByRole("button", { name: "Cerrar Archivo de sesiones" }).click();
+  const mission = studio.getByRole("complementary", { name: /Misi.n La grabaci.n imposible/ });
+  await mission.getByRole("button", { name: /La grabaci.n imposible/ }).click();
   await expect(studio.getByText(/Contale a Hugo lo que apareci./)).toBeVisible();
+  await expect(studio.locator("canvas")).not.toHaveAttribute("data-chapter15-visuals", /.+/);
   expect(errors).toEqual([]);
 });
 

@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.j
 import { createPanoramaBackdrop } from "../editors/panoramaBackdrop.js";
 import { UNDERWORLD_INTERACTIONS, UNDERWORLD_PYLONS, canStandInUnderworld } from "./underworldLayout.js";
 import { createUnderworldActors } from "./underworldActors.js";
+import { createUnderworldExpansion } from "./underworldExpansion.js";
 import { createUnderworldAtmosphere } from "./underworldAtmosphere.js";
 import { createStoreInvasionVision } from "./storeInvasionVision.js";
 
@@ -107,20 +108,22 @@ export function buildUnderworld(scene, { onEvent, onDamage } = {}) {
   const sun = new THREE.DirectionalLight(0xffad78, 1.8); sun.position.set(-9, 15, -22); scene.add(sun);
   const fill = new THREE.PointLight(0x9b3fbb, 7, 18, 2); fill.position.set(-5, 4, -38); scene.add(fill);
   const actors = createUnderworldActors(root, { onEvent, onDamage });
+  const expansion = createUnderworldExpansion(root, onEvent, onDamage);
   let citadel = null, skyTexture = null, floorTexture = null, stoneTexture = null, basaltTexture = null, disposed = false, loadError = null;
   let codeVision = null, visionClock = 0;
   const colliders = [];
-  const interactions = [...UNDERWORLD_INTERACTIONS.map((spot) => ({ ...spot })), ...actors.interactions];
+  const interactions = [...UNDERWORLD_INTERACTIONS.map((spot) => ({ ...spot })), ...actors.interactions, ...expansion.interactions];
   const cathedralDoor = interactions.find((spot) => spot.id === "cathedral-door");
   cathedralDoor.reach = 0;
   async function loadAssets(loader, isAlive = () => true) {
     try {
-      const [citadelData, actorsReady, sky, floor, stone, rock] = await Promise.all([
+      const [citadelData, actorsReady, sky, floor, stone, rock, craftReady] = await Promise.all([
         loader.loadAsync(CITADEL_URL), actors.loadAssets(loader, isAlive),
         new THREE.TextureLoader().loadAsync(SKY_URL), new THREE.TextureLoader().loadAsync(FLOOR_URL),
         new THREE.TextureLoader().loadAsync(STONE_URL), new THREE.TextureLoader().loadAsync(BASALT_URL),
+        expansion.loadAssets(isAlive),
       ]);
-      if (disposed || !isAlive() || !actorsReady) {
+      if (disposed || !isAlive() || !actorsReady || !craftReady) {
         sky.dispose(); floor.dispose(); stone.dispose(); rock.dispose(); return false;
       }
       skyTexture = sky; floorTexture = floor; stoneTexture = stone; basaltTexture = rock;
@@ -148,7 +151,7 @@ export function buildUnderworld(scene, { onEvent, onDamage } = {}) {
       return true;
     } catch (error) { loadError = error; return false; }
   }
-  function update(dt, elapsed, progress, player, paused, camera, reducedMotion = false) {
+  function update(dt, elapsed, progress, player, paused, camera, reducedMotion = false, frameSeconds = dt) {
     const step = paused ? 0 : dt;
     atmosphere.update(dt, paused, camera, reducedMotion, player);
     const vision = progress?.visionActive === true;
@@ -160,16 +163,21 @@ export function buildUnderworld(scene, { onEvent, onDamage } = {}) {
     cathedralDoor.reach = progress?.completed ? 1.8 : 0;
     portalCore.material.opacity = progress?.completed ? .68 : .28 + .08 * Math.sin(elapsed * 2.2);
     portal.rotation.z += step * (progress?.completed ? .32 : .08);
+    actors.setFerrymanRide(progress?.ferryStarted && !progress?.ferryCompleted ? expansion.boatPosition : null, progress);
     actors.update(dt, elapsed, progress, player, paused, reducedMotion);
-    if (player.z < -31.5 && !progress?.bridgeCrossed) onEvent?.("bridge-crossed");
+    expansion.update(dt, elapsed, progress, player, paused, actors.getActorPosition, reducedMotion, frameSeconds);
   }
   return {
-    interactions, obstacles: [], colliders,
-    canStand: canStandInUnderworld, loadAssets, getTargets: actors.getTargets, registerImpact: actors.registerImpact, update,
+    interactions, obstacles: expansion.obstacles, colliders,
+    canStand: canStandInUnderworld, loadAssets,
+    getTargets: (progress) => [...actors.getTargets(progress), ...expansion.getTargets(progress)],
+    registerImpact: (target) => { actors.registerImpact(target); expansion.registerImpact(target); },
+    update, get transporting() { return expansion.transporting; },
     get loadError() { return loadError; },
     dispose() {
       disposed = true;
       actors.dispose();
+      expansion.dispose();
       codeVision?.dispose();
       skyTexture?.dispose(); floorTexture?.dispose(); stoneTexture?.dispose(); basaltTexture?.dispose();
       panorama.userData.dispose?.();

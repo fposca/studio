@@ -206,3 +206,77 @@ test("forged Puerta 02 save cannot strand an old game in a locked ship", () => {
   assert.equal(loaded.parthenonProgress.entered, false);
   assert.equal(loaded.parthenonProgress.altarRead, false);
 });
+
+function chapter14Game() {
+  const game = createNewUniverseGame();
+  game.scene = "buenos-aires-2049";
+  game.chapter10Progress = {
+    coreAnalyzed: true, signalDetected: true, hugoConsulted: true,
+    signalReconstructed: true, underworldUnlocked: true, chapterCompleted: true,
+  };
+  game.underworldProgress = { completed: true };
+  game.cathedralProgress = { completed: true };
+  game.throneProgress = {
+    vows: ["memoria", "voluntad", "libertad"], hallOpen: true,
+    conductors: ["origen", "eco", "enlace"], throneOpen: true,
+    bossDefeated: true, transmissionExamined: true, completed: true,
+  };
+  game.cityProgress = {
+    entered: true, advertisingComplete: true, trafficComplete: true,
+    coreComplete: true, synchronizationSeen: true, vigilanteEncountered: true,
+    vigilanteStarted: true, vigilanteDefeated: true, record1999Found: true,
+    escapeUnlocked: true, escapeBriefed: true,
+  };
+  return game;
+}
+
+test("legacy Vigilante saves keep 1999 knowledge but reopen the Fuego repair briefing", () => {
+  const storage = memoryStorage();
+  const game = chapter14Game();
+  assert.equal(writeUniverseSave("slot-1", game, storage, 800).ok, true);
+  const loaded = readUniverseSaves(storage)["slot-1"].data;
+  assert.equal(loaded.scene, "buenos-aires-2049");
+  assert.equal(loaded.throneProgress.completed, true);
+  assert.equal(loaded.cityProgress.vigilanteDefeated, true);
+  assert.equal(loaded.cityProgress.record1999Found, true);
+  assert.equal(loaded.cityProgress.escapeUnlocked, false);
+  assert.equal(loaded.cityProgress.escapeBriefed, false);
+  assert.equal(loaded.cityProgress.fuegoStarted, false);
+});
+
+test("partial Fuego collection, puzzle clues and installations survive separate save slots", () => {
+  const storage = memoryStorage();
+  const game = chapter14Game();
+  Object.assign(game.cityProgress, {
+    fuegoStarted: true, visionActive: true, fuegoKeyDiscovered: true,
+    fuegoKeyTaken: true, fuegoKeyInstalled: true,
+    fuegoPowerTerminalExamined: true, fuegoPowerMaintenanceOpen: true,
+    fuegoPowerCellTaken: true, fuegoNavigationClues: ["calle", "cielo", "libertad"],
+    fuegoNavigationSequence: ["calle", "cielo"],
+  });
+  assert.equal(writeUniverseSave("slot-1", game, storage, 801).ok, true);
+  const partial = readUniverseSaves(storage)["slot-1"].data.cityProgress;
+  assert.equal(partial.fuegoKeyTaken, true);
+  assert.equal(partial.fuegoKeyInstalled, true);
+  assert.equal(partial.fuegoPowerCellTaken, true);
+  assert.equal(partial.fuegoPowerCellInstalled, false);
+  assert.deepEqual(partial.fuegoNavigationClues, ["calle", "cielo", "libertad"]);
+  assert.deepEqual(partial.fuegoNavigationSequence, ["calle", "cielo"]);
+  assert.equal(partial.escapeUnlocked, false);
+
+  Object.assign(game.cityProgress, {
+    fuegoPowerCellInstalled: true,
+    fuegoNavigationSequence: ["calle", "cielo", "libertad"],
+    fuegoNavigationTerminalOpen: true, fuegoNavigationModuleTaken: true,
+    fuegoNavigationModuleInstalled: true, fuegoRecordShown: true, fuegoPowered: true,
+    escapeBriefed: true,
+  });
+  assert.equal(writeUniverseSave("slot-2", game, storage, 802).ok, true);
+  const complete = readUniverseSaves(storage)["slot-2"].data.cityProgress;
+  assert.equal(complete.fuegoNavigationModuleInstalled, true);
+  assert.equal(complete.fuegoRecordShown, true);
+  assert.equal(complete.fuegoPowered, true);
+  assert.equal(complete.escapeUnlocked, true);
+  assert.equal(complete.escapeBriefed, true);
+  assert.equal(readUniverseSaves(storage)["slot-1"].data.cityProgress.fuegoPowered, false);
+});

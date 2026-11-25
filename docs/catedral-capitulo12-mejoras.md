@@ -1,4 +1,4 @@
-﻿# Catedral de los Condenados — mejoras reactivas
+# Catedral de los Condenados — mejoras reactivas
 
 Implementación verificada el 12 de noviembre de 2026. Se conserva la Catedral existente, su distribución, sus colisiones, los modelos optimizados, los diálogos, los acertijos y el sistema de partidas.
 
@@ -53,7 +53,7 @@ La resolución y los halos también se ajustan. El perfil inicial usa las caract
 - Build web aprobado: node --max-old-space-size=8192 node_modules/vite/bin/vite.js build --config apps/neonboy-discografia/vite.config.js --configLoader runner.
 - Salida actualizada: dist-discografia/. También se cargó el Archivo y se activó Visión C desde esa salida compilada, sin errores.
 - La sección usa JavaScript/JSX. No tiene una comprobación TypeScript configurada; no se presenta el build de Vite como una validación de tipos.
-- Vite conserva el aviso de tamaño del archivo JavaScript principal, de aproximadamente 2 MB antes de gzip. La advertencia de sintaxis CSS quedó corregida.
+- La advertencia de sintaxis CSS quedó corregida. La posterior separación de módulos del juego eliminó el aviso de tamaño: el menú carga unos 392 kB de JavaScript antes de iniciar partida, y ningún archivo JavaScript de dist-discografia/ supera 500 kB. La partida descarga los paquetes 3D cuando se inicia. El build general del editor conserva avisos propios por módulos como ThreeDEditor y NeonGame; son una salida distinta.
 
 **Recursos y comprobaciones pendientes**
 
@@ -66,4 +66,4 @@ Los archivos opcionales se buscan en src/assets/neonboy-animaciones/voces/catedr
 
 Los efectos admiten MP3, WAV u OGG; las voces y la guitarra conservan el registro MP3 existente. No se generó música ni se solicitan rutas de audio inexistentes. Se reutilizan los efectos sintéticos del gestor de sonido para los pulsos disponibles. El ambiente opcional baja durante los diálogos y el audio se pausa al ocultar la pestaña.
 
-Queda medir FPS, temperatura, memoria y fluidez en dispositivos Android físicos. La emulación táctil y las pruebas de presupuesto no sustituyen esa comprobación. También queda evaluar por separado la división del JavaScript principal y los assets de otros capítulos si se necesita reducir la descarga completa.
+Queda medir FPS, temperatura, memoria y fluidez en dispositivos Android físicos. La emulación táctil y las pruebas de presupuesto no sustituyen esa comprobación. Los modelos y otros assets conservan sus tamaños; su descarga completa y el rendimiento en Android requieren una revisión específica.

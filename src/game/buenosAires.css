@@ -1,0 +1,133 @@
+.neon-buenos-aires { background: #0b1521; color: #e6eef2; }
+.neon-buenos-aires .studio-header {
+  background: linear-gradient(180deg, rgba(8, 18, 30, .91), rgba(8, 18, 30, .4) 65%, transparent);
+  border-bottom: 0;
+}
+.neon-buenos-aires .studio-header h2 { color: #e9f5f8; text-shadow: 0 3px 20px #001826; }
+.neon-buenos-aires .studio-header > div > span,
+.neon-buenos-aires .studio-header p { color: #a6cad7; }
+.neon-buenos-aires .studio-header button,
+.neon-buenos-aires .studio-control-hint {
+  border-color: rgba(123, 195, 217, .47); background: rgba(10, 28, 43, .86); color: #e2f3f8;
+}
+.neon-buenos-aires .city-mission {
+  border-color: rgba(113, 200, 225, .58);
+  background: linear-gradient(130deg, rgba(9, 29, 45, .95), rgba(11, 22, 35, .91));
+}
+.neon-buenos-aires .studio-footer { border-color: rgba(96, 166, 189, .45); background: rgba(5, 16, 27, .88); }
+.neon-buenos-aires .underworld-vision-control button.is-active { border-color: #8bdde8; box-shadow: 0 0 15px #35bbd43d; }
+.neon-buenos-aires .underworld-message { border-color: #74c5d7; background: rgba(8, 24, 38, .95); }
+.neon-buenos-aires .underworld-message small { color: #9de3ea; }
+.neon-buenos-aires .underworld-message button { border-color: #79c7d5; background: #143346; }
+.neon-buenos-aires .city-subtitle { width: min(520px, 82vw); }
+.neon-buenos-aires .city-subtitle p { font-size: 16px; }
+.neon-buenos-aires .city-arrival {
+  position: absolute; z-index: 24; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+  background: linear-gradient(90deg, rgba(5, 14, 25, .84), rgba(5, 14, 25, .47));
+  pointer-events: auto;
+}
+.neon-buenos-aires .city-arrival small { color: #8ed7e7; font-size: 12px; font-weight: 800; letter-spacing: .34em; }
+.neon-buenos-aires .city-arrival h3 {
+  margin: 15px 16px 6px; color: #f1f8fa; font-size: clamp(34px, 6vw, 82px);
+  line-height: 1; text-shadow: 0 4px 28px #06131c;
+}
+.neon-buenos-aires .city-arrival p { color: #bbdbe3; font-size: 13px; font-weight: 700; letter-spacing: .28em; }
+.neon-buenos-aires .city-arrival button {
+  margin-top: 32px; padding: 10px 16px; border: 1px solid #85ccdc;
+  border-radius: 5px; background: #102c3d; color: white; cursor: pointer;
+}
+@media (max-width: 720px) {
+  .neon-buenos-aires .studio-header { padding: 13px 12px 18px; }
+  .neon-buenos-aires .studio-header h2 { font-size: 23px; }
+  .neon-buenos-aires .studio-header-actions { gap: 4px; }
+  .neon-buenos-aires .city-mission { max-width: min(260px, 72vw); }
+  .neon-buenos-aires .city-subtitle { bottom: 110px; }
+}
+
+.neon-buenos-aires .studio-header .studio-header-actions {
+  display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; max-width:55vw; padding-right:95px;
+}
+.universe-game-root:has(.neon-buenos-aires) > .universe-pause-trigger {
+  top:20px; right:24px; bottom:auto; left:auto; min-height:36px; padding:9px 11px;
+  border:1px solid #7bc3d488; border-radius:5px; background:#0c2538dd; color:#e2f3f8; font-size:10px;
+}
+@media (max-width: 720px) {
+  .neon-buenos-aires .studio-header .studio-header-actions { gap:4px; padding-right:0; }
+  .universe-game-root:has(.neon-buenos-aires) > .universe-pause-trigger { top:auto; right:auto; left:10px; bottom:55px; }
+}
+
+.neon-buenos-aires .city-dialogue {
+  width: min(560px, calc(100% - 28px));
+  bottom: clamp(75px, 13vh, 155px);
+  border-color: #88d8ee;
+  background: linear-gradient(140deg, rgba(7, 25, 41, .97), rgba(15, 38, 57, .97));
+  box-shadow: 0 0 0 3px rgba(35, 88, 111, .34), 0 20px 65px #03101fd9;
+  text-align: left;
+}
+.neon-buenos-aires .city-dialogue p { font-size: clamp(16px, 1.6vw, 20px); }
+.neon-buenos-aires .city-dialogue button {
+  display: block; margin-left: auto; min-height: 38px; border-radius: 4px;
+}
+.neon-buenos-aires .city-dialogue kbd { margin-left: 8px; opacity: .7; }
+@media (max-width: 720px) {
+  .neon-buenos-aires .city-dialogue { bottom: 98px; padding: 14px 16px; }
+}
+.neon-buenos-aires .city-sync-subtitle { border-color: #bd87ef; box-shadow: 0 0 24px #8a45ca77; pointer-events: none; }.neon-buenos-aires .city-sync-subtitle strong { display: block; color: #d5afff; font-size: 11px; letter-spacing: .12em; margin-bottom: 9px; line-height: 1.4; }
+@keyframes city-rejection { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 75% { transform: translateX(-1px); } }.neon-buenos-aires .city-rejected { border-color: #bf84ee; animation: city-rejection .36s ease-out 1; }
+
+.city-vigilante-health { position:absolute; z-index:12; top:100px; left:50%; transform:translateX(-50%); width:min(320px,40vw); padding:12px 16px; background:rgba(12,18,31,.93); border:1px solid #9d466d; text-align:center; pointer-events:none; color:#ffe5f4; font:600 12px Arial,sans-serif; letter-spacing:.12em; }
+.city-vigilante-health > div { height:6px; margin:9px 0; background:#3b2435; }
+.city-vigilante-health > div > span { display:block; height:100%; background:linear-gradient(90deg,#cf3184,#ff99cc); transition:width .2s; }
+.city-vigilante-health small { font-size:9px; color:#efaacb; }
+.city-combat-hint { position:absolute; z-index:15; bottom:145px; left:50%; transform:translateX(-50%); max-width:90%; padding:12px 18px; background:#251829e8; border:1px solid #dd81c2; color:#ffe5fa; text-align:center; pointer-events:none; }
+.city-interference { position:absolute; inset:0; z-index:6; pointer-events:none; background:repeating-linear-gradient(0deg,transparent 0px,transparent 5px,#a05ade12 6px); }
+.neon-buenos-aires[data-interference="active"] .underworld-vision-control { text-shadow:2px 0 #f56bbc,-2px 0 #6bdde8; }
+@media(max-width:700px) { .city-vigilante-health {top:145px;width:230px;max-width:62vw;padding:8px;font-size:10px;} .city-combat-hint {bottom:200px;font-size:11px;} }
+
+/* The combat HUD leaves separate touch areas for movement, vision and the Orb. */
+@media (pointer: coarse), (max-width: 800px), (max-height: 560px) {
+  .neon-buenos-aires .studio-header { padding:12px; }
+  .neon-buenos-aires .studio-header h2 { font-size:22px; }
+  .neon-buenos-aires .studio-header .studio-header-actions { flex-direction:row; max-width:55vw; padding-right:88px; }
+  .neon-buenos-aires .studio-header-actions button { width:auto; min-height:36px; font-size:9px; }
+  .universe-game-root:has(.neon-buenos-aires) > .universe-pause-trigger { top:12px; right:12px; bottom:auto; left:auto; }
+  .neon-buenos-aires .underworld-vision-control { top:76px; right:12px; }
+  .neon-buenos-aires .underworld-vision-control button { min-height:38px; }
+  .neon-buenos-aires .parthenon-hearts { top:120px; right:12px; padding:6px 9px; font-size:12px; }
+  .neon-buenos-aires .city-mission { top:80px; left:12px; width:220px; max-width:28vw; max-height:92px; }
+  .neon-buenos-aires .city-vigilante-health { top:78px; width:215px; max-width:28vw; padding:8px; font-size:10px; }
+  .neon-buenos-aires .record-store-mobile-move { display:grid; position:absolute; z-index:19; top:auto; left:12px; bottom:35px; grid-template-columns:repeat(3,42px); grid-template-rows:repeat(2,42px); gap:3px; }
+  .neon-buenos-aires .record-store-mobile-move button { border:1px solid #79c7d5; background:#102c3de6; color:#e6faff; border-radius:4px; font:600 18px Arial,sans-serif; touch-action:none; }
+  .neon-buenos-aires .record-store-mobile-move button:nth-child(1) { grid-column:2; }
+  .neon-buenos-aires .record-store-mobile-move button:nth-child(2) { grid-column:1; grid-row:2; }
+  .neon-buenos-aires .record-store-mobile-move button:nth-child(3) { grid-column:2; grid-row:2; }
+  .neon-buenos-aires .record-store-mobile-move button:nth-child(4) { grid-column:3; grid-row:2; }
+  .neon-buenos-aires .record-store-mobile-actions { display:flex; position:absolute; z-index:19; top:auto; left:auto; right:12px; bottom:35px; width:100px; flex-direction:column; gap:4px; }
+  .neon-buenos-aires .record-store-mobile-actions button { min-height:36px; font-size:10px; border:1px solid #79c7d5; background:#102c3de6; color:#e6faff; border-radius:4px; }
+  .neon-buenos-aires .neon-orb-hud { bottom:35px; width:auto; max-width:calc(100% - 300px); padding:6px; gap:6px; }
+  .neon-buenos-aires .neon-orb-hud button { min-height:42px; }
+  .neon-buenos-aires .neon-orb-hud-help, .neon-buenos-aires .neon-orb-hud-progress { display:none; }
+}
+@media (max-width: 520px) {
+  .neon-buenos-aires .studio-header { flex-direction:column; align-items:flex-start; }
+  .neon-buenos-aires .studio-header h2 { font-size:21px; }
+  .neon-buenos-aires .studio-header p { display:none; }
+  .neon-buenos-aires .studio-header .studio-header-actions { margin-top:10px; width:100%; max-width:100%; padding-right:0; justify-content:flex-start; }
+  .neon-buenos-aires .underworld-vision-control { top:116px; }
+  .neon-buenos-aires .parthenon-hearts { top:158px; }
+  .neon-buenos-aires .city-mission { top:160px; max-width:66vw; max-height:90px; }
+  .neon-buenos-aires .city-vigilante-health { top:264px; max-width:calc(100% - 24px); width:230px; }
+  .neon-buenos-aires .neon-orb-hud { bottom:170px; width:calc(100% - 24px); max-width:calc(100% - 24px); }
+  .neon-buenos-aires .city-dialogue { bottom:236px; }
+  .neon-buenos-aires .city-combat-hint { bottom:236px; }
+}
+
+@media (pointer: coarse), (max-width: 800px), (max-height: 560px) {
+  .neon-buenos-aires:has(.city-vigilante-health) .city-mission { padding:10px; max-height:108px; }
+  .neon-buenos-aires:has(.city-vigilante-health) .city-mission .universe-mission-card__header,
+  .neon-buenos-aires:has(.city-vigilante-health) .city-mission .universe-mission-card__meta { display:none; }
+  .neon-buenos-aires:has(.city-vigilante-health) .city-mission .universe-mission-card__objective { margin:0; padding:0; border:0; background:none; }
+}
+
+.neon-buenos-aires:has(.city-dialogue[data-line-id*="vigilante"]) .city-mission { visibility:hidden; }

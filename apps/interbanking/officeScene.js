@@ -3,11 +3,49 @@ import { RectAreaLightUniformsLib } from "three/addons/lights/RectAreaLightUnifo
 import { createOfficeMaterials, createCityTexture } from "./officeMaterials.js";
 import { createOfficeGeometry } from "./officeGeometry.js";
 
-const logoUrl = new URL("../../src/assets/neonboy-animaciones/interbanking/interbanking-logo.png", import.meta.url).href;
+import { DEMO_COMPANY } from "./branding/brand.js";
+
+function wallSignTexture({ safety = false } = {}) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024; canvas.height = 512;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = safety ? "#f7fafc" : "#14283c";
+  ctx.fillRect(0, 0, 1024, 512);
+  ctx.fillStyle = safety ? "#c93232" : "#67c8f6";
+  ctx.fillRect(36, 38, 12, 436);
+  if (safety) {
+    ctx.fillStyle = "#18354b";
+    ctx.font = "bold 43px Arial, sans-serif";
+    ctx.fillText("SEGURIDAD", 84, 116);
+    ctx.fillStyle = "#c93232";
+    ctx.font = "bold 74px Arial, sans-serif";
+    ctx.fillText("MATAFUEGOS", 84, 225);
+    ctx.fillStyle = "#314d61";
+    ctx.font = "35px Arial, sans-serif";
+    ctx.fillText("Ante una emergencia, avis\u00e1 a Seguridad.", 84, 321);
+    ctx.fillText("Segu\u00ed las indicaciones de evacuaci\u00f3n.", 84, 371);
+  } else {
+    ctx.strokeStyle = "#80d8ff"; ctx.lineWidth = 15;
+    ctx.beginPath(); ctx.arc(160, 250, 98, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "#9cdefb";
+    ctx.font = "bold 148px Arial, sans-serif";
+    ctx.fillText("N", 106, 304);
+    ctx.fillStyle = "#f4faff";
+    ctx.font = "bold 112px Arial, sans-serif";
+    ctx.fillText(DEMO_COMPANY.name, 300, 261);
+    ctx.fillStyle = "#a9d6ed";
+    ctx.font = "33px Arial, sans-serif";
+    ctx.fillText("CORPORATE EXPERIENCE", 306, 327);
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  return texture;
+}
 
 export function buildOffice(scene) {
   const world = new THREE.Group();
-  world.name = "Oficina Interbanking";
+  world.name = `Oficina ${DEMO_COMPANY.name}`;
   scene.add(world);
   const colors = createOfficeMaterials();
   const h = createOfficeGeometry(world, colors);
@@ -79,12 +117,16 @@ export function buildOffice(scene) {
   const logoPanel = box(world, 0, 1.88, -13.98, 3.58, 2.37, .09, colors.desk, .025);
   logoPanel.castShadow = true;
   box(world, 0, 1.88, -14.045, 3.25, 2.10, .04, colors.black);
-  const logoTexture = new THREE.TextureLoader().load(logoUrl);
-  logoTexture.colorSpace = THREE.SRGBColorSpace;
-  const logo = mesh(world, new THREE.PlaneGeometry(2.62, 2.01),
-    new THREE.MeshBasicMaterial({ map: logoTexture, transparent: true, depthWrite: false, toneMapped: false }),
+  const logoTexture = wallSignTexture();
+  const logo = mesh(world, new THREE.PlaneGeometry(3.18, 1.59),
+    new THREE.MeshBasicMaterial({ map: logoTexture, toneMapped: false }),
     0, 1.91, -13.928, false);
-  logo.name = "Logo Interbanking / inspeccionar";
+  logo.name = `Logo ${DEMO_COMPANY.name} / inspeccionar`;
+  // A second sign is visible from the entry before reaching the far wall.
+  box(world, 12.77, 2.12, 6.55, .13, 1.95, 4.05, colors.black, .035);
+  const entryLogo = mesh(world, new THREE.PlaneGeometry(3.8, 1.9), logo.material, 12.685, 2.12, 6.55, false);
+  entryLogo.rotation.y = -Math.PI / 2;
+  entryLogo.name = `Cartel ${DEMO_COMPANY.name}`;
 
   for (const x of [-8.65, -2.35, 3.95, 10.25]) for (const z of [-7.5, 2.6]) {
     box(world, x, 1.68, z, .27, 3.35, .27, colors.wall, .008);
@@ -157,7 +199,7 @@ export function buildOffice(scene) {
     box(group, 0, 1.105, .024, .675, .376, .004, colors.screens[variant]);
     box(group, 0, .86, -.025, .045, .20, .045, colors.chrome, .009);
     box(group, 0, .765, -.01, .25, .025, .18, colors.chrome, .01);
-    box(group, .30, .904, .026, .012, .004, .002, colors.purple);
+    box(group, .30, .904, .026, .012, .004, .002, colors.blue);
     for (let i = -3; i <= 3; i++) box(group, i * .055, 1.04, -.023, .032, .09, .003, colors.keyboard);
     tube(group, "monitor-cable", [[0, .96, -.03], [.04, .82, -.09], [.08, .758, -.13]], .004, colors.black, 8);
     cylinder(group, .08, .754, -.13, .026, .026, .004, colors.black);
@@ -191,7 +233,7 @@ export function buildOffice(scene) {
     monitor(group, -.82, -.29, index % 3); monitor(group, .82, -.29, (index + 1) % 3);
     chair(x - .82, z + 1.14); chair(x + .82, z + 1.14);
     if (index % 2 === 0) {
-      box(group, -1.34, .762, .28, .29, .013, .37, colors.purple, .004);
+      box(group, -1.34, .762, .28, .29, .013, .37, colors.blue, .004);
       box(group, -1.34, .773, .28, .278, .012, .355, colors.paper, .002);
       box(group, -1.46, .783, .29, .009, .009, .24, colors.chrome, .004);
       mug(group, -.05, -.20);
@@ -219,28 +261,45 @@ export function buildOffice(scene) {
   box(world, -4.56, 1.29, 7.77, .43, .06, .025, colors.black, .008);
   box(world, -4.56, 1.265, 7.82, .30, .008, .17, colors.paper);
 
-  box(world, -8.1, .45, -10.75, 3.25, .88, .75, colors.wood, .015);
-  box(world, -8.1, .91, -10.75, 3.4, .06, .85, colors.desk, .012);
-  box(world, -8.1, 1.28, -11.16, 3.4, .68, .035, colors.cabinet);
-  box(world, -8.1, 1.95, -11.05, 3.25, .67, .31, colors.wood, .012);
-  box(world, -8.1, 1.607, -10.95, 3.1, .012, .09, colors.lamp);
+  // Place the whole kitchen inside the glass wall at x = -8.75.
+  const kitchen = new THREE.Group(); kitchen.position.x = 1.5; world.add(kitchen);
+  box(kitchen, -8.1, .45, -10.75, 3.25, .88, .75, colors.wood, .015);
+  box(kitchen, -8.1, .91, -10.75, 3.4, .06, .85, colors.desk, .012);
+  box(kitchen, -8.1, 1.28, -11.16, 3.4, .68, .035, colors.cabinet);
+  box(kitchen, -8.1, 1.95, -11.05, 3.25, .67, .31, colors.wood, .012);
+  box(kitchen, -8.1, 1.607, -10.95, 3.1, .012, .09, colors.lamp);
   for (const x of [-9.15, -8.1, -7.05]) {
-    box(world, x, .46, -10.36, 1.01, .78, .025, colors.wood, .004);
-    box(world, x, .73, -10.33, .28, .018, .032, colors.chrome, .006);
-    box(world, x, 1.95, -10.88, 1.01, .64, .025, colors.wood, .004);
-    box(world, x, 1.69, -10.85, .28, .018, .032, colors.chrome, .006);
+    box(kitchen, x, .46, -10.36, 1.01, .78, .025, colors.wood, .004);
+    box(kitchen, x, .73, -10.33, .28, .018, .032, colors.chrome, .006);
+    box(kitchen, x, 1.95, -10.88, 1.01, .64, .025, colors.wood, .004);
+    box(kitchen, x, 1.69, -10.85, .28, .018, .032, colors.chrome, .006);
   }
-  shadow(-8.1, -10.75, 3.7, 1.2);
-  box(world, -8.63, 1.16, -10.75, .48, .45, .4, colors.black, .035);
-  box(world, -8.63, 1.25, -10.54, .35, .12, .012, colors.chrome, .012);
-  box(world, -8.63, 1.255, -10.529, .12, .06, .008, colors.screens[2]);
-  box(world, -8.63, .97, -10.47, .37, .035, .17, colors.chrome, .009);
-  for (const x of [-8.70, -8.56]) cylinder(world, x, 1.15, -10.50, .012, .012, .06, colors.chrome, 10);
+  shadow(-6.6, -10.75, 3.7, 1.2);
+  box(kitchen, -8.63, 1.16, -10.75, .48, .45, .4, colors.black, .035);
+  box(kitchen, -8.63, 1.25, -10.54, .35, .12, .012, colors.chrome, .012);
+  box(kitchen, -8.63, 1.255, -10.529, .12, .06, .008, colors.screens[2]);
+  box(kitchen, -8.63, .97, -10.47, .37, .035, .17, colors.chrome, .009);
+  for (const x of [-8.70, -8.56]) cylinder(kitchen, x, 1.15, -10.50, .012, .012, .06, colors.chrome, 10);
   for (let i = 0; i < 3; i++) {
-    cylinder(world, -7.68 + i * .25, 1.065, -10.8, .075, .068, .25, colors.ceramic, 16);
-    cylinder(world, -7.68 + i * .25, 1.197, -10.8, .078, .078, .022, colors.wood, 16);
+    cylinder(kitchen, -7.68 + i * .25, 1.065, -10.8, .075, .068, .25, colors.ceramic, 16);
+    cylinder(kitchen, -7.68 + i * .25, 1.197, -10.8, .078, .078, .022, colors.wood, 16);
   }
-  box(world, -9.65, 1.7, -11.75, .06, 1.8, 1.5, colors.wall);
+  box(kitchen, -9.65, 1.7, -11.75, .06, 1.8, 1.5, colors.wall);
+
+  // Wall mounted extinguisher and clear evacuation guidance.
+  const red = new THREE.MeshStandardMaterial({ color: 0xbd2525, metalness: .34, roughness: .38 });
+  const darkRed = new THREE.MeshStandardMaterial({ color: 0x8c1919, metalness: .38, roughness: .42 });
+  box(world, 12.73, 1.08, 3.03, .17, 1.38, .62, colors.frame, .025);
+  cylinder(world, 12.52, .99, 3.03, .155, .135, .73, red, 24).name = "Matafuegos";
+  cylinder(world, 12.52, 1.37, 3.03, .09, .12, .10, darkRed, 16);
+  box(world, 12.52, 1.47, 3.03, .32, .045, .10, colors.black, .012);
+  cylinder(world, 12.52, 1.50, 3.03, .025, .025, .12, colors.chrome, 12);
+  tube(world, "extinguisher-hose", [[12.5, 1.39, 3.10], [12.33, 1.30, 3.28], [12.35, 1.05, 3.29]], .018, colors.black);
+  box(world, 12.357, 1.02, 3.29, .05, .13, .05, colors.black, .008);
+  const safetyMaterial = new THREE.MeshBasicMaterial({ map: wallSignTexture({ safety: true }), toneMapped: false });
+  const safetySign = mesh(world, new THREE.PlaneGeometry(1.75, .875), safetyMaterial, 12.72, 2.25, 3.03, false);
+  safetySign.rotation.y = -Math.PI / 2;
+  safetySign.name = "Seguridad y matafuegos";
 
   const leafGeometry = cached("office-leaf", () => {
     const vertices = [], uv = [], indices = [], geometry = new THREE.BufferGeometry();
@@ -278,5 +337,5 @@ export function buildOffice(scene) {
   return { world, createContactShadow: (x, z) => shadow(x, z, .75, .65), logoPosition: new THREE.Vector3(0, 1.9, -14),
     roxyPosition: new THREE.Vector3(-1.8, 0, -5.2),
     alfredoPosition: new THREE.Vector3(2.7, 0, -5.2),
-    coffeePosition: new THREE.Vector3(-8.1, 0, -10.45) };
+    coffeePosition: new THREE.Vector3(-6.6, 0, -10.45) };
 }

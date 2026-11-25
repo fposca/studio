@@ -1,0 +1,25 @@
+import {chromium} from '@playwright/test';
+import {mkdir} from 'node:fs/promises';
+await mkdir('tmp/escape-time-review',{recursive:true});
+const browser=await chromium.launch({channel:'chrome',headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
+const page=await browser.newPage({viewport:{width:1280,height:800}});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+await page.goto('http://127.0.0.1:5174');await page.setContent('<body style="margin:0;background:#07121b"></body>');
+console.log(await page.evaluate(async()=>{
+ const prefix='/@fs/C:/Users/posca/OneDrive/Escritorio/videoimg';
+ const T=await import(prefix+'/node_modules/.vite/deps/three.js');
+ const {createTimeTunnel}=await import(prefix+'/src/game/buenosAiresTimeTunnel.js');
+ const {GLTFLoader}=await import(prefix+'/node_modules/three/examples/jsm/loaders/GLTFLoader.js');
+ const renderer=new T.WebGLRenderer({antialias:true});renderer.setSize(1280,800);renderer.setPixelRatio(1);renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;document.body.appendChild(renderer.domElement);
+ const scene=new T.Scene();scene.background=new T.Color(0x091521);scene.add(new T.HemisphereLight(0xa5cfff,0x243449,3));
+ const camera=new T.PerspectiveCamera(66,1280/800,.1,300);camera.position.set(0,0,0);
+ const {MeshoptDecoder}=await import(prefix+'/node_modules/three/examples/jsm/libs/meshopt_decoder.module.js');
+ const model=await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(prefix+'/src/assets/neonboy-animaciones/auto-volador-renault-fuego.game.glb');
+ const car=model.scene,box=new T.Box3().setFromObject(car),size=box.getSize(new T.Vector3()),center=box.getCenter(new T.Vector3());
+ const scale=3.8/Math.max(size.x,size.y,size.z);car.scale.setScalar(scale);car.position.copy(center).multiplyScalar(-scale);const hold=new T.Group();hold.add(car);hold.position.set(0,-1.3,-9.5);hold.rotation.y=Math.PI/2;scene.add(hold);
+ const fx=createTimeTunnel(scene),state={time:170,tier:'high'};fx.update(state,camera);renderer.render(scene,camera);
+ window.review={renderer,scene,camera,fx,state};return {calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,stats:fx.stats};
+}));
+await page.screenshot({path:'tmp/escape-time-review/tunnel.png'});
+console.log('ERRORS',JSON.stringify(errors));await browser.close();
+if(errors.some(e=>/shader|WebGL|TypeError|ReferenceError/i.test(e)))process.exitCode=1;

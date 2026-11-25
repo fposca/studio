@@ -1,3 +1,5 @@
+import { welcomeTourShots } from "./halloweenWelcomeTour.js";
+import { createGuideRevealCamera, actorGuideShot } from "./halloweenGuideCamera.js";
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -81,10 +83,10 @@ function inPlaceClip(source, name) {
   return clip;
 }
 
-export default function HalloweenStoreScene({ initialSave, onPlayerPosition, albums, vision, damageActive, locked, credits, onSelectAlbum, onInteract, onNearby, onReady, onProgress, onViewChange, lightingEvent, reduceFlashing, onAmbientOpportunity, touchRun, touchMoveRef, onOrbStatus, glassesCollected, chestOpen, realityKeyOwned, visionActivation, hideDefeatedDemon, onDemonApproach, onDemonHit, onDemonTaunt, onDemonShieldHit, onPlayerDamage, judgePhase, onJudgeHit, onJudgeEvent, onJudgeDeathComplete, vhsCollected, anniversaryUnlocked, secretVinylUnlocked, phoneRinging, onSecretDiscovered, onMirrorWhisper, onContextChange, graphicsMode = "auto", onPerformance, overlayOpen = false }) {
+export default function HalloweenStoreScene({ initialSave, onPlayerPosition, albums, vision, damageActive, locked, credits, onSelectAlbum, onInteract, onNearby, onReady, onProgress, onViewChange, lightingEvent, reduceFlashing, onAmbientOpportunity, touchRun, touchMoveRef, onOrbStatus, glassesCollected, chestOpen, realityKeyOwned, visionActivation, hideDefeatedDemon, onDemonApproach, onDemonHit, onDemonTaunt, onDemonShieldHit, onPlayerDamage, judgePhase, onJudgeHit, onJudgeEvent, onJudgeDeathComplete, vhsCollected, anniversaryUnlocked, secretVinylUnlocked, phoneRinging, onSecretDiscovered, onMirrorWhisper, onContextChange, graphicsMode = "auto", onPerformance, overlayOpen = false, guideReveal, onGuideRevealDone, onGuideRevealStep, tourProgressRef, guideReady, guideTarget, guideMarkerRef }) {
   const canvasRef = useRef(null);
   const propsRef = useRef(null);
-  propsRef.current = { initialSave, onPlayerPosition, vision, locked, credits, onSelectAlbum, onInteract, onNearby, onReady, onProgress, onViewChange, lightingEvent, reduceFlashing, onAmbientOpportunity, touchRun, touchMoveRef, onOrbStatus, glassesCollected, chestOpen, realityKeyOwned, visionActivation, hideDefeatedDemon, onDemonApproach, onDemonHit, onDemonTaunt, onDemonShieldHit, onPlayerDamage, judgePhase, onJudgeHit, onJudgeEvent, onJudgeDeathComplete, vhsCollected, anniversaryUnlocked, secretVinylUnlocked, phoneRinging, onSecretDiscovered, onMirrorWhisper, onContextChange, graphicsMode, onPerformance, overlayOpen };
+  propsRef.current = { initialSave, onPlayerPosition, vision, locked, credits, onSelectAlbum, onInteract, onNearby, onReady, onProgress, onViewChange, lightingEvent, reduceFlashing, onAmbientOpportunity, touchRun, touchMoveRef, onOrbStatus, glassesCollected, chestOpen, realityKeyOwned, visionActivation, hideDefeatedDemon, onDemonApproach, onDemonHit, onDemonTaunt, onDemonShieldHit, onPlayerDamage, judgePhase, onJudgeHit, onJudgeEvent, onJudgeDeathComplete, vhsCollected, anniversaryUnlocked, secretVinylUnlocked, phoneRinging, onSecretDiscovered, onMirrorWhisper, onContextChange, graphicsMode, onPerformance, overlayOpen, guideReveal, onGuideRevealDone, onGuideRevealStep, tourProgressRef, guideReady, guideTarget, guideMarkerRef };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -407,6 +409,10 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
     const pointer = new THREE.Vector2();
     const lookAt = new THREE.Vector3();
     const desiredCamera = new THREE.Vector3();
+    const guideCamera = createGuideRevealCamera();
+    let seenRevealId = null, seenRevealNext = 0, seenRevealStep = -1;
+    const guideProjection = new THREE.Vector3();
+    let nextGuideProjection = 0;
     const judgeCameraStart = new THREE.Vector3();
     const judgeCameraStartTarget = new THREE.Vector3();
     const judgeCameraReturnStart = new THREE.Vector3();
@@ -522,7 +528,7 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       if (event.code === "KeyE" && !event.repeat && !propsRef.current.locked) dispatch(nearInteraction);
       if (event.code === "KeyF" && !event.repeat) { event.preventDefault(); fireOrb(); }
       if (event.code === "KeyR" && !event.repeat && !propsRef.current.locked) { event.preventDefault(); orb.recall(); }
-      if (event.code === "KeyV") {
+      if (event.code === "KeyV" && !propsRef.current.locked) {
         view.firstPerson = !view.firstPerson;
         firstMotion.reset(view.yaw, view.firstPitch);
         thirdMotion.reset();
@@ -539,6 +545,7 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       else canvas.setPointerCapture?.(event.pointerId);
     }
     function onPointerMove(event) {
+      if (propsRef.current.locked) return;
       if (!dragging && document.pointerLockElement !== canvas) return;
       if (dragging && Math.hypot(event.clientX - dragging.startX, event.clientY - dragging.startY) > 4) dragging.moved = true;
       const dx = document.pointerLockElement === canvas ? event.movementX : event.clientX - dragging.x;
@@ -552,7 +559,7 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
         (view.firstPerson || !selectAt(event))) fireOrb();
       dragging = null;
     }
-    function onWheel(event) { view.distance = THREE.MathUtils.clamp(view.distance + event.deltaY * .005, 3, 7); }
+    function onWheel(event) { if (propsRef.current.locked) return; view.distance = THREE.MathUtils.clamp(view.distance + event.deltaY * .005, 3, 7); }
     function onBlur() { held.clear(); dragging = null; firstMotion.reset(view.yaw, view.firstPitch); thirdMotion.reset(); footsteps.reset(); }
     const unlockFootstepsOnTouch = () => { if (!propsRef.current.locked) footsteps.unlock(); };
     window.addEventListener("pointerdown", unlockFootstepsOnTouch, { capture: true });
@@ -594,10 +601,13 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
         codeVision.register();
         nextResourceScan = elapsed + .75;
       }
-      codeVision.setActive(propsRef.current.vision);
-      secretCovers.setActive(propsRef.current.vision);
-      secretProps.setVision(propsRef.current.vision);
-      secretProps.setReflectionEnabled(assetsReady && !propsRef.current.locked);
+      const sceneVision = propsRef.current.vision && propsRef.current.guideReveal?.kind !== "welcome";
+      const previewVision = sceneVision || propsRef.current.guideReveal?.kind === "demon";
+      codeVision.setActive(previewVision);
+      codeVision.setGuideFocus(propsRef.current.guideReveal?.kind === "demon");
+      secretCovers.setActive(sceneVision);
+      secretProps.setVision(sceneVision);
+      secretProps.setReflectionEnabled(assetsReady && (!propsRef.current.locked || propsRef.current.guideReveal?.kind === "mirror"));
       secretProps.setVhsCollected(propsRef.current.vhsCollected);
       secretProps.setAnniversaryUnlocked(propsRef.current.anniversaryUnlocked);
       secretProps.setSecretVinylUnlocked(propsRef.current.secretVinylUnlocked);
@@ -606,13 +616,13 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       realityKey.setAvailable(!propsRef.current.realityKeyOwned);
       realityKey.update(dt, elapsed);
       demon.setChestOpen(glassesChest.accessible);
-      demon.setVision(propsRef.current.vision);
+      demon.setVision(previewVision);
       judge.setPhase(propsRef.current.judgePhase || "inactive");
-      matrixMessages.setActive(propsRef.current.vision);
+      matrixMessages.setActive(sceneVision);
       if (propsRef.current.hideDefeatedDemon) demon.hideDefeated();
       if (propsRef.current.glassesCollected && !demon.glassesCollected) demon.collect();
       codeVision.update(dt, player, reducedMotion, demon.root, propsRef.current.reduceFlashing);
-      canvas.dataset.frequencyVision = propsRef.current.vision ? "active" : "inactive";
+      canvas.dataset.frequencyVision = previewVision ? "active" : "inactive";
       const motionLocked = propsRef.current.locked;
       if (motionLocked) {
         thirdMotion.reset();
@@ -658,6 +668,24 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
         judgeCameraReturnStart.copy(camera.position);
         judgeCameraReturnLook.copy(lookAt);
       }
+      const reveal = propsRef.current.guideReveal;
+      if (reveal && propsRef.current.guideReady && reveal.id !== seenRevealId) {
+        seenRevealId = reveal.id; seenRevealNext = 0; seenRevealStep = -1;
+        let shot;
+        if (reveal.kind === "welcome") shot = welcomeTourShots({ player, albums, positions: STORE_ALBUM_POSITIONS,
+          actors: npcActors.actors, obstacles: STORE_OBSTACLES, layout: STORE_LAYOUT });
+        else if (reveal.kind === "demon") shot = actorGuideShot(demon.position, demon.root.rotation.y, STORE_OBSTACLES, STORE_LAYOUT);
+        else if (reveal.kind === "people") {
+          const actor = npcActors.actors.get(reveal.npcId);
+          if (actor) shot = actorGuideShot(actor.root.position, actor.root.rotation.y, STORE_OBSTACLES, STORE_LAYOUT);
+        } else if (reveal.kind === "mirror") shot = {
+          focus: SECRET_POSITIONS.mirror, position: { x: 7.1, y: 2.7, z: 9.3 }, duration: 8,
+        };
+        guideCamera.start(camera.position, lookAt, reducedMotion || propsRef.current.reduceFlashing, shot);
+        onBlur();
+        if (document.pointerLockElement === canvas) document.exitPointerLock();
+      }
+      if (!guideCamera.active) {
       if (view.firstPerson) {
         desiredCamera.set(player.x, player.y + 1.68, player.z);
         clampHalloweenCamera(desiredCamera);
@@ -670,6 +698,7 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
           player.y + 2.5 + Math.sin(view.pitch) * 1.5,
           Math.min(player.z + Math.cos(view.yaw) * view.distance, 14.95));
         camera.position.lerp(desiredCamera, 1 - Math.exp(-9 * dt));
+      }
       }
       const cameraJudgePhase = propsRef.current.judgePhase || "inactive";
       if (cameraJudgePhase === "spawning") {
@@ -691,6 +720,21 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
         if (judgeReturnCameraPose(judge.position, judgeCameraReturnStart, judgeCameraReturnLook, desiredCamera, judgePlayerLook,
           reducedMotion ? JUDGE_RETURN_SECONDS : Math.max(0, (performance.now() - judgeCameraStartTime) / 1000 - JUDGE_INTRO_HOLD_SECONDS), camera.position, lookAt)) judgeCameraMode = "done";
       } else if (cameraJudgePhase !== "intro") judgeCameraMode = "inactive";
+      if (guideCamera.active) {
+        if ((reveal?.next || 0) !== seenRevealNext) { seenRevealNext = reveal.next; guideCamera.next(); }
+        if (!guideCamera.update(document.hidden ? 0 : dt, camera.position, lookAt, reveal?.skip || !reveal)) {
+          onBlur();
+          propsRef.current.onGuideRevealDone?.();
+        } else if (reveal?.kind === "welcome") {
+          if (seenRevealStep !== guideCamera.step) {
+            seenRevealStep = guideCamera.step;
+            propsRef.current.onGuideRevealStep?.(guideCamera.step);
+          }
+          if (propsRef.current.tourProgressRef?.current)
+            propsRef.current.tourProgressRef.current.style.transform = `scaleX(${guideCamera.progress})`;
+        }
+      }
+      canvas.dataset.guideCamera = guideCamera.active ? reveal?.kind || "chest" : "player";
       // The usual third-person camera stays at its chosen distance. If it
       // passes behind an exterior wall, hide only that wall from this frame.
       for (const wall of roomWalls) {
@@ -701,6 +745,32 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
             : camera.position.x > -STORE_LAYOUT.sideWallX + .2;
       }
       camera.lookAt(lookAt);
+      // One DOM marker, updated at 10 Hz inside the existing render loop.
+      if (elapsed >= nextGuideProjection) {
+        nextGuideProjection = elapsed + .1;
+        const marker = propsRef.current.guideMarkerRef?.current;
+        const target = propsRef.current.guideTarget;
+        const position = target?.kind === "npc" ? npcActors.getPosition(target.id)
+          : target?.kind === "demon" ? demon.position
+          : target?.kind === "realityKey" ? REALITY_KEY_POSITION
+          : target?.kind === "glassesChest" ? REALITY_CHEST : SECRET_POSITIONS[target?.kind];
+        if (marker) {
+          marker.style.display = position ? "grid" : "none";
+          if (position) {
+            camera.updateMatrixWorld();
+            guideProjection.set(position.x, target.kind === "glassesChest" ? 1.25 : 2.2, position.z).project(camera);
+            const width = canvas.clientWidth, height = canvas.clientHeight;
+            const behind = guideProjection.z > 1;
+            const edge = behind || Math.abs(guideProjection.x) > .86 || Math.abs(guideProjection.y) > .7;
+            const x = behind ? (guideProjection.x > 0 ? 75 : width - 75) : Math.max(75, Math.min(width - 75, (guideProjection.x + 1) * width / 2));
+            const y = edge ? height * .47 : Math.max(height * .32, Math.min(height - (touchDevice ? 158 : 100), (1 - guideProjection.y) * height / 2));
+            marker.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-50%)`;
+            marker.children[0].textContent = edge ? (x < width / 2 ? "\u2190" : "\u2192") : "\u25c7";
+            marker.children[1].textContent = target.label;
+            marker.children[2].textContent = edge ? "Gir\u00e1 para verlo" : `${Math.round(Math.hypot(player.x - position.x, player.z - position.z))} m`;
+          }
+        }
+      }
       playerLight.position.set(player.x - .8, player.y + 2.65, player.z + 1.45);
       character?.update(player, dt);
       orb.update(motionLocked ? 0 : dt, player, elapsed);
@@ -708,7 +778,7 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       judge.update(dt, elapsed, player, motionLocked, reducedMotion || propsRef.current.reduceFlashing);
       matrixMessages.update(dt, camera, player, { reducedMotion: reducedMotion || propsRef.current.reduceFlashing, locked: motionLocked });
       if (!motionLocked && !demon.defeated && Math.hypot(player.x - demon.position.x, player.z - demon.position.z) < 3.2) propsRef.current.onDemonApproach?.();
-      if (character) character.root.visible = !view.firstPerson &&
+      if (character) character.root.visible = (reveal?.kind === "welcome" ? [0,4].includes(guideCamera.step) && Math.hypot(camera.position.x-player.x,camera.position.z-player.z) > 1.05 : !view.firstPerson) &&
         !(cameraJudgePhase === "spawning" || (cameraJudgePhase === "intro" && judgeCameraMode === "return"));
 
       let closest = null, nearest = Infinity;
@@ -763,7 +833,7 @@ export default function HalloweenStoreScene({ initialSave, onPlayerPosition, alb
       nearInteraction = closest;
       const key = closest ? `${closest.kind}:${closest.id || ""}` : "";
       if (key !== nearKey) { nearKey = key; propsRef.current.onNearby?.(closest); }
-      npcActors.update(dt, player, null, !propsRef.current.locked && closest?.kind === "npc" ? closest.id : null, false, null);
+      npcActors.update(propsRef.current.guideReveal ? 0 : dt, player, null, !propsRef.current.locked && closest?.kind === "npc" ? closest.id : null, false, null);
       // In Halloween, Rulo turns to face NeonBoy as he approaches, even when
       // another interactive object is closer. His position stays unchanged.
       const ruloRoot = npcActors.actors.get("rulo")?.root;

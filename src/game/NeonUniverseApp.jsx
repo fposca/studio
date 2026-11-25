@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, Disc3, Expand, HardDrive, MapPinned, Pause, Play, Settings2, Sparkles } from "lucide-react";
-import DiscographyStore from "./DiscographyStore.jsx";
+const DiscographyStore = lazy(() => import("./DiscographyStore.jsx"));
 import { createNewUniverseGame, latestUniverseSave, readUniverseSavesWithLegacy, writeUniverseSave } from "./neonUniverseSaves.js";
 import logoImage from "../assets/neonboy-logo.png";
 import introVideo from "../assets/neonboy-animaciones/videos/intro.mp4";
@@ -9,7 +9,7 @@ import "./neonUniverseApp.css";
 
 const OPTIONS_KEY = "neonboy.universe.options.v1";
 const SLOT_LABELS = { autosave: "Autoguardado", "slot-1": "Partida 1", "slot-2": "Partida 2", "slot-3": "Partida 3" };
-const SCENE_LABELS = { store: "Tienda de Discos", studio: "Neon Recording Studio", club: "Club de Rock 1999", arcade: "Arcade 1999", rooftop: "La Azotea 1999", "lost-ship": "La Nave Perdida", parthenon: "El Partenón Maldito", matrix: "La Realidad Fracturada", underworld: "Puente de las Almas" };
+const SCENE_LABELS = { "chapter15-studio": "El origen de la señal · Estudio", "chapter15-store": "El origen de la señal · Disquería", store: "Tienda de Discos", studio: "Neon Recording Studio", club: "Club de Rock 1999", arcade: "Arcade 1999", rooftop: "La Azotea 1999", "lost-ship": "La Nave Perdida", parthenon: "El Partenón Maldito", matrix: "La Realidad Fracturada", underworld: "Puente de las Almas" };
 
 function readMotionSetting() {
   try { return JSON.parse(localStorage.getItem(OPTIONS_KEY) || "null")?.motion !== false; }
@@ -220,8 +220,10 @@ export default function NeonUniverseApp({ embedded = false }) {
   }
 
   if (screen === "game") return <div className={"universe-game-root" + (embedded ? " is-embedded" : "")}>
-    <DiscographyStore key={sessionKey} standalone initialSession={session} gameApiRef={gameApiRef}
-      onAutosave={autosave} paused={pauseOpen} onPause={requestPause} onClose={returnToMenu} />
+    <Suspense fallback={<div className="universe-loading" role="status">Cargando la tienda de NeonBoy...</div>}>
+      <DiscographyStore key={sessionKey} standalone initialSession={session} gameApiRef={gameApiRef}
+        onAutosave={autosave} paused={pauseOpen} onPause={requestPause} onClose={returnToMenu} />
+    </Suspense>
     {!pauseOpen && <button type="button" className="universe-pause-trigger" onClick={() => setPauseOpen(true)} aria-label="Pausar juego"><Pause size={18} /> PAUSA</button>}
     {pauseOpen && <div className="universe-overlay" onKeyDown={(event) => {
       if (event.key !== "Tab") return;

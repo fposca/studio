@@ -82,6 +82,20 @@
   box-shadow: inset 0 1px #efdfc410, 0 4px 14px #0003;
 }
 .neon-cathedral .studio-header button:hover { background: #3b2b3d; border-color: #cda994; }
+.neon-cathedral .studio-header button.cathedral-restart-bridge {
+  white-space: nowrap; border-color: #b97d97; color: #f8d9e5;
+  background: #2b1a2ce8;
+}
+.neon-cathedral .studio-header button.cathedral-restart-current {
+  white-space: nowrap; border-color: #78b7b1; color: #cef4e8;
+  background: #18302fe8;
+}
+.neon-cathedral .studio-header button.cathedral-restart-current:hover { background: #28514d; }
+.neon-cathedral .cathedral-restart-compact { display: none; }
+@media (max-width: 800px), (max-height: 560px) {
+  .neon-cathedral .cathedral-restart-full { display: none; }
+  .neon-cathedral .cathedral-restart-compact { display: inline; }
+}
 .universe-game-root:has(.neon-cathedral) > .universe-pause-trigger {
   top: 22px; right: 24px; left: auto; bottom: auto; min-height: 38px;
   padding: 9px 12px; font-size: 10px; border: 1px solid #8d7b7166; border-radius: 6px;
@@ -160,6 +174,27 @@
   background: linear-gradient(135deg, #20202ef2, #11121bed); color: #ece7e7;
   box-shadow: 0 12px 40px #0006; pointer-events: none;
 }
+.neon-cathedral .cathedral-error-pulse {
+  position: absolute; inset: 0; z-index: 12; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 46%, #a22c4738 100%);
+  animation: cathedral-error-pulse 420ms ease-out both;
+}
+@keyframes cathedral-error-pulse {
+  from { opacity: .72; } to { opacity: 0; }
+}
+.neon-cathedral .cathedral-recall-toast.is-error {
+  border-color: #b65a77aa; border-left-color: #f47c96;
+  background: linear-gradient(135deg, #371c2bed, #18121bed);
+  animation: cathedral-rejection 360ms ease-out both;
+}
+@keyframes cathedral-rejection {
+  from { opacity: .45; box-shadow: 0 0 34px #e0486555; }
+  to { opacity: 1; box-shadow: 0 12px 40px #0006; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .neon-cathedral .cathedral-error-pulse { display: none; }
+  .neon-cathedral .cathedral-recall-toast.is-error { animation: none; }
+}
 .cathedral-recall-toast small { display: block; color: var(--recall-color); font-size: 9px; font-weight: 800; letter-spacing: .17em; }
 .cathedral-recall-toast strong { display: block; margin-top: 5px; font-size: 18px; letter-spacing: .02em; }
 .cathedral-recall-toast p { margin: 9px 0 0; font-size: 12px; line-height: 1.5; color: #d9d0de; }
@@ -189,7 +224,41 @@
   .neon-cathedral .cathedral-recall-toast { bottom: 95px; width: min(430px, 62vw); padding: 10px 32px 10px 13px; }
   .cathedral-recall-toast strong { font-size: 13px; }
   .cathedral-recall-toast p { font-size: 10px; margin-top: 5px; }
-  .cathedral-recall-toast small { font-size: 8px; }
+  .neon-cathedral .cathedral-error-pulse {
+  position: absolute; inset: 0; z-index: 12; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 46%, #a22c4738 100%);
+  animation: cathedral-error-pulse 420ms ease-out both;
+}
+@keyframes cathedral-error-pulse {
+  from { opacity: .72; } to { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .neon-cathedral .cathedral-error-pulse { display: none; }
+}
+.neon-cathedral .cathedral-recall-toast.is-error {
+  border-color: #b65a77aa; border-left-color: #f47c96;
+  background: linear-gradient(135deg, #371c2bed, #18121bed);
+  animation: cathedral-rejection 360ms ease-out both;
+}
+@keyframes cathedral-rejection {
+  from { opacity: .45; box-shadow: 0 0 34px #e0486555; }
+  to { opacity: 1; box-shadow: 0 12px 40px #0006; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .neon-cathedral .cathedral-error-pulse {
+  position: absolute; inset: 0; z-index: 12; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 46%, #a22c4738 100%);
+  animation: cathedral-error-pulse 420ms ease-out both;
+}
+@keyframes cathedral-error-pulse {
+  from { opacity: .72; } to { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .neon-cathedral .cathedral-error-pulse { display: none; }
+}
+.neon-cathedral .cathedral-recall-toast.is-error { animation: none; }
+}
+.cathedral-recall-toast small { font-size: 8px; }
   .cathedral-recall-toast em { font-size: 9px; }
   .neon-cathedral .cathedral-skip-sequence { right: 12px; bottom: 22px; font-size: 10px; padding: 7px 10px; }
   .neon-cathedral .cathedral-revelation { padding-bottom: 115px; }

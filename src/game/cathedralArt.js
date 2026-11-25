@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { createLowDriftingFog } from "./lowDriftingFog.js";
+import { CATHEDRAL_CANVAS_FONT } from "./cathedralTypography.js";
 
 const TAU = Math.PI * 2;
 
@@ -149,9 +150,8 @@ export function createCathedralArt(parent, stoneMaterials) {
       const map = texture(512, 128, (ctx) => {
         ctx.fillStyle = "#15151e"; ctx.fillRect(0, 0, 512, 128);
         ctx.strokeStyle = "#968365"; ctx.lineWidth = 3; ctx.strokeRect(8, 8, 496, 112);
-        ctx.fillStyle = "#bba586"; ctx.textAlign = "center"; ctx.font = "19px Georgia";
-        ctx.fillText(["I", "II", "III"][index] ?? "✦", 256, 36);
-        ctx.fillStyle = "#eee1cb"; ctx.font = "600 35px Georgia"; ctx.fillText(label.toUpperCase(), 256, 88);
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#eee1cb"; ctx.font = "700 35px " + CATHEDRAL_CANVAS_FONT; ctx.fillText(label.toUpperCase(), 256, 88);
       });
       staticMesh(plane, mat(new THREE.MeshBasicMaterial({ map })), x, .87, z + .505, .81, .203, 1);
     }
@@ -196,12 +196,27 @@ export function createCathedralArt(parent, stoneMaterials) {
     });
     const symbolMaterial = mat(new THREE.MeshBasicMaterial({ map: symbol, transparent: true, color: light.color, depthWrite: false, side: THREE.DoubleSide }));
     const icon = mesh(plane, symbolMaterial, group, "Glifo / " + id); icon.scale.set(1, 1, 1); icon.position.z = .025;
+    // The order marks are etched into the sigils but readable only in Frequency Vision.
+    let orderMark = null;
+    if (target === root && progressKind === "seals") {
+      const order = { memoria: "I", tiempo: "II", verdad: "III" }[id];
+      const markMap = texture(128, 64, (ctx) => {
+        ctx.fillStyle = "rgba(10,31,35,.9)"; ctx.fillRect(0, 0, 128, 64);
+        ctx.strokeStyle = "#8fdad4"; ctx.lineWidth = 3; ctx.strokeRect(3, 3, 122, 58);
+        ctx.fillStyle = "#c9fff4"; ctx.font = "700 41px " + CATHEDRAL_CANVAS_FONT; ctx.textAlign = "center";
+        ctx.fillText(order, 64, 47);
+      });
+      orderMark = mesh(plane, mat(new THREE.MeshBasicMaterial({ map: markMap, transparent: true,
+        depthWrite: false, side: THREE.DoubleSide })), group, "Orden oculto / " + id);
+      orderMark.position.set(0, -.78, .07); orderMark.scale.set(.37, .19, 1);
+      orderMark.visible = false;
+    }
     const haloMaterial = mat(new THREE.SpriteMaterial({ map: glowMap, color: light.color, transparent: true, opacity: .13, depthWrite: false, blending: THREE.AdditiveBlending }));
     const halo = new THREE.Sprite(haloMaterial); halo.scale.set(1.65, 1.65, 1); group.add(halo);
     const heartMaterial = mat(new THREE.MeshStandardMaterial({ color: 0xdec5a5, emissive: 0x8f4839, emissiveIntensity: .45, roughness: .25, metalness: .7 }));
     const heart = mesh(geo(new THREE.OctahedronGeometry(.075)), heartMaterial, group, "Fragmento suspendido");
     heart.position.z = .08;
-    const record = { id, group, orbit, light, symbolMaterial, haloMaterial, heart, heartMaterial, y, phase: sigils.length * 1.7, progressKind };
+    const record = { id, group, orbit, light, symbolMaterial, haloMaterial, heart, heartMaterial, orderMark, y, phase: sigils.length * 1.7, progressKind };
     sigils.push(record);
     return group;
   }
@@ -217,7 +232,7 @@ export function createCathedralArt(parent, stoneMaterials) {
     const map = texture(1024, 128, (ctx) => {
       ctx.fillStyle = "#15131b"; ctx.fillRect(0, 0, 1024, 128);
       ctx.strokeStyle = "#a99370"; ctx.lineWidth = 2; ctx.strokeRect(8, 8, 1008, 112);
-      ctx.fillStyle = "#deceb0"; ctx.textAlign = "center"; ctx.font = "32px Georgia"; ctx.fillText(title.toUpperCase(), 512, 76);
+      ctx.fillStyle = "#deceb0"; ctx.textAlign = "center"; ctx.font = "600 32px " + CATHEDRAL_CANVAS_FONT; ctx.fillText(title.toUpperCase(), 512, 76);
     });
     staticMesh(plane, mat(new THREE.MeshBasicMaterial({ map })), 0, 7.5, z + .61, 3.9, .488, 1);
   }
@@ -271,6 +286,7 @@ export function createCathedralArt(parent, stoneMaterials) {
         s.orbit.rotation.z = time * .11 + s.phase;
         s.group.position.y = s.y + Math.sin(time * .9 + s.phase) * .035;
         s.heart.rotation.y = time * .4;
+        if (s.orderMark) s.orderMark.visible = vision;
       }
       flames.forEach((f, i) => f.scale.setScalar(.72 + .035 * Math.sin(time * 3 + i)));
       dustLayers.forEach((points, i) => {

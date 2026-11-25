@@ -4,6 +4,7 @@ import HalloweenStoreApp from "./HalloweenStoreApp.jsx";
 import HalloweenStartScreen from "./HalloweenStartScreen.jsx";
 import { deleteHalloweenSave, readHalloweenSaves, writeHalloweenSave } from "./halloweenSaves.js";
 import "./halloween.css";
+import "./halloweenGuidance.css";
 import faviconUrl from "../../src/assets/neonboy-logo.png";
 
 document.getElementById("halloween-favicon").href = faviconUrl;

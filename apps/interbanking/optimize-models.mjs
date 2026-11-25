@@ -14,6 +14,8 @@ const models = [
   ["interbanking/mujer-avatar-respirar.glb", "victoria-respira.office.glb"],
   ["interbanking/mujer-avatar-caminar.glb", "victoria-camina.office.glb"],
   ["interbanking/man.glb", "alfredo.office.glb"],
+  ["interbanking/avatar-respirando.glb", "custom-respira.office.glb"],
+  ["interbanking/avatar-caminando.glb", "custom-camina.office.glb"],
 ];
 function glbJson(file) {
   const buffer = readFileSync(file);
@@ -26,7 +28,8 @@ function run(args) {
 }
 mkdirSync(output, { recursive: true });
 let oldBytes = 0, newBytes = 0;
-for (const [sourceName, destName] of models) {
+for (const [sourceName, destName] of models.filter(([, destName]) =>
+  !process.argv.includes("--custom") || destName.startsWith("custom-"))) {
   const source = path.join(assets, sourceName);
   const target = path.join(output, destName);
   const temp = path.join(output, destName + ".tmp.glb");
@@ -35,6 +38,7 @@ for (const [sourceName, destName] of models) {
     run(["meshopt", temp, target, "--level", "high"]);
     const before = glbJson(source), after = glbJson(target);
     if (before.meshes?.length !== after.meshes?.length || before.animations?.length !== after.animations?.length ||
+        before.skins?.length !== after.skins?.length ||
         !after.extensionsUsed?.includes("EXT_meshopt_compression"))
       throw new Error(`Optimization changed geometry or animation: ${sourceName}`);
     oldBytes += statSync(source).size;

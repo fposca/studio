@@ -43,8 +43,13 @@ import { MATRIX_LAYOUT } from "./matrixLayout.js";
 import { buildUnderworld } from "./underworldScenery.js";
 import { UNDERWORLD_LAYOUT } from "./underworldLayout.js";
 import { buildCathedral } from "./cathedralScenery.js";
-import { initialCathedralTier, createAdaptiveGraphicsQuality } from "./cathedralQuality.js";
-import { CATHEDRAL_LAYOUT } from "./cathedralLayout.js";
+import { initialCathedralTier, createAdaptiveGraphicsQuality, graphicsPixelRatio } from "./cathedralQuality.js";
+import { CATHEDRAL_LAYOUT, clearCathedralBlockedSpawn } from "./cathedralLayout.js";
+import { buildThrone } from "./throneScenery.js";
+import { THRONE_LAYOUT, safeThroneSpawn } from "./throneLayout.js";
+import { BUENOS_AIRES_LAYOUT, safeBuenosAiresSpawn } from "./buenosAiresLayout.js";
+import { buildBuenosAires } from "./buenosAiresScenery.js";
+import { createBuenosAiresReflectionMap } from "./buenosAiresReflections.js";
 import { canClearMatrixPlatform, matrixPlatformHeight } from "./matrixPlatforms.js";
 import { createNeonOrbAbility } from "./neonOrbAbility.js";
 import { createStoreInvasionScene } from "./storeInvasionScene.js";
@@ -82,8 +87,11 @@ function inPlaceClip(source, name) {
   return clip;
 }
 
-export default function RecordStoreScene({ scenario = "store", albums, onSelect, onNearby, onOpenJukebox, onTakeCoins, onNpcInteract, onHugoInteract, onExamine, onViewChange, onJumpChange, onSceneReady, storeAltered = false, storeClueUnlocked = false, storeGhostPending = false, storeEventRef, storeInvaded = false, storeInvasionProgress = null, storeInvasionCrateHeld = false, onStoreInvasionEvent, onStoreInvasionCrateToggle, onUnderworldEvent, underworldProgress, cathedralProgress, cathedralCue, onCathedralEvent, onCathedralFeedback, cathedralPresentationPaused = false, cathedralSequenceSkip = 0, credits = 0, activeNpc = null, roxyPlaying = false, dancingSkeleton = null, interactionLocked = false, projectionPaused = false, paused = false, firstPerson = false, outsideVideo = null, playbackApiRef, playerSnapshotRef, studioTransformsRef, studioAssetApiRef, studioAnomalyRef, studioChapterSeen = false, clubTransformsRef, clubAssetApiRef, arcadeTransformsRef, arcadeAssetApiRef, arcadeAltered = false, onArcadeEvent, rooftopTransformsRef, rooftopAssetApiRef, lostShipTransformsRef, lostShipAssetApiRef, lostShipProgress = null, lostShipEffectRef, orbApiRef, onOrbHit, onOrbStatus, orbStatus, parthenonProgress, onParthenonEvent, onParthenonOrbHit, onParthenonBossStatus, parthenonBossApiRef, parthenonTransformsRef, onCombatDamage, matrixProgress, onMatrixEvent, onMatrixStatus, onMatrixBossScreen, matrixTransformsRef, matrixAssetApiRef, rooftopPhase = "idle", rooftopPhaseAge = 0, rooftopProgress = null, frequencyPhase = "idle", onConcertStart, concertReady = false, concertActive = false, concertEffectRef, concertTransformsRef, concertMotionRef, concertPoseRef, motionPlaybackOffsetsRef, motionRecordingId = null, concertCameraMode = "auto", concertEditor = null, onPoseGizmoChange }) {
-  const isStudio = scenario === "studio";
+import { createBuenosAiresEscape } from "./buenosAiresEscapeScene.js";
+import { createChapter15Variant } from "./chapter15Variant.js";
+
+export default function RecordStoreScene({ scenario = "store", chapter15 = false, chapter15Progress = null, onChapter15Vision, albums, onSelect, onNearby, onOpenJukebox, onTakeCoins, onNpcInteract, onHugoInteract, onExamine, onViewChange, onJumpChange, onSceneReady, storeAltered = false, storeClueUnlocked = false, storeGhostPending = false, storeEventRef, storeInvaded = false, storeInvasionProgress = null, storeInvasionCrateHeld = false, onStoreInvasionEvent, onStoreInvasionCrateToggle, onUnderworldEvent, underworldProgress, cathedralProgress, cathedralCue, onCathedralEvent, onCathedralFeedback, cathedralPresentationPaused = false, cathedralSequenceSkip = 0, throneProgress, onThroneEvent, cityProgress, onCityEvent, cityFlightApiRef, onCityFlightState, cityDialogueSpeaker = null, cityFeedback = null, playerFallen = false, credits = 0, activeNpc = null, roxyPlaying = false, dancingSkeleton = null, interactionLocked = false, projectionPaused = false, paused = false, firstPerson = false, outsideVideo = null, playbackApiRef, playerSnapshotRef, studioTransformsRef, studioAssetApiRef, studioAnomalyRef, studioChapterSeen = false, clubTransformsRef, clubAssetApiRef, arcadeTransformsRef, arcadeAssetApiRef, arcadeAltered = false, onArcadeEvent, rooftopTransformsRef, rooftopAssetApiRef, lostShipTransformsRef, lostShipAssetApiRef, lostShipProgress = null, lostShipEffectRef, orbApiRef, onOrbHit, onOrbStatus, orbStatus, parthenonProgress, onParthenonEvent, onParthenonOrbHit, onParthenonBossStatus, parthenonBossApiRef, parthenonTransformsRef, onCombatDamage, matrixProgress, onMatrixEvent, onMatrixStatus, onMatrixBossScreen, matrixTransformsRef, matrixAssetApiRef, rooftopPhase = "idle", rooftopPhaseAge = 0, rooftopProgress = null, frequencyPhase = "idle", onConcertStart, concertReady = false, concertActive = false, concertEffectRef, concertTransformsRef, concertMotionRef, concertPoseRef, motionPlaybackOffsetsRef, motionRecordingId = null, concertCameraMode = "auto", concertEditor = null, onPoseGizmoChange }) {
+  const isStudio = scenario === "studio" || scenario === "chapter15-studio";
   const isClub = scenario === "rock-club";
   const isArcade = scenario === "arcade";
   const isRealm = scenario === "frequency-09";
@@ -93,9 +101,11 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
   const isMatrix = scenario === "matrix";
   const isUnderworld = scenario === "underworld";
   const isCathedral = scenario === "cathedral";
+  const isThrone = scenario === "abyss-throne";
+  const isBuenosAires = scenario === "buenos-aires-2049";
   const isStoreInvasion = scenario === "store" && storeInvaded;
-  const isOrbScene = isShip || isParthenon || isMatrix || isUnderworld || isCathedral || isStoreInvasion;
-  const isInterior = isStudio || isClub || isArcade || isRealm || isRooftop || isShip || isParthenon || isMatrix || isUnderworld || isCathedral;
+  const isOrbScene = isShip || isParthenon || isMatrix || isUnderworld || isCathedral || isThrone || isBuenosAires || isStoreInvasion;
+  const isInterior = isStudio || isClub || isArcade || isRealm || isRooftop || isShip || isParthenon || isMatrix || isUnderworld || isCathedral || isThrone || isBuenosAires;
   const canvasRef = useRef(null);
   const [sceneReady, setSceneReady] = useState(false);
   const [webglError, setWebglError] = useState(false);
@@ -104,7 +114,7 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
   const callbacks = useRef({ onSelect, onNearby, onOpenJukebox, onTakeCoins, onNpcInteract, onHugoInteract, onExamine, onViewChange, onJumpChange, credits, activeNpc, roxyPlaying, dancingSkeleton, interactionLocked, projectionPaused, paused, outsideVideo, arcadeAltered, storeClueUnlocked, onArcadeEvent, frequencyPhase, onConcertStart, concertReady, concertActive, concertEffectRef, concertCameraMode, concertEditor, motionRecordingId, onPoseGizmoChange });
   const actions = useRef({});
   const keys = useRef(new Set());
-  callbacks.current = { storeInvasionProgress, storeInvasionCrateHeld, onStoreInvasionEvent, onStoreInvasionCrateToggle, onUnderworldEvent, underworldProgress, cathedralProgress, cathedralCue, onCathedralEvent, onCathedralFeedback, cathedralPresentationPaused, cathedralSequenceSkip, rooftopPhase, rooftopPhaseAge, rooftopProgress, lostShipProgress, onOrbHit, onOrbStatus, parthenonProgress, onParthenonEvent, onParthenonOrbHit, onParthenonBossStatus, onCombatDamage, matrixProgress, onMatrixEvent, onMatrixStatus, onMatrixBossScreen, studioChapterSeen, onSelect, onNearby, onOpenJukebox, onTakeCoins, onNpcInteract, onHugoInteract, onExamine, onViewChange, onJumpChange, credits, activeNpc, roxyPlaying, dancingSkeleton, interactionLocked, projectionPaused, paused, outsideVideo, arcadeAltered, storeClueUnlocked, onArcadeEvent, frequencyPhase, onConcertStart, concertReady, concertActive, concertEffectRef, concertCameraMode, concertEditor, motionRecordingId, onPoseGizmoChange };
+  callbacks.current = { chapter15Progress, onChapter15Vision, storeInvasionProgress, storeInvasionCrateHeld, onStoreInvasionEvent, onStoreInvasionCrateToggle, onUnderworldEvent, underworldProgress, cathedralProgress, cathedralCue, onCathedralEvent, onCathedralFeedback, cathedralPresentationPaused, cathedralSequenceSkip, throneProgress, onThroneEvent, cityProgress, onCityEvent, onCityFlightState, cityDialogueSpeaker, cityFeedback, playerFallen, rooftopPhase, rooftopPhaseAge, rooftopProgress, lostShipProgress, onOrbHit, onOrbStatus, parthenonProgress, onParthenonEvent, onParthenonOrbHit, onParthenonBossStatus, onCombatDamage, matrixProgress, onMatrixEvent, onMatrixStatus, onMatrixBossScreen, studioChapterSeen, onSelect, onNearby, onOpenJukebox, onTakeCoins, onNpcInteract, onHugoInteract, onExamine, onViewChange, onJumpChange, credits, activeNpc, roxyPlaying, dancingSkeleton, interactionLocked, projectionPaused, paused, outsideVideo, arcadeAltered, storeClueUnlocked, onArcadeEvent, frequencyPhase, onConcertStart, concertReady, concertActive, concertEffectRef, concertCameraMode, concertEditor, motionRecordingId, onPoseGizmoChange };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -122,9 +132,9 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     };
     canvas.addEventListener("webglcontextlost", onContextLost);
     canvas.addEventListener("webglcontextrestored", onContextRestored);
-    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, isUnderworld || isCathedral ? 1 : 1.25));
+    renderer.setPixelRatio(Math.min(devicePixelRatio || 1, isUnderworld || isCathedral || isThrone || isBuenosAires ? 1 : 1.25));
     renderer.shadowMap.enabled = !(isUnderworld || isCathedral);
-    renderer.shadowMap.type = isParthenon || isMatrix ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+    renderer.shadowMap.type = chapter15 || isParthenon || isMatrix || isThrone || isBuenosAires ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.06;
     const scene = new THREE.Scene();
@@ -140,17 +150,18 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       ambient.color.setHex(0xaaa0bc); ambient.groundColor.setHex(0x241321); ambient.intensity = .48;
     }
     const pmrem = new THREE.PMREMGenerator(renderer);
-    const room = new RoomEnvironment();
-    const environment = pmrem.fromScene(room, 0.04);
+    const room = isBuenosAires ? null : new RoomEnvironment();
+    const cityReflection = isBuenosAires ? createBuenosAiresReflectionMap() : null;
+    const environment = cityReflection ? pmrem.fromEquirectangular(cityReflection) : pmrem.fromScene(room, 0.04);
     scene.environment = environment.texture;
     scene.environmentIntensity = isParthenon ? .16 : isRooftop ? 0.2 : isArcade ? 0.18 : alteredLighting ? 0.16 : 0.3;
-    room.dispose(); pmrem.dispose();
+    room?.dispose(); cityReflection?.dispose(); pmrem.dispose();
     const shop = isInterior ? null : buildRecordStore(scene, albums, STORE_ALBUM_POSITIONS, STORE_OBSTACLES);
     const alteredStore = shop && storeAltered ? createAlteredRecordStore(shop, { invaded: isStoreInvasion }) : null;
     const invasion = isStoreInvasion && shop ? createStoreInvasionScene(shop, { onEvent: (event,value) => callbacks.current.onStoreInvasionEvent?.(event,value), onDamage: (amount) => callbacks.current.onCombatDamage?.(amount) }) : null;
     if (alteredStore) { shop.keyLight.intensity = 0.9; shop.keyLight.color.setHex(0xff5c50); }
     const studio = isStudio ? buildRecordingStudio(scene) : null;
-    const studioSignalEffects = studio ? createStudioSignalEffects(scene, studio) : null;
+    const studioSignalEffects = studio && !chapter15 ? createStudioSignalEffects(scene, studio) : null;
     const club = isClub ? buildRockClub(scene) : null;
     const arcade = isArcade ? buildArcade(scene, callbacks.current.arcadeAltered) : null;
     const realm = isRealm ? buildFrequency09Realm(scene) : null;
@@ -160,10 +171,20 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     const matrix = isMatrix ? buildMatrixWorld(scene, { onEvent: (event, value) => callbacks.current.onMatrixEvent?.(event, value), onDamage: (amount) => callbacks.current.onCombatDamage?.(amount), onStatus: (status) => callbacks.current.onMatrixStatus?.(status) }) : null;
     const underworld = isUnderworld ? buildUnderworld(scene, { onEvent: (event, value) => callbacks.current.onUnderworldEvent?.(event, value), onDamage: (amount) => callbacks.current.onCombatDamage?.(amount) }) : null;
     const cathedralGraphics = isCathedral ? createAdaptiveGraphicsQuality(initialCathedralTier()) : null;
+    const chapter15Graphics = chapter15 ? createAdaptiveGraphicsQuality(initialCathedralTier()) : null;
+    const cityGraphics = isBuenosAires ? createAdaptiveGraphicsQuality(initialCathedralTier()) : null;
+    let cityTier = cityGraphics?.tier;
     const cathedral = isCathedral ? buildCathedral(scene, {
       initialProgress: callbacks.current.cathedralProgress, tier: cathedralGraphics.tier,
       onFeedback: event => callbacks.current.onCathedralFeedback?.(event),
     }) : null;
+    const throne = isThrone ? buildThrone(scene, {
+      initialProgress: callbacks.current.throneProgress,
+      onEvent: (event, value) => callbacks.current.onThroneEvent?.(event, value),
+      onDamage: (amount) => callbacks.current.onCombatDamage?.(amount),
+    }) : null;
+    const city = isBuenosAires ? buildBuenosAires(scene, { tier: cityGraphics.tier, onEvent: (event) => callbacks.current.onCityEvent?.(event), onDamage: amount => callbacks.current.onCombatDamage?.(amount) }) : null;
+    if (city) { renderer.toneMappingExposure = 1.16; renderer.shadowMap.enabled = cityTier !== "low"; }
     if (matrix) for (const [id, transform] of Object.entries(matrixTransformsRef?.current || {})) matrix.applyTransform(id, transform);
     if (matrix && matrixAssetApiRef) matrixAssetApiRef.current = { apply: matrix.applyTransform, teleport: (x, z) => { player.x=x; player.z=z; player.y=0; player.velocityY=0; player.grounded=true; keys.current.clear(); } };
     if (temple) for (const [id, transform] of Object.entries(parthenonTransformsRef?.current || {})) temple.applyTransform(id, transform);
@@ -187,11 +208,14 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       light.position.set(x, 4.3, z);
       scene.add(light);
     }
-    const camera = new THREE.PerspectiveCamera(63, 1, 0.05, isUnderworld ? 200 : isRooftop ? 180 : isParthenon ? 120 : 75);
-    const layout = isStudio ? STUDIO_LAYOUT : isClub ? ROCK_CLUB_LAYOUT : isArcade ? ARCADE_LAYOUT : isRealm ? FREQUENCY09_LAYOUT : isRooftop ? ROOFTOP_LAYOUT : isShip ? LOST_SHIP_LAYOUT : isParthenon ? PARTHENON_LAYOUT : isMatrix ? MATRIX_LAYOUT : isUnderworld ? UNDERWORLD_LAYOUT : isCathedral ? CATHEDRAL_LAYOUT : STORE_LAYOUT;
+    const camera = new THREE.PerspectiveCamera(63, 1, 0.05, isUnderworld || isThrone || isBuenosAires ? 230 : isRooftop ? 180 : isParthenon ? 120 : 75);
+    const layout = isStudio ? STUDIO_LAYOUT : isClub ? ROCK_CLUB_LAYOUT : isArcade ? ARCADE_LAYOUT : isRealm ? FREQUENCY09_LAYOUT : isRooftop ? ROOFTOP_LAYOUT : isShip ? LOST_SHIP_LAYOUT : isParthenon ? PARTHENON_LAYOUT : isMatrix ? MATRIX_LAYOUT : isUnderworld ? UNDERWORLD_LAYOUT : isCathedral ? CATHEDRAL_LAYOUT : isThrone ? THRONE_LAYOUT : isBuenosAires ? BUENOS_AIRES_LAYOUT : STORE_LAYOUT;
     const snapshot = playerSnapshotRef?.current;
     const player = { x: snapshot?.x ?? 0, y: 0, z: snapshot?.z ?? layout.spawnZ, yaw: snapshot?.yaw ?? Math.PI, health: 100, grounded: true, speed: 0,
       running: false, attack: null, stun: 0, equipped: "unarmed", combat: 0, velocityY: 0, landing: 0, jumpAge: 0, raiseArmsOnJump: false };
+    if (isCathedral) Object.assign(player, clearCathedralBlockedSpawn(player, callbacks.current.cathedralProgress));
+    if (isThrone) Object.assign(player, safeThroneSpawn(player, callbacks.current.throneProgress));
+    if (isBuenosAires) Object.assign(player, safeBuenosAiresSpawn(player, callbacks.current.cityProgress?.coreComplete));
     const playerLight = new THREE.PointLight(alteredLighting ? 0xff786b : isParthenon ? 0x9db3e0 : isShip ? 0x7db4e8 : isRooftop ? 0xb0c6da : 0xd7bbff, alteredLighting ? 7.5 : isParthenon ? 4.3 : isShip ? 2.5 : isRooftop ? 3 : 11, 5, 2);
     scene.add(playerLight);
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -208,21 +232,28 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     camera.lookAt(player.x, player.y + 1.2, player.z);
     const invasionVision = isStoreInvasion ? createStoreInvasionVision(scene, shop.root) : null;
     let character = null, idleAsset = null, walkAsset = null, jumpAsset = null, alive = true, frame = 0, last = 0, elapsed = 0;
+    let lastCityFeedback = null;
     const orb = isOrbScene ? createNeonOrbAbility(scene, {
-      getTargets: () => ship ? ship.trial.getTargets(callbacks.current.lostShipProgress) : temple ? temple.getTargets(callbacks.current.parthenonProgress) : matrix ? matrix.getTargets(callbacks.current.matrixProgress) : underworld ? underworld.getTargets(callbacks.current.underworldProgress) : cathedral ? cathedral.getTargets() : invasion.getTargets(callbacks.current.storeInvasionProgress),
-      getColliders: () => ship ? ship.colliders : temple ? temple.colliders : matrix ? matrix.colliders : underworld ? underworld.colliders : cathedral ? cathedral.colliders : invasion.colliders,
-      getMaxRange: () => invasion ? 33 : temple?.getBossStatus().phase === "active" ? 40 : undefined,
+      getTargets: () => ship ? ship.trial.getTargets(callbacks.current.lostShipProgress) : temple ? temple.getTargets(callbacks.current.parthenonProgress) : matrix ? matrix.getTargets(callbacks.current.matrixProgress) : underworld ? underworld.getTargets(callbacks.current.underworldProgress) : cathedral ? cathedral.getTargets() : throne ? throne.getTargets(callbacks.current.throneProgress) : city ? city.getTargets(callbacks.current.cityProgress) : invasion.getTargets(callbacks.current.storeInvasionProgress),
+      getColliders: () => ship ? ship.colliders : temple ? temple.colliders : matrix ? matrix.colliders : underworld ? underworld.colliders : cathedral ? cathedral.colliders : throne ? throne.colliders : city ? city.colliders : invasion.colliders,
+      getMaxRange: () => city ? 27 : invasion ? 33 : temple?.getBossStatus().phase === "active" ? 40 : undefined,
       onHit: (target) => {
         if (ship) { ship.trial.registerImpact(target); callbacks.current.onOrbHit?.(target); }
         else if (temple) { temple.registerImpact(target); callbacks.current.onParthenonOrbHit?.(target); }
         else if (matrix) matrix.registerImpact(target);
         else if (underworld) underworld.registerImpact(target);
         else if (cathedral) cathedral.registerImpact(target);
+        else if (throne) throne.registerImpact(target, callbacks.current.throneProgress);
+        else if (city) return city.registerImpact(target, callbacks.current.cityProgress);
         else return invasion.registerImpact(target);
         return target.reflect ? { reflect: true } : null;
       },
       onStatus: (status) => callbacks.current.onOrbStatus?.(status),
     }) : null;
+    const flight = city ? createBuenosAiresEscape({ city, camera, player, getCharacter: () => character,
+      getProgress: () => callbacks.current.cityProgress, onEvent: event => callbacks.current.onCityEvent?.(event),
+      onState: snapshot => callbacks.current.onCityFlightState?.(snapshot), reducedMotion }) : null;
+    if (cityFlightApiRef) cityFlightApiRef.current = flight;
     const firstPersonEye = new THREE.Vector3();
     const getFirstPersonEye = () => {
       const sway = Math.sin(view.bobPhase) * 0.012 * view.bobWeight;
@@ -238,10 +269,31 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       return Math.atan2(right * Math.cos(view.yaw) - forward * Math.sin(view.yaw),
         -right * Math.sin(view.yaw) - forward * Math.cos(view.yaw));
     };
-    const fireOrb = () => {
-      if (!orb || !callbacks.current.lostShipProgress?.orbUnlocked || callbacks.current.interactionLocked || callbacks.current.paused || temple?.locksPlayer()) return false;
-      const launchYaw = view.firstPerson ? Math.PI + view.yaw : heldWalkingYaw() ?? player.yaw;
-      const pitch = view.firstPerson ? view.firstPitch : 0;
+    const fireOrb = (pointerEvent = null) => {
+      if (flight?.active) return !callbacks.current.paused && flight.pulse();
+      if (!orb || !callbacks.current.lostShipProgress?.orbUnlocked || callbacks.current.interactionLocked || callbacks.current.paused || temple?.locksPlayer() || underworld?.transporting) return false;
+      let aimedTarget = null;
+      if (throne && pointerEvent && !view.firstPerson && document.pointerLockElement !== canvas) {
+        const rect = canvas.getBoundingClientRect();
+        pointer.set(((pointerEvent.clientX - rect.left) / rect.width) * 2 - 1,
+          -((pointerEvent.clientY - rect.top) / rect.height) * 2 + 1);
+        raycaster.setFromCamera(pointer, camera);
+        let nearest = Infinity;
+        for (const target of throne.getTargets(callbacks.current.throneProgress)) {
+          if (target.kind !== "throne-conductor" && target.kind !== "throne-reflector") continue;
+          aimSphere.set(target.position, target.radius);
+          if (!raycaster.ray.intersectSphere(aimSphere, aimPoint)) continue;
+          const distance = raycaster.ray.origin.distanceTo(aimPoint);
+          if (distance < nearest) { nearest = distance; aimedTarget = target.position; }
+        }
+      }
+      let launchYaw = view.firstPerson ? Math.PI + view.yaw : heldWalkingYaw() ?? player.yaw;
+      let pitch = view.firstPerson ? view.firstPitch : 0;
+      if (aimedTarget) {
+        const dx = aimedTarget.x - player.x, dz = aimedTarget.z - player.z;
+        launchYaw = Math.atan2(dx, dz);
+        pitch = -Math.atan2(aimedTarget.y - player.y - 1.27, Math.hypot(dx, dz));
+      }
       if (!orb.fire(player, launchYaw, pitch, view.firstPerson ? getFirstPersonEye() : null)) return false;
       player.yaw = launchYaw;
       character?.playPower();
@@ -262,10 +314,14 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     const arrivalCamera = new THREE.Vector3(), arrivalLook = new THREE.Vector3();
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
+    const aimSphere = new THREE.Sphere();
+    const aimPoint = new THREE.Vector3();
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       const width = Math.max(1, Math.round(rect.width)), height = Math.max(1, Math.round(rect.height));
       if (cathedral) renderer.setPixelRatio(cathedral.quality.pixelRatio(width, height, devicePixelRatio || 1));
+      if (cityGraphics) renderer.setPixelRatio(Math.min(1, graphicsPixelRatio(width, height, devicePixelRatio || 1, cityGraphics.tier)));
+      if (chapter15Graphics) renderer.setPixelRatio(Math.min(1.25, graphicsPixelRatio(width, height, devicePixelRatio || 1, chapter15Graphics.tier)));
       renderer.setSize(width, height, false);
       videoProjection?.resize(width, height);
       camera.aspect = width / height;
@@ -276,12 +332,16 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     resize();
 
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+    const chapter15Variant = chapter15 ? createChapter15Variant(scene, isStudio ? "studio" : "store", studio || shop, loader, () => alive, chapter15Graphics.tier) : null;
+    if (chapter15) renderer.shadowMap.enabled = chapter15Graphics.tier !== "low";
+    if (city) void city.actors.load(loader, () => alive).then(ids => { if (alive) canvas.dataset.cityActors = ids.join(","); });
     if (rooftop) void rooftop.loadDemon(loader, () => alive);
     const shipReady = ship ? ship.loadAssets(loader, lostShipTransformsRef?.current, () => alive).then(loaded => { if (alive) canvas.dataset.shipModels = loaded.join(","); }) : Promise.resolve();
     const templeReady = temple ? temple.loadAssets(loader, () => alive, callbacks.current.parthenonProgress).then(loaded => { if (alive) canvas.dataset.templeModels = loaded.join(","); }) : Promise.resolve();
     const matrixReady = matrix ? matrix.loadAssets(loader, () => alive).then(loaded => { if (alive) canvas.dataset.matrixModels = loaded.join(","); }) : Promise.resolve();
     const underworldReady = underworld ? underworld.loadAssets(loader, () => alive) : Promise.resolve(true);
     const cathedralReady = cathedral ? cathedral.loadAssets(loader, () => alive) : Promise.resolve(true);
+    const throneReady = throne ? throne.loadAssets(loader, () => alive) : Promise.resolve(true);
     if (invasion) void invasion.loadAssets(loader, () => alive).then(status => { if (alive) canvas.dataset.invasionModels = JSON.stringify(status); });
     const ghostReady = (alteredStore && storeGhostPending ? alteredStore.loadGhost(loader, () => alive) : null) || realm?.loadGhost(loader, () => alive) || Promise.resolve(false);
     const npcActors = isInterior ? null : createRecordStoreNpcActors(scene, loader, shop.clickable, disposeObjects, { deferLoad: true, placements: isStoreInvasion ? INVASION_NPC_PLACEMENTS : {} });
@@ -301,6 +361,7 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     const studioReady = studio ? loadStudioAssets(studio, loader, () => studioTransformsRef?.current || {}, () => alive).then((loaded) => {
       if (alive) {
         canvas.dataset.studioModels = loaded.join(",");
+        chapter15Variant?.onStudioAssetsLoaded();
         studio.hugoInteraction.enabled = loaded.includes("hugo");
         if (studio.hugoInteraction.enabled) {
           studio.obstacles.push({ id: "hugo", x: -1.5, z: 0.65, hx: 0.37, hz: 0.32, baseHx: 0.37, baseHz: 0.32 });
@@ -358,6 +419,7 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       character = createRecordStoreCharacter({ scene: idle.scene, idleClip, walkClip, runClip, jumpClip, powerClip });
       scene.add(character.root);
       invasionVision?.register(character.root, "player");
+      chapter15Variant?.visuals.registerActor(character.root, "player");
       disposeObjects([walk.scene, jump.scene, run?.scene, power?.scene].filter(Boolean));
       walkAsset = null;
       jumpAsset = null;
@@ -390,12 +452,13 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
         spinner.add(coin);
       }
     }).catch(() => { /* Gold fallback coins remain on the table. */ });
-    Promise.all([playerReady, coinReady, studioReady, clubReady, shop?.ready || Promise.resolve(), ghostReady, shipReady, templeReady, matrixReady, underworldReady, cathedralReady]).then((ready) => {
+    Promise.all([playerReady, coinReady, studioReady, clubReady, shop?.ready || Promise.resolve(), ghostReady, shipReady, templeReady, matrixReady, underworldReady, cathedralReady, throneReady]).then((ready) => {
       if (!alive) return;
       if (underworld && !ready[9]) { setSceneLoadError(true); return; }
       if (cathedral && !ready[10]) { setSceneLoadError(true); return; }
       if (underworld) canvas.dataset.underworldModels = "citadel,centinelas,alma,barquero,gargola,testigo";
       if (cathedral) canvas.dataset.cathedralCustodian = String(cathedral.modelLoaded);
+      if (throne) canvas.dataset.throneSovereign = String(throne.modelLoaded);
       if (alteredStore || realm) canvas.dataset.ghostLoaded = String(ready[5] === true);
       setSceneReady(true);
       onSceneReady?.({ ghostLoaded: ready[5] === true });
@@ -406,9 +469,10 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
 
     const isField = (target) => /INPUT|TEXTAREA|SELECT/.test(target?.tagName);
     const interact = (target) => {
-      if (!target) return;
+      if (!target || underworld?.transporting) return;
       if (target.kind === "hugo") callbacks.current.onHugoInteract?.();
       if (target.kind === "examine") {
+        if (city && target.id.startsWith("ba-") && target.id !== "ba-obelisk" && target.id !== "ba-corrientes") city.actors.react(target.id, player);
         if (club && (target.id === "stage" || target.id === "microphone") && callbacks.current.concertReady) callbacks.current.onConcertStart?.();
         else callbacks.current.onExamine?.(target.id);
       }
@@ -433,6 +497,7 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       }
     };
     const toggleView = () => {
+      if (flight?.active) return;
       view.firstPerson = !view.firstPerson;
       firstPersonMotion.reset(view.yaw, view.firstPitch);
       view.bobWeight = 0; view.eyeY = player.y + 1.68;
@@ -441,7 +506,8 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       callbacks.current.onViewChange(view.firstPerson);
     };
     const jump = () => {
-      if (!player.grounded) return;
+      if (flight?.active) return;
+      if (!player.grounded || underworld?.transporting) return;
       player.grounded = false;
       player.velocityY = matrix ? 7.8 : 6.4;
       player.jumpAge = 0;
@@ -450,13 +516,22 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     };
     actions.current = { toggleView, jump, interact: () => interact(nearInteraction) };
     const onKeyDown = (event) => {
+      if (flight?.active) {
+        if (callbacks.current.paused || isField(event.target)) return;
+        if (["KeyW","KeyA","KeyS","KeyD","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(event.code)) { event.preventDefault(); keys.current.add(event.code); }
+        if (event.code === "KeyF" && !event.repeat) { event.preventDefault(); flight.pulse(); }
+        return;
+      }
       if (ship && !event.repeat) ship.audio.start();
       if (callbacks.current.interactionLocked || isField(event.target)) return;
+      if (chapter15 && event.code === "KeyC" && !event.repeat) { event.preventDefault(); callbacks.current.onChapter15Vision?.(); return; }
       if (isStoreInvasion && event.code === "KeyC" && !event.repeat) { event.preventDefault(); callbacks.current.onStoreInvasionEvent?.("vision-toggle"); return; }
       if (isStoreInvasion && callbacks.current.storeInvasionCrateHeld && (event.code === "KeyW" || event.code === "KeyS") && !event.repeat) { event.preventDefault(); callbacks.current.onStoreInvasionEvent?.("crate-step", event.code === "KeyW" ? 1 : -1); return; }
       if (isMatrix && event.code === "KeyC" && !event.repeat) { event.preventDefault(); callbacks.current.onMatrixEvent?.("vision-toggle"); return; }
       if (isUnderworld && event.code === "KeyC" && !event.repeat) { event.preventDefault(); callbacks.current.onUnderworldEvent?.("vision-toggle"); return; }
       if (isCathedral && event.code === "KeyC" && !event.repeat) { event.preventDefault(); callbacks.current.onCathedralEvent?.("vision-toggle"); return; }
+      if (isThrone && event.code === "KeyC" && !event.repeat) { event.preventDefault(); callbacks.current.onThroneEvent?.("vision-toggle"); return; }
+      if (isBuenosAires && event.code === "KeyC" && !event.repeat) { event.preventDefault(); callbacks.current.onCityEvent?.("vision-toggle"); return; }
       if (event.code === "KeyV" && !event.repeat) { event.preventDefault(); toggleView(); return; }
       if (event.code === "Space" && !event.repeat) { event.preventDefault(); jump(); return; }
       if (event.code === "KeyE" && !event.repeat) { event.preventDefault(); if (isStoreInvasion && callbacks.current.storeInvasionCrateHeld) callbacks.current.onStoreInvasionCrateToggle?.(false); else interact(nearInteraction); return; }
@@ -469,7 +544,7 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     };
     const onKeyUp = (event) => keys.current.delete(event.code);
     const clearInput = () => {
-      keys.current.clear(); dragging = null;
+      keys.current.clear(); dragging = null; flight?.clearInput();
       firstPersonMotion.reset(view.yaw, view.firstPitch);
     };
     const onBlur = () => {
@@ -504,6 +579,7 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       return Boolean(hit);
     };
     const onPointerDown = (event) => {
+      if (flight?.active) { if (event.button === 0 && !callbacks.current.paused) flight.pulse(); return; }
       ship?.audio.start();
       if (poseController?.isGizmoActive() || callbacks.current.interactionLocked) return;
       if (isStoreInvasion) canvas.focus({ preventScroll: true });
@@ -516,6 +592,7 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       }
     };
     const onPointerMove = (event) => {
+      if (flight?.active) return;
       if (callbacks.current.interactionLocked) return;
       const locked = document.pointerLockElement === canvas;
       if (!locked && (!dragging || dragging.id !== event.pointerId)) return;
@@ -533,11 +610,12 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     const onPointerUp = (event) => {
       if (isOrbScene && dragging?.id === event.pointerId && dragging.button === 0 && !dragging.moved
         && !callbacks.current.interactionLocked && callbacks.current.lostShipProgress?.orbUnlocked)
-        fireOrb();
+        fireOrb(event);
       dragging = null;
     };
     const onPointerCancel = () => { dragging = null; };
     const onWheel = (event) => {
+      if (flight?.active) return;
       if (callbacks.current.interactionLocked) return;
       event.preventDefault();
       if (!view.firstPerson) view.distance = THREE.MathUtils.clamp(view.distance + event.deltaY * 0.005, 3, 7);
@@ -549,11 +627,13 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     canvas.addEventListener("wheel", onWheel, { passive: false });
     canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
-    const obstacles = studio?.obstacles || club?.obstacles || arcade?.obstacles || realm?.obstacles || rooftop?.obstacles || ship?.obstacles || temple?.obstacles || matrix?.obstacles || underworld?.obstacles || cathedral?.obstacles || invasion?.obstacles || STORE_OBSTACLES;
+    const obstacles = chapter15Variant?.obstacles || studio?.obstacles || club?.obstacles || arcade?.obstacles || realm?.obstacles || rooftop?.obstacles || ship?.obstacles || temple?.obstacles || matrix?.obstacles || underworld?.obstacles || cathedral?.obstacles || throne?.obstacles || city?.obstacles || invasion?.obstacles || STORE_OBSTACLES;
     if (rooftop && rooftopAssetApiRef) rooftopAssetApiRef.current = { apply: rooftop.applyTransform, teleport: (x,z) => { player.x=x;player.z=z;player.y=0;player.velocityY=0;player.grounded=true; } };
     const canMove = (x, z) => Math.abs(x) < layout.playerLimitX && z > layout.playerBackZ && z < layout.playerFrontZ &&
-      (!underworld || underworld.canStand(x, z, callbacks.current.underworldProgress?.visionActive)) &&
+      (!underworld || underworld.canStand(x, z, callbacks.current.underworldProgress?.visionActive, 1.08, callbacks.current.underworldProgress) && !underworld.transporting) &&
       (!cathedral || cathedral.canStand(x, z, callbacks.current.cathedralProgress)) &&
+      (!throne || throne.canStand(x, z, callbacks.current.throneProgress)) &&
+      (!city || city.canStand(x, z, player.x, player.z)) &&
       !obstacles.some((obstacle) => {
         if (matrix && canClearMatrixPlatform(obstacle, player.y)) return false;
         if (obstacle.radius) {
@@ -670,7 +750,7 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
           savedConcertPlayer = null;
         }
       }
-      const movementLocked = callbacks.current.interactionLocked || callbacks.current.paused || temple?.locksPlayer();
+      const movementLocked = flight?.active || callbacks.current.interactionLocked || callbacks.current.paused || temple?.locksPlayer() || underworld?.transporting;
       if (movementLocked) firstPersonMotion.reset(view.yaw, view.firstPitch);
       const forward = movementLocked ? 0 : Number(held.has("KeyW") || held.has("ArrowUp")) - Number(held.has("KeyS") || held.has("ArrowDown"));
       const right = movementLocked ? 0 : Number(held.has("KeyD") || held.has("ArrowRight")) - Number(held.has("KeyA") || held.has("ArrowLeft"));
@@ -709,6 +789,7 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       player.speed = moved / Math.max(movementDt, 0.001);
       player.running = speed > 4;
       if (playerSnapshotRef && !concertWasActive) playerSnapshotRef.current = { x: player.x, z: player.z, yaw: player.yaw, viewYaw: view.yaw };
+      if (city && import.meta.env.DEV) canvas.dataset.cityPlayerZ = player.z.toFixed(2);
       if (player.grounded && player.speed > 0.2) {
         stepTravel += moved;
         const stride = player.running ? 0.84 : 0.98;
@@ -744,12 +825,13 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       view.bobWeight = THREE.MathUtils.damp(view.bobWeight, bobTarget, 10, dt);
       if (bobTarget > 0) view.bobPhase += moved * 2.75;
       view.eyeY = THREE.MathUtils.damp(view.eyeY, player.y + 1.68, player.grounded ? 22 : 35, dt);
-      const nextFov = concertWasActive || frequencyIntake ? camera.fov : view.firstPerson ? 76 : 63;
+      const nextFov = flight?.active ? 66 : concertWasActive || frequencyIntake ? camera.fov : view.firstPerson ? 76 : 63;
       if (camera.fov !== nextFov) {
         camera.fov = Math.abs(camera.fov - nextFov) < .01 ? nextFov : THREE.MathUtils.damp(camera.fov, nextFov, 14, dt);
         camera.updateProjectionMatrix();
       }
-      if (studio && studioAnomalyRef?.current?.phase === "active" && !reducedMotion) {
+      if (flight?.active) { /* Flight camera is applied after the city update. */ }
+      else if (studio && studioAnomalyRef?.current?.phase === "active" && !reducedMotion) {
         const age = studioAnomalyRef.current.age;
         storeCameraPosition.set(player.x + 1.9 + Math.sin(age * .7) * .3, player.y + 2.4, player.z + 3.8);
         storeCameraTarget.set(age < 5 ? 0 : 5, 1.6, age < 5 ? -2 : -4.5);
@@ -796,11 +878,11 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
           player.z + Math.cos(view.yaw) * view.distance * Math.cos(view.pitch));
         desiredCamera.x = THREE.MathUtils.clamp(desiredCamera.x, isInterior ? -layout.cameraLimitX : -10.35, isInterior ? layout.cameraLimitX : 10.35);
         desiredCamera.z = THREE.MathUtils.clamp(desiredCamera.z, isInterior ? layout.cameraBackZ : -13.2, isInterior ? layout.cameraFrontZ : 15.1);
-        if (studio || club || arcade || realm || rooftop || ship || temple || matrix) {
+        if (studio || club || arcade || realm || rooftop || ship || temple || matrix || city) {
           const rayLength = cameraDirection.copy(desiredCamera).sub(lookAt).length();
           cameraRay.set(lookAt, cameraDirection.normalize());
           cameraRay.far = rayLength;
-          const hit = cameraRay.intersectObjects(matrix ? matrix.colliders.filter(mesh => mesh.visible) : (studio || club || arcade || realm || rooftop || ship || temple).colliders, false)[0];
+          const hit = cameraRay.intersectObjects(matrix ? matrix.colliders.filter(mesh => mesh.visible) : (city || studio || club || arcade || realm || rooftop || ship || temple).colliders, false)[0];
           if (hit) desiredCamera.copy(lookAt).addScaledVector(cameraDirection, Math.max(0.55, hit.distance - 0.28));
         }
         if (realm && readyForArrival && realmArrivalAge < 2.8 && !arrivalCameraFinished) {
@@ -849,9 +931,17 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
         if (gap < actor.reach && gap < distance) { distance = gap; closest = { kind: "club-npc", id: actor.npc.id }; }
       }
       alteredStore?.setClueVisible(callbacks.current.storeClueUnlocked);
-      for (const spot of callbacks.current.storeClueUnlocked ? alteredStore?.interactions || [] : studio?.interactions || club?.interactions || arcade?.interactions || realm?.interactions || rooftop?.interactions || ship?.interactions || temple?.interactions || matrix?.interactions || underworld?.interactions || cathedral?.interactions || []) {
+      for (const spot of callbacks.current.storeClueUnlocked ? alteredStore?.interactions || [] : studio?.interactions || club?.interactions || arcade?.interactions || realm?.interactions || rooftop?.interactions || ship?.interactions || temple?.interactions || matrix?.interactions || underworld?.interactions || cathedral?.interactions || throne?.interactions || city?.interactions || []) {
         const gap = Math.hypot(player.x - spot.x, player.z - spot.z);
         if (gap < spot.reach && (gap < distance || (spot.id === "friendsTable" && closest?.kind === "club-npc") || (arcade && spot.id === "pixel"))) { distance = gap; closest = { kind: spot.id === "friendsTable" ? "club-friends" : "examine", id: spot.id, label: spot.label }; }
+      }
+      for (const spot of chapter15Variant?.interactions || []) {
+        if (spot.id.startsWith("ch15-evidence-") && callbacks.current.chapter15Progress?.evidence?.includes(spot.id.slice("ch15-evidence-".length))) continue;
+        if (spot.id === "ch15-tape" && callbacks.current.chapter15Progress?.tapeTaken) continue;
+        const gap = Math.hypot(player.x - spot.x, player.z - spot.z);
+        if (gap < spot.reach && (gap < distance || (spot.id.startsWith("ch15-evidence-") && gap < 1.35))) {
+          distance = gap; closest = { kind: "examine", id: spot.id, label: spot.label };
+        }
       }
       for (const spot of invasion?.interactions || []) {
         if (spot.x === 999) continue;
@@ -897,7 +987,8 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
         canvas.dataset.concertMotion = callbacks.current.motionRecordingId ? "recording" : "playing";
       }
       if (npcActors) {
-        for (const actor of npcActors.actors.values()) {
+        for (const [id, actor] of npcActors.actors) {
+          chapter15Variant?.visuals.registerActor(actor.model, "dynamic", id);
           if (actor.marker) actor.marker.visible = !(alteredStore && storeEventRef?.current?.type);
         }
         const liveRoxyPlaying = callbacks.current.projectionPaused ? callbacks.current.roxyPlaying :
@@ -919,7 +1010,7 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
         spinner.position.y = spinner.userData.baseY + Math.sin(elapsed * 3.2 + index * 0.58) * 0.025;
       });
       coinParticles?.update(dt);
-      shop?.atmosphere.update(elapsed, reducedMotion, storeAltered, storeEventRef?.current?.type === "ghost");
+      shop?.atmosphere.update(elapsed, reducedMotion || chapter15, storeAltered, storeEventRef?.current?.type === "ghost");
       alteredStore?.update(callbacks.current.paused ? 0 : dt, elapsed, storeEventRef?.current?.type, storeEventRef?.current?.age || 0, reducedMotion, camera);
       if (club) {
         const effect = callbacks.current.concertEffectRef?.current;
@@ -938,15 +1029,41 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
         club.atmosphere.update(dt, reducedMotion, callbacks.current.paused, camera);
       }
       studioSignalEffects?.update(elapsed, studioAnomalyRef?.current?.phase === "active" ? studioAnomalyRef.current.age : null, callbacks.current.studioChapterSeen, reducedMotion, callbacks.current.paused, Math.hypot(player.x, player.z + 2.1) < 3.4);
+      chapter15Variant?.update(dt, elapsed, callbacks.current.chapter15Progress, callbacks.current.paused, reducedMotion, Boolean(callbacks.current.outsideVideo), player);
       realm?.update(dt, elapsed, callbacks.current.frequencyPhase, reducedMotion, readyForArrival ? realmArrivalAge : 10);
       rooftop?.update(dt, elapsed, callbacks.current.rooftopPhase, callbacks.current.rooftopPhaseAge, callbacks.current.rooftopProgress, reducedMotion, callbacks.current.paused);
       ship?.update(dt, elapsed, callbacks.current.lostShipProgress, callbacks.current.paused, lostShipEffectRef?.current?.until > performance.now() ? lostShipEffectRef.current.type : null, player);
       temple?.update(dt, elapsed, callbacks.current.parthenonProgress, player, callbacks.current.paused, camera, reducedMotion);
       matrix?.update(dt, elapsed, callbacks.current.matrixProgress, player, callbacks.current.paused, camera, reducedMotion);
-      underworld?.update(dt, elapsed, callbacks.current.underworldProgress, player, callbacks.current.paused, camera, reducedMotion);
+      underworld?.update(dt, elapsed, callbacks.current.underworldProgress, player, callbacks.current.paused, camera, reducedMotion, frameSeconds);
+      if (underworld) {
+        const transporting = String(underworld.transporting);
+        if (canvas.dataset.underworldTransporting !== transporting) canvas.dataset.underworldTransporting = transporting;
+      }
       cathedral?.update(dt, elapsed, callbacks.current.cathedralProgress, player, callbacks.current.paused, camera, reducedMotion, callbacks.current.cathedralCue, {
         suspended: callbacks.current.cathedralPresentationPaused || document.hidden, skip: callbacks.current.cathedralSequenceSkip,
       });
+      throne?.update(dt, elapsed, callbacks.current.throneProgress, player, callbacks.current.paused, reducedMotion, callbacks.current.playerFallen);
+      if (city) {
+        city.actors.setDialogueSpeaking(callbacks.current.cityDialogueSpeaker === "LA DESCONECTADA");
+        if (callbacks.current.cityFeedback && callbacks.current.cityFeedback !== lastCityFeedback) {
+          lastCityFeedback = callbacks.current.cityFeedback; city.flashTransmitters();
+        }
+      }
+      city?.update(dt, elapsed, callbacks.current.cityProgress, player, callbacks.current.paused, camera, reducedMotion, callbacks.current.playerFallen);
+      flight?.update(dt, held, callbacks.current.paused);
+      if (city && import.meta.env.DEV) {
+        canvas.dataset.cityFlight = flight?.active ? JSON.stringify({ time: +flight.state.time.toFixed(2), integrity: flight.state.integrity, lateral: flight.state.lateral, vertical: flight.state.vertical, status: flight.state.status,
+          sound: flight.audioStats, tunnel: flight.tunnelStats, barriers: flight.state.barriers, bolts: flight.state.bolts, pulses: flight.state.pulses, position: city.flyingVehicles.fuego.position.toArray(), camera: camera.position.toArray(),
+          passengers: city.flyingVehicles.fuego.getObjectByName("Pasajeros / interior ocluido")?.children.length || 0 }) : "idle";
+        canvas.dataset.cityVigilanteReady = String(city.vigilante.ready);
+        canvas.dataset.cityVigilanteAnimation = city.vigilante.animation;
+        canvas.dataset.cityVigilantePosition = JSON.stringify({x:city.vigilante.state.x,z:city.vigilante.state.z});
+        canvas.dataset.cityEscapeReady = String(city.flyingVehicles.escapeReady);
+        canvas.dataset.cityFuegoOperational = String(city.flyingVehicles.fuegoOperational);
+      }
+      if (throne && canvas.dataset.throneAnimation !== throne.animationState) canvas.dataset.throneAnimation = throne.animationState;
+      if (throne && import.meta.env.DEV) canvas.dataset.throneBossZ = throne.bossPosition.z.toFixed(2);
       cathedral?.applyCamera(camera, player, { reducedMotion, firstPerson: view.firstPerson,
         input: dragging || held.size > 0, suspended: callbacks.current.cathedralPresentationPaused || document.hidden });
       if (cathedral) {
@@ -970,11 +1087,31 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
           });
         } else callbacks.current.onMatrixBossScreen?.({visible:false});
       }
-      orb?.update(callbacks.current.paused ? 0 : dt, player, elapsed);
+      orb?.update(callbacks.current.paused || flight?.active ? 0 : dt, player, elapsed);
       if (arcade?.update(dt, elapsed, callbacks.current.arcadeAltered, player.z, reducedMotion, callbacks.current.paused, callbacks.current.frequencyPhase === "intake")) callbacks.current.onArcadeEvent?.();
-      if (shop) shop.glow.intensity = 4.4 + Math.sin(elapsed * 2.4) * 0.6;
+      if (shop && !chapter15) shop.glow.intensity = 4.4 + Math.sin(elapsed * 2.4) * 0.6;
       videoProjection?.setVideo(callbacks.current.projectionPaused ? null : callbacks.current.outsideVideo);
       videoProjection?.setPaused(callbacks.current.paused);
+      if (cityGraphics) {
+        const sample = cityGraphics.frame(now, !document.hidden && !callbacks.current.paused && readyForArrival);
+        if (sample && sample.tier !== cityTier) { cityTier = sample.tier; city.applyQuality(cityTier); renderer.shadowMap.enabled = cityTier !== "low"; resize(); }
+        if (sample) {
+          canvas.dataset.cityQuality = cityTier;
+          if (import.meta.env.DEV) canvas.dataset.cityPopulation = JSON.stringify(city.actors.getStats());
+        }
+      }
+      if (chapter15Graphics) {
+        const sample = chapter15Graphics.frame(now, !document.hidden && !callbacks.current.paused && readyForArrival);
+        if (sample && chapter15Variant.visuals.snapshot.tier !== (sample.tier === "ultra" ? "high" : sample.tier)) {
+          chapter15Variant.visuals.applyQuality(sample.tier);
+          renderer.shadowMap.enabled = sample.tier !== "low";
+          resize();
+        }
+        if (import.meta.env.DEV) {
+          const visualState = JSON.stringify(chapter15Variant.visuals.snapshot);
+          if (canvas.dataset.chapter15Visuals !== visualState) canvas.dataset.chapter15Visuals = visualState;
+        }
+      }
       if (cathedralGraphics) {
         const sample = cathedralGraphics.frame(now, !document.hidden && !callbacks.current.paused && readyForArrival);
         if (sample && cathedral.quality.tier !== (sample.tier === "ultra" ? "high" : sample.tier)) {
@@ -1009,12 +1146,15 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       concertProps?.stop();
       poseController?.dispose();
       invasionVision?.dispose();
+      flight?.dispose();
+      if (cityFlightApiRef) cityFlightApiRef.current = null;
       character?.dispose();
       npcActors?.dispose();
       clubActors?.dispose();
       arcadeActors?.dispose();
       if (clubAssetApiRef) clubAssetApiRef.current = null;
       studioSignalEffects?.dispose();
+      chapter15Variant?.dispose();
       studio?.mixers.forEach((mixer) => mixer.stopAllAction());
       club?.mixers.forEach((mixer) => mixer.stopAllAction());
       videoProjection?.dispose();
@@ -1032,6 +1172,8 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       matrix?.dispose();
       underworld?.dispose();
       cathedral?.dispose();
+      throne?.dispose();
+      city?.dispose();
       if (matrixAssetApiRef) matrixAssetApiRef.current = null;
       ship?.audio.dispose();
       disposeObjects([scene]);
@@ -1045,11 +1187,11 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
       renderer.dispose();
       renderer.forceContextLoss();
     };
-  }, [albums, isStudio, isClub, isArcade, isRealm, isRooftop, isShip, isParthenon, isMatrix, isUnderworld, isCathedral, isStoreInvasion, storeAltered, rendererVersion]);
+  }, [albums, isStudio, chapter15, isClub, isArcade, isRealm, isRooftop, isShip, isParthenon, isMatrix, isUnderworld, isCathedral, isThrone, isBuenosAires, isStoreInvasion, storeAltered, rendererVersion]);
 
   const hold = (code, pressed) => { if (pressed) keys.current.add(code); else keys.current.delete(code); };
   return <div className="record-store-3d" data-scenario={scenario} data-view={firstPerson ? "primera" : "tercera"} data-ready={sceneReady} aria-busy={!sceneReady}>
-    <canvas key={`${scenario}-${rendererVersion}`} ref={canvasRef} tabIndex={isStoreInvasion ? -1 : undefined} aria-label={isCathedral ? "Capítulo 12, Catedral de los Condenados 3D recorrible" : isUnderworld ? "Capítulo 11, Inframundo 3D recorrible" : isMatrix ? "La Realidad Fracturada, Puerta 03 3D recorrible" : isParthenon ? "El Partenón Maldito 3D recorrible" : isShip ? "La Nave Perdida 3D recorrible" : isStudio ? "Neon Recording Studio 3D recorrible" : isClub ? "Club de Rock 1999 3D recorrible" : isArcade ? "Arcade 1999 3D recorrible" : isRealm ? "FREQUENCY 09, dimensión 3D recorrible" : "Disquería 3D recorrible de Neonboy"} />
+    <canvas key={`${scenario}-${rendererVersion}`} ref={canvasRef} tabIndex={isStoreInvasion ? -1 : undefined} aria-label={isBuenosAires ? "Capitulo 14, Buenos Aires 2049 3D recorrible" : isThrone ? "Capítulo 13, El Trono del Abismo 3D recorrible" : isCathedral ? "Capítulo 12, Catedral de los Condenados 3D recorrible" : isUnderworld ? "Capítulo 11, Inframundo 3D recorrible" : isMatrix ? "La Realidad Fracturada, Puerta 03 3D recorrible" : isParthenon ? "El Partenón Maldito 3D recorrible" : isShip ? "La Nave Perdida 3D recorrible" : isStudio ? "Neon Recording Studio 3D recorrible" : isClub ? "Club de Rock 1999 3D recorrible" : isArcade ? "Arcade 1999 3D recorrible" : isRealm ? "FREQUENCY 09, dimensión 3D recorrible" : "Disquería 3D recorrible de Neonboy"} />
     {webglError && <div className="record-store-webgl-error" role="alert">
       <div className="record-store-loading-panel">
         <strong>La escena 3D se interrumpi&oacute;</strong>
@@ -1059,10 +1201,10 @@ export default function RecordStoreScene({ scenario = "store", albums, onSelect,
     </div>}
     {!sceneReady && !webglError && <div className="record-store-loading" role="status" aria-live="polite">
       <div className="record-store-loading-panel">
-        <span className="record-store-loading-label">{isCathedral ? "CAPÍTULO 12 · CATEDRAL" : isUnderworld ? "CAPÍTULO 11 · INFRAMUNDO" : isParthenon ? "PUERTA 02 · DIMENSIÓN PERDIDA" : isShip ? "PUERTA 01 · DIMENSIÓN PERDIDA" : isRealm ? "F / 09 · TRANSMISIÓN INTERRUMPIDA" : "NEONBOY MUSIC · 199X"}</span>
+        <span className="record-store-loading-label">{isBuenosAires ? "CAPITULO 14 / BUENOS AIRES 2049" : isThrone ? "CAPÍTULO 13 · EL TRONO" : isCathedral ? "CAPÍTULO 12 · CATEDRAL" : isUnderworld ? "CAPÍTULO 11 · INFRAMUNDO" : isParthenon ? "PUERTA 02 · DIMENSIÓN PERDIDA" : isShip ? "PUERTA 01 · DIMENSIÓN PERDIDA" : isRealm ? "F / 09 · TRANSMISIÓN INTERRUMPIDA" : "NEONBOY MUSIC · 199X"}</span>
         {isRealm ? <span className="frequency-loading-signal" aria-hidden="true">09</span> :
           <span className="record-store-loading-vinyl" aria-hidden="true"><i /></span>}
-        <strong>{isCathedral ? "Abriendo la Catedral de los Condenados" : isUnderworld ? "Abriendo el Puente de las Almas" : isParthenon ? "Abriendo el Partenón Maldito" : isShip ? "Preparando La Nave Perdida" : isClub ? "Preparando el club de rock" : isArcade ? "Preparando Arcade 1999" : isRealm ? "Entrando en FREQUENCY 09" : isRooftop ? "Subiendo a la azotea" : isStudio ? "Preparando el estudio" : "Preparando la disquería"}</strong>
+        <strong>{isBuenosAires ? "Cargando la ciudad de los ausentes" : isThrone ? "Abriendo el Trono del Abismo" : isCathedral ? "Abriendo la Catedral de los Condenados" : isUnderworld ? "Abriendo el Puente de las Almas" : isParthenon ? "Abriendo el Partenón Maldito" : isShip ? "Preparando La Nave Perdida" : isClub ? "Preparando el club de rock" : isArcade ? "Preparando Arcade 1999" : isRealm ? "Entrando en FREQUENCY 09" : isRooftop ? "Subiendo a la azotea" : isStudio ? "Preparando el estudio" : "Preparando la disquería"}</strong>
         <small>{isCathedral ? "Preparando sellos, recuerdos y la Primera Voz…" : isUnderworld ? "Cargando la ciudadela infernal original…" : isParthenon ? "Cargando templo, Orbe Neón y mecanismos…" : isShip ? "Cargando la nave y sus registros…" : isRealm ? "Reconstruyendo una señal que no debería existir…" : isClub ? "Cargando escenario, luces y NeonBoy…" : isStudio ? "Cargando sala de control, cabina y NeonBoy…" : "Cargando discos, personajes y escenario…"}</small>
         <span className="record-store-loading-bars" aria-hidden="true"><i /><i /><i /><i /><i /></span>
       </div>

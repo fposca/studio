@@ -104,3 +104,25 @@ test("Medusa fragment appears only after collection and becomes analyzed in the 
   const analyzed = byId(getUniverseInventory({ parthenonProgress: { frequencyFragment02Collected: true, frequencyFragment02Analyzed: true } }), "frequency-fragment-02");
   assert.equal(analyzed.status, "used");
 });
+
+test("Fuego parts use the city save and can only be installed beside the vehicle", () => {
+  const cityProgress = {
+    vigilanteDefeated: true, fuegoStarted: true, fuegoKeyTaken: true,
+    fuegoPowerCellTaken: true, fuegoNavigationModuleTaken: true,
+  };
+  const items = getUniverseInventory({ cityProgress });
+  const ids = ["fuego_key", "fuego_power_cell", "fuego_navigation_module"];
+  assert.deepEqual(ids.map(id => byId(items, id)?.status), ["available", "available", "available"]);
+  const nearby = { kind: "examine", id: "ba-escape-fuego" };
+  for (const id of ids) {
+    const item = byId(items, id);
+    assert.equal(getUniverseInventoryAction(item, { scene: "buenos-aires-2049", nearby, cityProgress })?.id,
+      "fuego-install:" + id);
+    assert.equal(getUniverseInventoryAction(item, { scene: "store", nearby, cityProgress }), null);
+  }
+  cityProgress.fuegoKeyInstalled = true;
+  const installed = byId(getUniverseInventory({ cityProgress }), "fuego_key");
+  assert.equal(installed.status, "used");
+  assert.equal(getUniverseInventoryAction(installed, { scene: "buenos-aires-2049", nearby, cityProgress }), null);
+  assert.equal(byId(getUniverseInventory({}), "fuego_key"), undefined);
+});

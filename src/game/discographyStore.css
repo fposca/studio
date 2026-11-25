@@ -719,3 +719,7 @@
   border-radius:10px 0 0 10px;
 }
 
+
+.record-store-3d.record-store-loading { display: grid; place-items: center; min-height: 100%;
+  padding: 24px; text-align: center; color: #efc7e4; background: #110d1b;
+  font: 700 13px "Bahnschrift", "Segoe UI", sans-serif; letter-spacing: .08em; }

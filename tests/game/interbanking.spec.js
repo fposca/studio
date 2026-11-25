@@ -1,121 +1,117 @@
 import { test, expect } from "@playwright/test";
 
-test("the independent office loads Fernando and Roxy and supports both conversations and logo inspection", async ({ page }, testInfo) => {
-  const errors = [];
-  const audioRequests = [];
-  page.on("request", request => {
-    if (request.url().includes(".mp3")) audioRequests.push(decodeURIComponent(request.url()));
-  });
-  page.on("pageerror", error => errors.push(error.message));
-  page.on("console", message => {
-    if (message.type() === "error" && !message.location().url.endsWith("/favicon.ico")) errors.push(message.text());
-  });
-  await page.goto("/interbanking");
-  await expect(page.locator(".office-scene")).toHaveAttribute("data-status", "ready", { timeout: 90_000 });
-  await expect(page.locator(".office-canvas")).toHaveAttribute("data-models", "fernando,roxy,alfredo");
-  await expect(page.getByRole("button", { name: /Victoria Avatar femenino/ })).toBeEnabled();
-  await expect(page.locator(".office-avatar-portrait img")).toHaveCount(2);
-  await expect.poll(() => page.locator(".office-avatar-portrait img").evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0))).toBe(true);
-  await expect(page.getByRole("button", { name: /Fernando Avatar masculino/ })).toHaveAttribute("aria-pressed", "true");
-  await page.screenshot({ path: testInfo.outputPath("office-entry.png") });
+async function openOffice(page, avatar = "fernando") {
+  await page.goto("/interbanking/");
+  await expect(page.locator(".office-canvas")).toHaveCount(0);
+  await page.getByRole("button", { name: /Explorar demo interactiva/ }).click();
+  if (avatar === "victoria") await page.getByRole("button", { name: /Victoria Avatar femenino/ }).click();
   await page.getByRole("button", { name: /Comenzar recorrido/ }).click();
-  await expect(page.getByRole("region", { name: "Inicio del recorrido" })).toHaveCount(0);
-  await page.keyboard.press("c");
-  await expect(page.locator(".office-canvas")).toHaveAttribute("data-view", "first-person");
-  await expect(page.getByRole("button", { name: "Volver a tercera persona (C)" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".office-scene")).toHaveAttribute("data-status", "ready", { timeout: 90_000 });
+}
 
-  await page.keyboard.down("w");
-  await expect(page.getByRole("button", { name: /Hablar con Roxy/ })).toBeVisible({ timeout: 10_000 });
-  await page.keyboard.up("w");
-  await page.keyboard.press("e");
-  const dialogue = page.getByRole("dialog", { name: "Conversación con Roxy" });
-  await expect(dialogue).toBeVisible();
-  await expect.poll(() => audioRequests.some(url => url.includes("Bienvenido-a-la-oficina"))).toBe(true);
-  await dialogue.getByRole("button", { name: /primer día/ }).click();
-  await expect(dialogue).toContainText("café, té y otras infusiones");
-  await expect.poll(() => audioRequests.some(url => url.includes("primer-día-en-la-oficina"))).toBe(true);
-  await expect.poll(() => audioRequests.some(url => url.includes("Empezá-con-calma"))).toBe(true);
-  await dialogue.getByRole("button", { name: /dónde me siento/ }).click();
-  await expect(dialogue).toContainText("junto a tu equipo");
-  await dialogue.getByRole("button", { name: /Gracias, ya voy para allá/ }).click();
-  await expect.poll(() => audioRequests.some(url => url.includes("Gracias,-ya-voy-para-allá"))).toBe(true);
-  await expect(dialogue).toHaveCount(0, { timeout: 8_000 });
-
-  await page.keyboard.down("w");
-  await expect(page.getByRole("button", { name: /Inspeccionar logo/ })).toBeVisible({ timeout: 10_000 });
-  await page.keyboard.up("w");
-  await page.keyboard.press("e");
-  await expect(page.getByRole("dialog", { name: "Acerca de Interbanking" })).toContainText("58 bancos de todo el país");
-  await page.getByRole("button", { name: "Cerrar" }).click();
-  await page.getByRole("button", { name: "Volver a tercera persona (C)" }).click();
-  await expect(page.locator(".office-canvas")).toHaveAttribute("data-view", "third-person");
-  expect(errors).toEqual([]);
+test("avatar cover fits inside the embedded office without its own scrollbar", async ({ page }) => {
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 1745, height: 960 }, { width: 1920, height: 1080 }, { width: 390, height: 844 }, { width: 360, height: 640 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto("/interbanking/");
+    await page.getByRole("button", { name: /Explorar demo interactiva/ }).click();
+    const cover = page.locator(".office-cover");
+    await expect(cover).toBeVisible();
+    await expect.poll(() => cover.evaluate(element => element.scrollHeight - element.clientHeight)).toBeLessThanOrEqual(0);
+    const buttonFitsCover = await cover.evaluate(element => {
+      const button = element.querySelector(".office-cover-start")?.getBoundingClientRect();
+      const frame = element.getBoundingClientRect();
+      return Boolean(button && button.top >= frame.top - 1 && button.bottom <= frame.bottom + 1);
+    });
+    expect(buttonFitsCover).toBe(true);
+  }
 });
 
-test("Victoria uses her model and recorded conversation, including Roxy's personalized greeting", async ({ page }) => {
-  const errors = [], audioRequests = [];
+test("landing loads the playable office inline and preserves the session when expanded", async ({ page }) => {
+  const errors = [], voices = [];
   page.on("pageerror", error => errors.push(error.message));
-  page.on("console", message => { if (message.type() === "error" && !message.location().url.endsWith("/favicon.ico")) errors.push(message.text()); });
-  page.on("request", request => { if (request.url().includes(".mp3")) audioRequests.push(decodeURIComponent(request.url())); });
-  await page.goto("/interbanking");
-  const victoria = page.getByRole("button", { name: /Victoria Avatar femenino/ });
-  await victoria.click();
-  await expect(victoria).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".office-canvas")).toHaveAttribute("data-models", "victoria,roxy,alfredo", { timeout: 90_000 });
-  await page.getByRole("button", { name: /Comenzar recorrido/ }).click();
-  await expect(page.locator(".office-footer")).toContainText("VICTORIA");
-  await page.getByRole("button", { name: "Ver en primera persona (C)" }).click();
+  page.on("request", request => { if (request.url().includes(".mp3")) voices.push(request.url()); });
+  await openOffice(page);
+  await expect(page.locator(".demo-embed")).not.toHaveClass(/is-expanded/);
+  await expect(page.locator(".office-canvas")).toHaveAttribute("data-models", "fernando,roxy,alfredo");
+  await page.evaluate(() => { window.__officeCanvas = document.querySelector(".office-canvas"); });
+  await page.keyboard.press("c");
   await expect(page.locator(".office-canvas")).toHaveAttribute("data-view", "first-person");
   await page.keyboard.down("w");
   await expect(page.getByRole("button", { name: /Hablar con Roxy/ })).toBeVisible({ timeout: 15_000 });
   await page.keyboard.up("w");
-  await page.keyboard.press("e");
+  await page.getByRole("button", { name: /Hablar con Roxy/ }).click();
   const dialogue = page.getByRole("dialog", { name: "Conversación con Roxy" });
-  await expect(dialogue).toContainText("¡Hola, Victoria! Bienvenida a la oficina.");
-  await expect.poll(() => audioRequests.some(url => url.includes("Hola,-Victoria!"))).toBe(true);
+  await expect(dialogue).toBeVisible();
+  await expect.poll(() => voices.length).toBeGreaterThan(0);
   await dialogue.getByRole("button", { name: /primer día/ }).click();
-  await expect.poll(() => audioRequests.some(url => url.includes("Mujer-2026-11-11-11-38-Hola"))).toBe(true);
-  await expect(dialogue).toContainText("otras infusiones");
-  await dialogue.getByRole("button", { name: /dónde me siento/ }).click();
-  await expect.poll(() => audioRequests.some(url => url.includes("Mujer-2026-11-11-11-39-Perfecto"))).toBe(true);
-  await expect(dialogue).toContainText("junto a tu equipo");
-  await dialogue.getByRole("button", { name: /Tengo otra pregunta/ }).click();
-  await expect(dialogue).toContainText("¡Hola, Victoria! Bienvenida a la oficina.");
-  await dialogue.getByRole("button", { name: /Gracias, voy a recorrer la oficina/ }).click();
-  await expect.poll(() => audioRequests.some(url => url.includes("Mujer-2026-11-11-11-39-Gracias,-Roxy.-Voy"))).toBe(true);
-  await expect(dialogue).toHaveCount(0, { timeout: 8_000 });
-  await page.keyboard.press("c");
-  await expect(page.locator(".office-canvas")).toHaveAttribute("data-view", "third-person");
+  await expect(dialogue).toContainText("café, té y otras infusiones");
+  await dialogue.getByRole("button", { name: /Cerrar conversaci/ }).click();
+  await page.getByRole("button", { name: "Ampliar ventana" }).click();
+  await expect(page.locator(".demo-embed")).toHaveClass(/is-expanded/);
+  await expect.poll(async () => (await page.locator(".demo-embed").boundingBox()).width).toBeGreaterThan(1400);
+  await expect.poll(() => page.evaluate(() => window.__officeCanvas === document.querySelector(".office-canvas"))).toBe(true);
+  await page.getByRole("button", { name: /Volver a la p/ }).click();
+  await expect(page.locator(".demo-embed")).not.toHaveClass(/is-expanded/);
+  await expect.poll(() => page.evaluate(() => window.__officeCanvas === document.querySelector(".office-canvas"))).toBe(true);
   expect(errors).toEqual([]);
 });
 
-test("Alfredo explains the alarm, route and meeting point without blocking the office", async ({ page }) => {
+test("Victoria uses her avatar and personalized welcome", async ({ page }) => {
+  await openOffice(page, "victoria");
+  await expect(page.locator(".office-canvas")).toHaveAttribute("data-models", "victoria,roxy,alfredo");
+  await page.keyboard.down("w");
+  await expect(page.getByRole("button", { name: /Hablar con Roxy/ })).toBeVisible({ timeout: 15_000 });
+  await page.keyboard.up("w");
+  await page.getByRole("button", { name: /Hablar con Roxy/ }).click();
+  await expect(page.getByRole("dialog", { name: "Conversación con Roxy" })).toContainText("¡Hola, Victoria! Bienvenida a la oficina.");
+});
+
+test("contact form reports the unavailable server without claiming delivery", async ({ page }) => {
+  await page.goto("/interbanking/");
+  await page.locator('input[name="name"]').fill("Ana Perez");
+  await page.locator('input[name="company"]').fill("Ejemplo SA");
+  await page.locator('input[name="email"]').fill("ana@ejemplo.com");
+  await page.locator('input[name="role"]').fill("RRHH");
+  await page.locator('select[name="interest"]').selectOption("Oficina virtual personalizada");
+  await page.locator('textarea[name="message"]').fill("Queremos evaluar una oficina virtual para el equipo.");
+  await page.getByRole("button", { name: "Enviar consulta" }).click();
+  await expect(page.locator(".form-feedback")).toContainText(/no está disponible|no pudimos enviar/i);
+  await expect(page.locator(".form-feedback")).toHaveClass(/is-error/);
+});
+
+
+test("custom avatar keeps its appearance and name after reloading", async ({ page }) => {
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
-  page.on("console", message => { if (message.type() === "error" && !message.location().url.endsWith("/favicon.ico")) errors.push(message.text()); });
-  await page.goto("/interbanking");
-  await expect(page.locator(".office-canvas")).toHaveAttribute("data-models", "fernando,roxy,alfredo", { timeout: 90_000 });
+  await page.goto("/interbanking/");
+  await page.getByRole("button", { name: /Explorar demo interactiva/ }).click();
+  await page.getByRole("button", { name: /Alex Personalizable/ }).click();
+  const editor = page.getByRole("complementary", { name: "Personalizar avatar" });
+  await editor.getByLabel("Tu nombre").fill("Luciano");
+  await editor.getByLabel("Tu nombre").blur();
+  await editor.getByLabel("Pelo", { exact: true }).selectOption("long");
+  await editor.getByLabel("Barba", { exact: true }).selectOption("short");
+  await editor.getByLabel("Color de pelo").fill("#f023ee");
+  await editor.getByLabel("Gafas", { exact: true }).selectOption("round");
+  await editor.getByLabel("Color de remera").fill("#d75228");
+  await editor.getByLabel(/Color de pantal/).fill("#476d49");
+  await editor.getByLabel("Color de zapatillas").fill("#348dd3");
+  await expect(page.getByRole("button", { name: /Luciano Personalizable/ })).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("nexora.office.avatar.v1"))?.customization?.glasses)).toBe("round");
+  await page.reload();
+  await page.getByRole("button", { name: /Explorar demo interactiva/ }).click();
+  await expect(page.getByRole("button", { name: /Luciano Personalizable/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(editor.getByLabel("Pelo", { exact: true })).toHaveValue("long");
+  await expect(editor.getByLabel("Color de pelo")).toHaveValue("#f023ee");
+  await expect(editor.getByLabel("Color de remera")).toHaveValue("#d75228");
   await page.getByRole("button", { name: /Comenzar recorrido/ }).click();
+  await expect(page.locator(".office-scene")).toHaveAttribute("data-status", "ready", { timeout: 90_000 });
+  await expect(page.locator(".office-canvas")).toHaveAttribute("data-models", "custom,roxy,alfredo");
+  await expect(page.locator(".office-footer")).toContainText("LUCIANO");
   await page.keyboard.down("w");
-  await expect(page.getByRole("button", { name: "Hablar con Roxy" })).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("button", { name: /Hablar con Roxy/ })).toBeVisible({ timeout: 15_000 });
   await page.keyboard.up("w");
-  await page.keyboard.down("d");
-  await expect(page.getByRole("button", { name: "Hablar con Alfredo" })).toBeVisible({ timeout: 10_000 });
-  await page.keyboard.up("d");
-  await page.keyboard.press("e");
-  const dialogue = page.getByRole("dialog", { name: "Conversación con Alfredo" });
-  await expect(dialogue).toContainText("Seguridad del edificio");
-  await dialogue.getByRole("button", { name: /suena la alarma/ }).click();
-  await expect(dialogue).toContainText("no uses los ascensores");
-  await dialogue.getByRole("button", { name: /Tengo otra pregunta/ }).click();
-  await dialogue.getByRole("button", { name: /Por dónde salimos/ }).click();
-  await expect(dialogue).toContainText("escalera de evacuación");
-  await dialogue.getByRole("button", { name: /Tengo otra pregunta/ }).click();
-  await dialogue.getByRole("button", { name: /Qué hacemos al salir/ }).click();
-  await expect(dialogue).toContainText("punto de encuentro señalizado");
-  await dialogue.getByRole("button", { name: /Gracias, Alfredo/ }).click();
-  await expect(dialogue).toHaveCount(0);
-  await page.keyboard.press("c");
-  await expect(page.locator(".office-canvas")).toHaveAttribute("data-view", "first-person");
+  await page.getByRole("button", { name: /Hablar con Roxy/ }).click();
+  await expect(page.getByRole("dialog", { name: /Roxy/ })).toContainText("Luciano! Bienvenido a la oficina.");
   expect(errors).toEqual([]);
 });

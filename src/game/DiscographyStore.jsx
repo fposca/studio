@@ -1,10 +1,14 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { receiveCombatDamage } from "./combatHeartsLogic.js";
-import { ArrowLeft, Backpack, ChevronLeft, Coins, Disc3, Film, Headphones, MapPinned, Minimize2, Music2, Pin, Play } from "lucide-react";
-import RecordStoreScene from "./RecordStoreScene.jsx";
+import { ArrowLeft, Backpack, ChevronLeft, Coins, Disc3, Film, Headphones, MapPinned, Minimize2, Music2, Pin, Play, Volume2, VolumeX } from "lucide-react";
 import InteractionPrompt from "./InteractionPrompt.jsx";
 import NeonUniverseMap from "./NeonUniverseMap.jsx";
 import UniverseInventory from "./UniverseInventory.jsx";
+import BuenosAiresEscapeHud from "./BuenosAiresEscapeHud.jsx";
+import { canStartEscape } from "./buenosAiresEscapeLogic.js";
+import BuenosAiresFuegoPanel from "./BuenosAiresFuegoPanel.jsx";
+import { countFuegoComponents, countFuegoInstalled } from "./buenosAiresFuegoQuest.js";
+import { FUEGO_KEY_CITIZEN, FUEGO_CLUES } from "./buenosAiresFuegoLayout.js";
 import { getUniverseInventory, getUniverseInventoryAction, newlyObtainedInventoryItems } from "./universeInventory.js";
 import RecordStoreJukebox from "./RecordStoreJukebox.jsx";
 import RecordStoreAlbumPlayer from "./RecordStoreAlbumPlayer.jsx";
@@ -36,7 +40,19 @@ import StoreInvasionPanel from "./StoreInvasionPanel.jsx";
 import Chapter10Sequence from "./Chapter10Sequence.jsx";
 import { normalizeChapter10Progress, advanceChapter10, chapter10FragmentsReady, chapter10Objective } from "./chapter10Quest.js";
 import { UNDERWORLD_MAX_HEALTH, normalizeUnderworldProgress, advanceUnderworld, underworldObjective } from "./underworldQuest.js";
-import { normalizeCathedralProgress, advanceCathedral, cathedralObjective } from "./cathedralQuest.js";
+import { normalizeCathedralProgress, advanceCathedral, cathedralObjective, CATHEDRAL_TONES } from "./cathedralQuest.js";
+import { CATHEDRAL_LAYOUT } from "./cathedralLayout.js";
+import { normalizeThroneProgress, advanceThrone, throneObjective, THRONE_CONDUCTORS, THRONE_MAX_HEALTH } from "./throneQuest.js";
+import { THRONE_LAYOUT } from "./throneLayout.js";
+import { normalizeBuenosAiresProgress, advanceBuenosAires, buenosAiresObjective } from "./buenosAiresQuest.js";
+import { normalizeChapter15Progress, advanceChapter15, CHAPTER15_EVIDENCE } from "./chapter15Quest.js";
+import { CHAPTER15_DIALOGUES } from "./chapter15Dialogues.js";
+import { createChapter15Audio, CHAPTER15_AUDIO_MUTE_KEY } from "./chapter15Audio.js";
+import { Chapter15Mission, Chapter15Dialogue, Chapter15Console, Chapter15Diary } from "./Chapter15Ui.jsx";
+import { BUENOS_AIRES_SYNCHRONIZATION_DIALOGUE, cityDialogueLines } from "./buenosAiresDialogues.js";
+import { VIGILANTE_CHECKPOINT, VIGILANTE_MAX_HEALTH, vigilanteShielded } from "./buenosAiresVigilanteCombat.js";
+import { BUENOS_AIRES_LAYOUT } from "./buenosAiresLayout.js";
+import { THRONE_DIALOGUES, THRONE_CONVERSATION_NPC, getThroneVoiceUrl } from "./throneDialogues.js";
 import { CATHEDRAL_RECALLS } from "./cathedralPresentation.js";
 import { CATHEDRAL_DIALOGUES, CATHEDRAL_CONVERSATION_NPC, getCathedralVoiceUrl } from "./cathedralDialogues.js";
 import { UNDERWORLD_DIALOGUES, UNDERWORLD_SEQUENCES, UNDERWORLD_CONVERSATION_NPCS, chooseUnderworldRandom, underworldConversationFor, underworldSubtitleDuration } from "./underworldDialogues.js";
@@ -79,8 +95,18 @@ import "./lostShip.css";
 import "./parthenon.css";
 import "./underworld.css";
 import "./cathedral.css";
+import "./throne.css";
+import "./buenosAires.css";
+import "./chapter15.css";
 import "./discographyStore.css";
 import "./storeInvasion.css";
+
+const LazyRecordStoreScene = lazy(() => import("./RecordStoreScene.jsx"));
+function RecordStoreScene(props) {
+  return <Suspense fallback={<div className="record-store-3d record-store-loading" role="status">Preparando el escenario...</div>}>
+    <LazyRecordStoreScene {...props} />
+  </Suspense>;
+}
 
 export { DISCOGRAPHY_ALBUMS } from "./discographyCatalog.js";
 
@@ -220,6 +246,9 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   const [underworldProgress,setUnderworldProgress]=useState(()=>normalizeUnderworldProgress(initialSession?.underworldProgress,Boolean(initialSession?.chapter10Progress?.chapterCompleted)));
   const underworldProgressRef=useRef(underworldProgress);underworldProgressRef.current=underworldProgress;
   const [underworldMessage,setUnderworldMessage]=useState(null);
+  const [underworldResetOpen,setUnderworldResetOpen]=useState(false);
+  const [cathedralResetOpen,setCathedralResetOpen]=useState(false);
+  const [cathedralResetKey,setCathedralResetKey]=useState(0);
   const [cathedralProgress,setCathedralProgress]=useState(()=>normalizeCathedralProgress(initialSession?.cathedralProgress,Boolean(initialSession?.underworldProgress?.completed)));
   const cathedralProgressRef=useRef(cathedralProgress);cathedralProgressRef.current=cathedralProgress;
   const [cathedralMessage,setCathedralMessage]=useState(null);
@@ -231,6 +260,64 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   const [cathedralCinema,setCathedralCinema]=useState(null);
   const [cathedralReveal,setCathedralReveal]=useState(false);
   const [cathedralSequenceSkip,setCathedralSequenceSkip]=useState(0);
+  const [throneProgress,setThroneProgress]=useState(()=>normalizeThroneProgress(initialSession?.throneProgress,Boolean(initialSession?.cathedralProgress?.completed)));
+  const throneProgressRef=useRef(throneProgress);throneProgressRef.current=throneProgress;
+  const [throneMessage,setThroneMessage]=useState(null);
+  const [throneDialogue,setThroneDialogue]=useState(null);
+  const [throneDiaryOpen,setThroneDiaryOpen]=useState(false);
+  const [throneFinalOpen,setThroneFinalOpen]=useState(false);
+  const [throneReady,setThroneReady]=useState(false);
+  const [throneResetKey,setThroneResetKey]=useState(0);
+  const [cityProgress,setCityProgress]=useState(()=>normalizeBuenosAiresProgress(initialSession?.cityProgress,Boolean(initialSession?.throneProgress?.completed)));
+  const cityProgressRef=useRef(cityProgress);cityProgressRef.current=cityProgress;
+  const [chapter15Progress,setChapter15Progress]=useState(()=>normalizeChapter15Progress(initialSession?.chapter15Progress,Boolean(initialSession?.cityProgress?.completed)));
+  const chapter15ProgressRef=useRef(chapter15Progress);chapter15ProgressRef.current=chapter15Progress;
+  const [chapter15Panel,setChapter15Panel]=useState(()=>initialSession?.scene==="chapter15-studio"&&!initialSession?.chapter15Progress?.arrived?{kind:"arrival",index:0}:null);
+  const [chapter15Notice,setChapter15Notice]=useState(null);
+  const chapter15AudioRef=useRef(null);
+  const [chapter15AudioMuted,setChapter15AudioMuted]=useState(() => {
+    try { return localStorage.getItem(CHAPTER15_AUDIO_MUTE_KEY) === "true"; } catch { return false; }
+  });
+  useEffect(() => {
+    if (!activeScene.startsWith("chapter15-")) return undefined;
+    const audio=createChapter15Audio({ ambient: activeScene === "chapter15-studio" });
+    chapter15AudioRef.current=audio;
+    return () => { audio.dispose(); if (chapter15AudioRef.current === audio) chapter15AudioRef.current=null; };
+  }, [activeScene]);
+  useEffect(() => {
+    const audio = chapter15AudioRef.current;
+    if (!audio) return;
+    audio.update({ progress: chapter15Progress, paused: paused || mapOpen || inventoryOpen,
+      muted: chapter15AudioMuted, dialogue: Boolean(CHAPTER15_DIALOGUES[chapter15Panel?.kind]) || chapter15Panel?.kind === "diary",
+      playingMedia: jukeboxOpen || activeVideoIndex !== null });
+    // Entry already follows Play/Continue. Gesture listeners also handle browsers
+    // that require a fresh touch before resuming Web Audio.
+    if (navigator.userActivation?.hasBeenActive) audio.unlock();
+  }, [activeScene, chapter15Progress, paused, mapOpen, inventoryOpen, chapter15AudioMuted, chapter15Panel, jukeboxOpen, activeVideoIndex]);
+  function toggleChapter15Audio() {
+    const muted = !chapter15AudioMuted;
+    setChapter15AudioMuted(muted);
+    try { localStorage.setItem(CHAPTER15_AUDIO_MUTE_KEY, String(muted)); } catch { /* Session preference still works. */ }
+    chapter15AudioRef.current?.update({ muted });
+    if (!muted) chapter15AudioRef.current?.unlock();
+  }
+  function playChapter15Resonance() {
+    const audio=chapter15AudioRef.current;
+    audio?.unlock(); audio?.play();
+  }
+
+  const [cityIntro,setCityIntro]=useState(()=>initialSession?.scene==="buenos-aires-2049" && !initialSession?.cityProgress?.introSeen ? -1 : null);
+  const [cityNotice,setCityNotice]=useState(null);
+  const [cityFuegoPanel,setCityFuegoPanel]=useState(null);
+  const [cityFlight,setCityFlight]=useState(null);
+  const cityFlightApiRef=useRef(null);
+  const [cityDialogue,setCityDialogue]=useState(null);
+  const [citySequenceLine,setCitySequenceLine]=useState(null);
+  const [cityFeedback,setCityFeedback]=useState(null);
+  const [cityVehicleLine,setCityVehicleLine]=useState(null);
+  const [cityDiaryOpen,setCityDiaryOpen]=useState(false);
+  const [cityInterference,setCityInterference]=useState(false);
+  const [cityCombatHint,setCityCombatHint]=useState(null);
   const [underworldDialogue,setUnderworldDialogue]=useState(null);
   const underworldDialogueRef=useRef(null);
   const [underworldSceneReady,setUnderworldSceneReady]=useState(false);
@@ -241,6 +328,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   const underworldSentinelEncounterRef=useRef(0);
   const underworldLine=underworldDialogue ? UNDERWORLD_DIALOGUES[UNDERWORLD_SEQUENCES[underworldDialogue.key].ids[underworldDialogue.index]] : null;
   const cathedralLine=cathedralDialogue ? CATHEDRAL_DIALOGUES[cathedralDialogue.type][cathedralDialogue.index] : null;
+  const throneLine=throneDialogue ? THRONE_DIALOGUES[throneDialogue.type]?.[throneDialogue.index] : null;
   const [chapter10Sequence,setChapter10Sequence]=useState(null);
   const [chapter10PuzzleError,setChapter10PuzzleError]=useState(false);
   const [invasionPanel,setInvasionPanel]=useState(null);
@@ -305,6 +393,10 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   const lostShipPlayerRef = useRef(initialSession?.positions?.["lost-ship"] ?? null);
   const underworldPlayerRef = useRef(initialSession?.positions?.underworld ?? null);
   const cathedralPlayerRef = useRef(initialSession?.positions?.cathedral ?? null);
+  const thronePlayerRef = useRef(initialSession?.positions?.["abyss-throne"] ?? null);
+  const cityPlayerRef = useRef(initialSession?.positions?.["buenos-aires-2049"] ?? null);
+  const chapter15StudioPlayerRef = useRef(initialSession?.positions?.["chapter15-studio"] ?? null);
+  const chapter15StorePlayerRef = useRef(initialSession?.positions?.["chapter15-store"] ?? null);
   const lostShipTransformsRef = useRef(lostShipTransforms);
   lostShipTransformsRef.current = lostShipTransforms;
   const lostShipAssetApiRef = useRef(null);
@@ -339,8 +431,8 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   const currentTrack = listening ? tracks[trackIndex] : null;
   const listenerStatus = !currentTrack ? "STANDBY" : ({ playing: "ON AIR", paused: "PAUSA", stopped: "STOP", ready: "LISTO", native: "VIDEO" })[listenerPlayback] || "CARGANDO";
   const roxyPlaying = jukeboxOpen ? jukeboxPlaying : Boolean(outsideVideo?.playing);
-  const inventoryItems = useMemo(() => getUniverseInventory({ masterTape, clubQuest, storyProgress, credits, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress }),
-    [masterTape, clubQuest, storyProgress, credits, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress]);
+  const inventoryItems = useMemo(() => getUniverseInventory({ masterTape, clubQuest, storyProgress, credits, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, cityProgress, chapter15Progress }),
+    [masterTape, clubQuest, storyProgress, credits, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, cityProgress, chapter15Progress]);
   const storeInvaded = Boolean(matrixProgress.archiveRead && (matrixProgress.returnedHome || activeScene === "store"));
   const storeAltered = arcadeProgress.recordStoreFutureVisionSeen || storeInvaded;
   const dialogueContext = { masterTape, clubQuest, credits,
@@ -364,7 +456,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
         ? getArcadeDialogueNode(conversation.npc, conversation.nodeId, arcadeProgress, clubQuest.anomalySeen)
         : getStoreDialogueNode(conversation.npc, conversation.nodeId, storyProgress, dialogueContext));
   const unlockedScenarios = [...new Set([
-    ...mapUnlocks.filter((id) => id !== "rock-club" || clubQuest.credentialGranted),
+    ...mapUnlocks.filter((id) => (id !== "rock-club" || clubQuest.credentialGranted) && (id !== "abyss-throne" || cathedralProgress.completed) && (id !== "buenos-aires-2049" || throneProgress.completed)),
     ...(masterTape.phase === "new" ? [] : ["recording-studio"]),
     ...(clubQuest.credentialGranted ? ["rock-club"] : []),
     ...(clubQuest.anomalySeen ? ["arcade-1999"] : []),
@@ -375,6 +467,9 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     ...(chapter10Progress.chapterCompleted ? ["underworld"] : []),
     ...(underworldProgress.completed ? ["cathedral"] : []),
     ...(cathedralProgress.completed ? ["abyss-throne"] : []),
+    ...(throneProgress.completed ? ["buenos-aires-2049"] : []),
+     ...(cityProgress.completed ? ["chapter15-studio"] : []),
+     ...(chapter15Progress.tapeTaken ? ["chapter15-store"] : []),
   ])];
   const clubNoticePanel = clubNotice && <div className="club-unlock-notice" role="status">
     <strong>{clubNotice}</strong><button type="button" onClick={() => setClubNotice(null)} aria-label="Cerrar aviso del club">×</button>
@@ -577,8 +672,14 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     const before=underworldProgressRef.current;
     const next=advanceUnderworld(before,event,value,Boolean(chapter10ProgressRef.current.chapterCompleted));
     underworldProgressRef.current=next;setUnderworldProgress(next);
+    if(event==="flame-activate"&&before.flames.length===5&&next.flames.length===6)startUnderworldSequence("flames-awaken");
+    if(event==="bridge-trial-complete"&&!before.bridgeTrialComplete&&next.bridgeTrialComplete)startUnderworldSequence("bridge-trial-end");
+    if(event==="ring-activate"&&!before.mechanismSolved&&next.mechanismSolved)startUnderworldSequence("ambush-start");
+    if(event==="ferry-start"&&!before.ferryStarted&&next.ferryStarted)startUnderworldSequence("ferry-ride");
+    if(event==="ferry-complete"&&!before.ferryCompleted&&next.ferryCompleted)setUnderworldMessage("TRAVESÍA COMPLETADA / La plataforma ritual aguarda. Leé la inscripción y activá los tres anillos.");
     if(event==="testigo-hit"&&next.testigoHealth<before.testigoHealth){
       if(before.testigoHealth>UNDERWORLD_MAX_HEALTH.testigo/2&&next.testigoHealth<=UNDERWORLD_MAX_HEALTH.testigo/2&&next.testigoHealth>0)startUnderworldSequence("testigo-half");
+      if(!before.shieldActive&&next.shieldActive)startUnderworldSequence("testigo-shield");
       if(next.testigoHealth===0)startUnderworldSequence("testigo-defeat");
     }
     return next;
@@ -591,12 +692,24 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
       return started;
     }
     if(event==="testigo-encounter")return startUnderworldSequence("testigo-intro");
+    if(event==="symbol-rebirth"){
+      const before=underworldProgressRef.current;
+      const next=commitUnderworld(event,value);
+      if(next.memorySymbols.length!==before.memorySymbols.length)setUnderworldMessage("SÍMBOLO RECUPERADO / "+next.memorySymbols.length+"/3 recuerdos. Renacimiento.");
+      return next;
+    }
+    if(event==="witness-rune-hit"){
+      const before=underworldProgressRef.current;
+      const next=commitUnderworld(event,value);
+      if(before.shieldActive&&!next.shieldActive)setUnderworldMessage("ESCUDO FRACTURADO / El Testigo vuelve a ser vulnerable.");
+      return next;
+    }
     return commitUnderworld(event,value);
   }
   function examineUnderworld(id){
     if(id==="cathedral-door"){
       if(underworldProgressRef.current.completed) enterScenario("cathedral");
-      else setUnderworldMessage("La puerta roja sigue sellada. El altar del umbral debe responder primero.");
+      else setUnderworldMessage("La puerta roja sigue sellada. Complet\u00e1 las pruebas del puente.");
       return;
     }
     if(id!=="alma"&&id!=="barquero"&&underworldDialogueRef.current?.mode==="auto")advanceUnderworldDialogue(true);
@@ -605,14 +718,56 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
       startUnderworldSequence(key);
       return;
     }
-    if(id==="arrival"){commitUnderworld("arrival");setUnderworldMessage("La inscripción está incompleta. La piedra responde a la Visión de Frecuencia.");}
-    if(id==="bridge")setUnderworldMessage("El camino que ves no sostiene a nadie. Buscá la frecuencia verdadera.");
+    if(id.startsWith("flame-")){
+      const before=underworldProgressRef.current;
+      const next=commitUnderworld("flame-activate",Number(id.slice(6)));
+      if(next.flames.length!==before.flames.length)
+        setUnderworldMessage(next.flames.length===6?"LAS SEIS LLAMAS RESPONDEN / EL PUENTE HA DESPERTADO":
+          "Llama activada \u00b7 "+next.flames.length+"/6. Las marcas del puente reaccionan.");
+      return;
+    }
+    if(id==="rebirth-seal"){
+      setUnderworldMessage("RENACIMIENTO / Apunt\u00e1 al sello naranja y lanz\u00e1 el Orbe Ne\u00f3n con F o clic izquierdo.");
+      return;
+    }
+    if(id==="memory-inscription"){
+      commitUnderworld("memory-clue");
+      setUnderworldMessage("INSCRIPCI\u00d3N / La Memoria emerge de la piedra. Volv\u00e9 a interactuar con el libro para recogerla.");
+      return;
+    }
+    if(id==="memory-symbol"||id==="oblivion-symbol"){
+      const symbol=id==="memory-symbol"?"memory":"oblivion";
+      const next=commitUnderworld("symbol-"+symbol);
+      setUnderworldMessage("S\u00cdMBOLO RECUPERADO / "+next.memorySymbols.length+"/3 recuerdos. "+(symbol==="memory"?"Memoria":"Olvido")+".");
+      return;
+    }
+    if(id==="ferry"){
+      commitUnderworld("ferry-start");
+      return;
+    }
+    if(id==="ritual-inscription"){
+      setUnderworldMessage("INSCRIPCI\u00d3N / Todo ser recuerda su origen, pierde su nombre y finalmente vuelve a comenzar.");
+      return;
+    }
+    if(id.startsWith("ring-")){
+      const before=underworldProgressRef.current;
+      const next=commitUnderworld("ring-activate",id.slice(5));
+      setUnderworldMessage(next.mechanismSolved?"MECANISMO ALINEADO / Un puente de energ\u00eda aparece. La Anomal\u00eda ha despertado.":
+        next.ringSequence.length===0?"PULSO ROJO / Los anillos se apagan. La secuencia se reinicia; intent\u00e1 de nuevo.":
+        "El anillo responde \u00b7 "+next.ringSequence.length+"/3.");
+      return;
+    }
+    if(id==="arrival"){commitUnderworld("arrival");setUnderworldMessage("La inscripci\u00f3n responde: seis llamas custodian el camino. Encendelas antes de cruzar.");return;}
+    if(id==="bridge"){setUnderworldMessage("El camino verdadero se distingue con la Visi\u00f3n de Frecuencia. Seg\u00ed las marcas seguras.");return;}
     if(id==="altar"){
       const next=commitUnderworld("altar");
-      setUnderworldMessage(next.completed?"El umbral respondió. La puerta roja de la Catedral de los Condenados está abierta. Acercate y cruzala.":
+      setUnderworldMessage(next.completed?"CAP\u00cdTULO 11 COMPLETADO / EL PUENTE DE LAS ALMAS. Siguiente destino: la Catedral de los Condenados.":
+        !next.mechanismSolved?"El altar todav\u00eda exige completar las pruebas del Barquero y las Tres Almas.":
+        next.ambushHealth.some((remaining)=>remaining>0)?"Las g\u00e1rgolas de la emboscada todav\u00eda custodian el paso.":
         next.enemies.some((remaining)=>remaining>0)?"El altar exige silenciar a los dos centinelas.":
-        next.gargolaHealth>0?"La Gárgola infernal aún custodia el acceso.":
-        !next.testigoDefeatLineSeen?"Escuchá al Testigo de las Cenizas.":"El umbral todavía no responde.");
+        next.gargolaHealth>0?"La G\u00e1rgola infernal a\u00fan custodia el acceso.":
+        next.shieldActive?"El escudo del Testigo responde a tres runas que solo revela la Visi\u00f3n de Frecuencia.":
+        !next.testigoDefeatLineSeen?"Escuch\u00e1 al Testigo de las Cenizas.":"El umbral todav\u00eda no responde.");
     }
   }
   function handleCathedralFeedback(event) {
@@ -630,6 +785,446 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   useEffect(()=>{
     if(activeScene!=="cathedral"){setCathedralFeedback(null);setCathedralCinema(null);setCathedralReveal(false);}
   },[activeScene]);
+  function commitThrone(event, value) {
+    const before = throneProgressRef.current;
+    const next = advanceThrone(before, event, value, Boolean(cathedralProgressRef.current.completed));
+    if (next === before) return next;
+    throneProgressRef.current = next;
+    setThroneProgress(next);
+    if (event === "boss-hit") {
+      if (!before.shieldActive && next.shieldActive) {
+        setThroneDialogue({ type: "shield", index: 0 });
+      } else if (before.bossHealth > 4 && next.bossHealth <= 4 && !next.shieldActive) {
+        setThroneDialogue({ type: "fracture", index: 0 });
+      } else if (!before.bossDefeated && next.bossDefeated) {
+        setThroneDialogue({ type: "defeat", index: 0 });
+      }
+    }
+    return next;
+  }
+  function handleThroneEvent(event, value) {
+    if (event === "encounter") {
+      if (!throneProgressRef.current.bossIntro && !throneDialogue) setThroneDialogue({ type: "encounter", index: 0 });
+      return;
+    }
+    if (event === "shield-start" || event === "fracture-start") return;
+    if (event === "conductor-miss") {
+      const p = throneProgressRef.current;
+      setThroneMessage(p.coreInspected.length < 3
+        ? "Ese conductor ya fue registrado. Buscá los que faltan y tocalos con el Orbe o examiná con E."
+        : !p.visionActive ? "Activá la Visión de Frecuencia con C para ver la conexión."
+        : p.reflectorIndex < 0 ? "Acercate al reflector central y orientalo con E."
+        : "Ese cristal no está conectado por el haz dorado. Orientá el reflector con E.");
+      return;
+    }
+    const before = throneProgressRef.current;
+    const next = commitThrone(event, value);
+    if (event === "inspect-core") {
+      setThroneMessage(next.coreInspected.length === 3
+        ? "Los tres conductores están registrados. Activá la Visión con C, orientá el reflector con E y lanzá al cristal iluminado."
+        : value.toUpperCase() + ": conductor registrado (" + next.coreInspected.length + "/3). Buscá los restantes.");
+    }
+    if (event === "reflector-hit") {
+      setThroneMessage(next.conductors.length > before.conductors.length
+        ? next.throneOpen ? "NÚCLEO FRACTURADO ESTABILIZADO. El acceso al Trono Negro se abrió."
+          : "Conexión " + next.conductors.length + "/3 estabilizada. Orientá el reflector hacia la siguiente frecuencia."
+        : "La energía se dispersó. Los cristales deben conectarse en orden: ORIGEN, ECO, ENLACE. Orientá el reflector con E.");
+    }
+    if (event === "shield-node" && next.shieldNodes.length > before.shieldNodes.length)
+      setThroneMessage(next.shieldActive ? "Foco dimensional destruido: " + next.shieldNodes.length + "/3." : "ESCUDO FRACTURADO. El Soberano vuelve a ser vulnerable.");
+  }
+  function commitChapter15(event, sceneOverride = null) {
+    const before = chapter15ProgressRef.current;
+    const next = advanceChapter15(before, event, cityProgressRef.current.completed);
+    chapter15ProgressRef.current = next;
+    setChapter15Progress(next);
+    if (gameSnapshotRef.current)
+      onAutosave?.({ ...gameSnapshotRef.current(), cityProgress: cityProgressRef.current, chapter15Progress: next, scene: sceneOverride || activeScene });
+    return next;
+  }
+  function chapter15SceneReady(inStudio) {
+    // Includes saves made before this conversation existed. Persist on showing,
+    // so closing it, re-entering, or reloading never repeats the arrival.
+    const progress = chapter15ProgressRef.current;
+    if (inStudio || !progress.storeEntered || progress.storeArrivalSeen) return;
+    commitChapter15("store-arrival-seen", "chapter15-store");
+    setChapter15Notice(null);
+    setChapter15Panel({ kind: "storeArrival", index: 0 });
+  }
+  function advanceChapter15Dialogue() {
+    if (!chapter15Panel || !CHAPTER15_DIALOGUES[chapter15Panel.kind]) return;
+    const lines = CHAPTER15_DIALOGUES[chapter15Panel.kind];
+    if (chapter15Panel.index < lines.length - 1) {
+      setChapter15Panel({ ...chapter15Panel, index: chapter15Panel.index + 1 }); return;
+    }
+    if (chapter15Panel.kind === "hugo") commitChapter15("hugo-talk");
+    if (["tito", "roxy", "rulo"].includes(chapter15Panel.kind)) commitChapter15("talk:" + chapter15Panel.kind);
+    if (chapter15Panel.kind === "compare") commitChapter15("compare");
+    setChapter15Panel(null);
+  }
+  function examineChapter15(id) {
+    const progress = chapter15ProgressRef.current;
+    if (id === "console") {
+      if (!progress.hugoConsulted) { setChapter15Notice("Primero habl\u00e1 con Hugo sobre el registro de 2049."); return; }
+      commitChapter15("console-examine"); setChapter15Panel({ kind: "console" }); return;
+    }
+    if (id === "ch15-note") {
+      if (!progress.consoleExamined) { setChapter15Notice("Primero examin\u00e1 la consola para entender la nota."); return; }
+      commitChapter15("note-read");
+      setChapter15Notice("NOTA DE HUGO / Primero apag\u00e1 el ruido, despu\u00e9s recuper\u00e1 el pulso y finalmente abr\u00ed el canal oculto."); return;
+    }
+    if (id === "ch15-channel") {
+      if (!progress.noteRead) { setChapter15Notice("Busc\u00e1 la nota t\u00e9cnica de Hugo junto a la consola."); return; }
+      if (!progress.visionActive) { setChapter15Notice("El canal parece vac\u00edo. Activ\u00e1 Visi\u00f3n de Frecuencia con C."); return; }
+      commitChapter15("channel-see"); setChapter15Notice("CANAL DESCONOCIDO / Marca temporal imposible. La se\u00f1al tambi\u00e9n apunta a la disquer\u00eda de 1999."); return;
+    }
+    if (id === "ch15-tape") {
+      if (!progress.channelIsolated) { setChapter15Notice("La cinta est\u00e1 contaminada. Aisl\u00e1 el cuarto canal antes de recuperarla."); return; }
+      commitChapter15("tape-take"); setChapter15Notice("CINTA ALTERADA recuperada. La siguiente pista lleva a la tienda de Tito."); return;
+    }
+    if (id === "ch15-clock") { playChapter15Resonance(); setChapter15Notice("Las agujas avanzan hacia atr\u00e1s. Ninguno de los relojes anteriores hac\u00eda esto."); return; }
+    if (id.startsWith("ch15-evidence-")) {
+      const suspect = id.slice("ch15-evidence-".length);
+      if (!progress.tapeTaken) { setChapter15Notice("Necesit\u00e1s primero la cinta alterada del estudio."); return; }
+      if (CHAPTER15_EVIDENCE[suspect]) {
+        commitChapter15("evidence:" + suspect);
+        setChapter15Notice(CHAPTER15_EVIDENCE[suspect].name.toUpperCase() + " / " + CHAPTER15_EVIDENCE[suspect].clue + " Habl\u00e1 con " + suspect.toUpperCase() + ".");
+      }
+    }
+  }
+  function talkChapter15Npc(id) {
+    if (!["tito", "roxy", "rulo"].includes(id)) { setChapter15Notice("Esta persona no tiene una pista sobre la cinta alterada."); return; }
+    if (!chapter15ProgressRef.current.evidence.includes(id)) {
+      setChapter15Notice("Antes de preguntarle, busc\u00e1 una evidencia cerca de " + id.toUpperCase() + "."); return;
+    }
+    setChapter15Notice(null); setChapter15Panel({ kind: id, index: 0 });
+  }
+  function handleChapter15Mix(event) {
+    const before = chapter15ProgressRef.current;
+    const next = commitChapter15(event);
+    if (next.channelIsolated && !before.channelIsolated) {
+      playChapter15Resonance();
+      setChapter15Notice("ARCHIVO NO IDENTIFICADO / FECHA ORIGINAL: INCOMPATIBLE / REFERENCIA: DISQUER\u00cdA - 1999.");
+    } else if (next.mixSequence.length === 0 && before.mixSequence.length > 0)
+      setChapter15Notice("La mezcla se desaline\u00f3. Revis\u00e1 la nota y empez\u00e1 por SILENCIO.");
+  }
+  function compareChapter15Evidence() {
+    if (chapter15ProgressRef.current.evidence.length !== 3 || chapter15ProgressRef.current.talked.length !== 3) return;
+    setChapter15Panel({ kind: "compare", index: 0 });
+  }
+  function commitCity(event) {
+    const next = advanceBuenosAires(cityProgressRef.current, event, Boolean(throneProgressRef.current.completed));
+    cityProgressRef.current = next; setCityProgress(next);
+    // Item transfers and puzzle inputs must survive an immediate reload, before the
+    // shared debounce has elapsed. Reuse the same global save and snapshot.
+    if (event.startsWith("fuego-") && gameSnapshotRef.current)
+      onAutosave?.({ ...gameSnapshotRef.current(), cityProgress: next });
+    return next;
+  }
+  function handleCityEvent(event) {
+    if (event === "fuego-ignition-ready") {
+      if (cityFlightApiRef.current?.active || cityProgressRef.current.fuegoFlightUnlocked) return;
+      if (!cityProgressRef.current.escapeBriefed) setCityDialogue({ kind: "fuego-ignition", index: 0 });
+      return;
+    }
+    if (event === "fuego-key-discover") {
+      const p = commitCity(event);
+      if (p.fuegoKeyDiscovered) setCityNotice("CHIP CIAN DETECTADO / Esa transe\u00fante tiene una llave junto al bolsillo. Acercate y pedile que te la entregue con E.");
+      return;
+    }
+    const dialogues = { "vigilante-intro-dialogue": "vigilante-intro", "vigilante-phase-dialogue": "vigilante-phase",
+      "vigilante-defeat-dialogue": "vigilante-defeat", "escape-dialogue": "escape" };
+    if (dialogues[event]) {
+      if (combatHeartsRef.current > 0) { setCityNotice(null); setCitySequenceLine(null); setCityDialogue({ kind: dialogues[event], index: 0 }); }
+      return;
+    }
+    if (event.startsWith("vigilante-interference:")) { setCityInterference(event.endsWith(":on")); return; }
+    if (event === "vigilante-blocked") { setCityCombatHint("ESCUDO ACTIVO / Revelá los tres nodos con C y alcanzalos con el Orbe."); return; }
+    if (event === "vigilante-load-error") { setCityNotice("No se pudo cargar el Vigilante. Tu progreso está guardado; recargá para volver a intentar."); return; }
+    if (event === "core-reflector-misdirected" || event === "traffic-reflector-misdirected") {
+      setCityNotice(event.startsWith("core")
+        ? "El Orbe rebot\u00f3 hacia las letras BA porque entr\u00f3 de costado. Parate en el aro cian, en el extremo de la l\u00ednea que llega al reflector, y lanz\u00e1 de frente para alcanzar ENLACE."
+        : "El Orbe rebot\u00f3 de costado. Parate en el aro cian y lanz\u00e1 de frente al reflector para llegar a RUTA.");
+      return;
+    }
+    if (event === "vigilante-encounter" && !cityProgressRef.current.vigilanteEncountered) {
+      combatHeartsRef.current = 3; setCombatHearts(3); combatInvulnerableUntil.current = performance.now() + 1800;
+    }
+    if (event === "synchronization-start") { setCitySequenceLine(0); return; }
+    if (event.startsWith("synchronization-line:")) {
+      setCitySequenceLine(Math.min(3, Number(event.split(":")[1]) || 0)); return;
+    }
+    const before = cityProgressRef.current;
+    const next = commitCity(event);
+    if (event === "fuego-flight-complete" && next.completed) {
+      const first = !chapter15ProgressRef.current.arrived;
+      commitChapter15("arrive", "chapter15-studio");
+      chapter15StudioPlayerRef.current = null;
+      setChapter15Panel(first ? { kind: "arrival", index: 0 } : null);
+      setChapter15Notice(null); setNearby(null); setFirstPerson(false);
+      setActiveScene("chapter15-studio");
+      return;
+    }
+    if (event === "synchronization-seen" && !before.synchronizationSeen) {
+      setCitySequenceLine(null);
+      setCityNotice("La Red identific\u00f3 a NeonBoy como USUARIO NO REGISTRADO. Una unidad de contenci\u00f3n se acerca. Volv\u00e9 a la explanada entre el Obelisco y las letras BA.");
+      return;
+    }
+    if (event === "obelisk-explored" && !before.obeliskExplored)
+      setCityNotice("Reconoc\u00e9s el Obelisco, pero algo cambi\u00f3 en Buenos Aires.");
+    if (event === "yellow-car-seen" && !before.yellowCarSeen)
+      setCityVehicleLine("\u00bfY ese auto amarillo? \u00a1Parece una nave espacial con patente!");
+    if (event === "signal-found" && !before.signalFound)
+      setCityNotice("La visi\u00f3n de frecuencia revela hilos violetas que salen de los tel\u00e9fonos y convergen en el Obelisco. La Red est\u00e1 en todas partes.");
+    if (event.startsWith("advert-inspect:") && next.advertInspected.length > before.advertInspected.length)
+      setCityNotice("MARCA OCULTA: " + event.slice(15).toUpperCase() + ". " +
+        (next.advertInspected.length === 3 ? "Ya viste las tres. Activ\u00e1 las pantallas en el orden de la inscripci\u00f3n." : "Examin\u00e1 los otros anuncios con Visi\u00f3n de Frecuencia."));
+    if (event.startsWith("advert-activate:") && !before.advertisingComplete) {
+      const expected = ["mirar", "desear", "consumir"][before.advertSequence.length];
+      if (event.slice(16) !== expected) { setCityFeedback({ stage: "advert" }); setCityNotice("SECUENCIA RECHAZADA. Los anuncios se distorsionan; volv\u00e9 a empezar. No perdiste energ\u00eda."); }
+      else if (next.advertisingComplete) setCityNotice("TRANSMISOR PUBLICITARIO DESCONECTADO. Por primera vez en mi vida, apagar publicidades fue una misi\u00f3n heroica.");
+      else setCityNotice("Anuncio conectado: " + next.advertSequence.length + "/3.");
+    }
+    if (event === "traffic-align") setCityNotice(next.trafficReflectorAligned ? "Reflector orientado hacia RUTA. Apunt\u00e1 el Orbe al reflector desde el sur." : "Reflector reorientado.");
+    if (event.startsWith("traffic-hit:") && !before.trafficComplete) {
+      const id = event.split(":")[1], expected = ["senal", "ruta", "control"][before.trafficSequence.length];
+      if (id !== expected || id === "ruta" && Number(event.split(":")[2]) < 1) {
+        setCityFeedback({ stage: "traffic" }); setCityNotice("SECUENCIA RECHAZADA. La se\u00f1al define una ruta y la ruta alcanza el control. RUTA exige un rebote con el reflector orientado."); }
+      else if (next.trafficComplete)
+        setCityNotice("CONTROL DE TR\u00c1NSITO LIBERADO. Buen\u00edsimo. Ahora los sem\u00e1foros funcionan... Creo.");
+      else setCityNotice("Nodo de tr\u00e1nsito conectado: " + next.trafficSequence.length + "/3. Recuper\u00e1 el Orbe con R.");
+    }
+    if (event === "core-align") setCityNotice(next.coreReflectorAligned ? "Reflector del Obelisco alineado. Lanz\u00e1 el Orbe desde el sur para rebotar hacia ENLACE." : "Reflector del Obelisco reorientado.");
+    if (event.startsWith("core-hit:") && !before.coreComplete) {
+      const id = event.split(":")[1], expected = ["origen", "enlace", "nucleo"][before.coreSequence.length];
+      if (id !== expected || id === "enlace" && Number(event.split(":")[2]) < 1) {
+        setCityFeedback({ stage: "core" }); setCityNotice("SECUENCIA RECHAZADA. La se\u00f1al nace, se conecta y concentra su poder. ENLACE requiere el reflector."); }
+      else if (next.coreComplete)
+        setCityNotice("TRANSMISOR CENTRAL DESCONECTADO. La barrera pierde fuerza y deja expuesto el n\u00facleo. La Anomal\u00eda est\u00e1 reaccionando.");
+      else setCityNotice("Emisor del Obelisco desactivado: " + next.coreSequence.length + "/3.");
+    }
+  }
+  useEffect(() => {
+    if (!cityVehicleLine) return undefined;
+    const timer = window.setTimeout(() => setCityVehicleLine(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [cityVehicleLine]);
+  useEffect(() => {
+    if (!cityCombatHint) return undefined;
+    const timer = window.setTimeout(() => setCityCombatHint(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [cityCombatHint]);
+  function finishCityIntro() { setCityIntro(null); commitCity("intro-seen"); }
+  useEffect(() => {
+    if (activeScene !== "buenos-aires-2049" || cityIntro === null || paused || mapOpen || inventoryOpen) return undefined;
+    const timer = window.setTimeout(() => {
+      if (cityIntro >= 2) finishCityIntro();
+      else setCityIntro(cityIntro + 1);
+    }, cityIntro === -1 ? 2300 : 3600);
+    return () => window.clearTimeout(timer);
+  }, [activeScene, cityIntro, paused, mapOpen, inventoryOpen]);
+  function beginCityDialogue(id) {
+    const progress = cityProgressRef.current;
+    if (id === FUEGO_KEY_CITIZEN && progress.fuegoStarted && !progress.fuegoKeyTaken) {
+      if (!progress.fuegoKeyDiscovered) setCityNotice("La Desconectada perdi\u00f3 la llave cerca de la confiter\u00eda. Activ\u00e1 la Visi\u00f3n de Frecuencia con C para buscar su chip.");
+      else setCityDialogue({ kind: "fuego-key", id, index: 0 });
+      return;
+    }
+    if (id === "ba-disconnected") {
+      if (progress.vigilanteDefeated && !progress.fuegoPowered) {
+        setCityNotice(progress.fuegoStarted
+          ? "LA DESCONECTADA / La llave est\u00e1 cerca de la confiter\u00eda; la celda, en la estaci\u00f3n de carga de esa vereda; y el m\u00f3dulo, en la terminal al este del Obelisco. Los archivos de Corrientes guardan su clave."
+          : "El Renault Fuego est\u00e1 bajando frente al Obelisco. Acercate y revisemos qu\u00e9 necesita para despegar.");
+        return;
+      }
+      if (progress.escapeUnlocked) {
+        if (!progress.escapeBriefed) setCityNotice("Los propulsores se est\u00e1n estabilizando. Esper\u00e1 junto al Fuego.");
+        else setCityNotice("El Renault Fuego nos espera frente al Obelisco. Acercate al vehículo para preparar la fuga.");
+        return;
+      }
+      if (!progress.signalFound) { setCityNotice("Una mujer apartada de las pantallas te observa, pero a\u00fan no conf\u00eda en vos. Investig\u00e1 la se\u00f1al primero."); return; }
+      if (progress.disconnectedMet) {
+        setCityNotice(progress.synchronizationSeen
+          ? "La Desconectada te pide quedarte cerca. Un Vigilante se aproxima por la explanada del Obelisco."
+          : "La Desconectada: rastre\u00e1 los tres transmisores. Empez\u00e1 por las pantallas de Corrientes.");
+        return;
+      }
+      setCityDialogue({ kind: "disconnected", id, index: 0 });
+      return;
+    }
+    if (progress.citizens.includes(id)) { setCityNotice("Solo repite la misma respuesta autom\u00e1tica. Busc\u00e1 a otra persona."); return; }
+    if (progress.citizens.length >= 3) { setCityNotice("Todos repiten mensajes de la Red. La visi\u00f3n de frecuencia podr\u00eda mostrar algo m\u00e1s."); return; }
+    setCityDialogue({ kind: "citizen", id, variant: progress.citizens.length, index: 0 });
+  }
+  function startCityFlight() {
+    if (paused || mapOpen || inventoryOpen || !canStartEscape(cityProgressRef.current)) return;
+    setCityNotice(null); setCityFuegoPanel(null); setCityVehicleLine(null); setCityDiaryOpen(false);
+    if (!cityFlightApiRef.current?.start()) setCityNotice("El Fuego y la Desconectada se est\u00e1n preparando. Esper\u00e1 un momento y volv\u00e9 a iniciar el sistema junto al auto.");
+  }
+  function exitCityFlight() { cityFlightApiRef.current?.cancel(); onPause?.(false); }
+  function advanceCityDialogue() {
+    if (!cityDialogue) return;
+    const lines = cityDialogueLines(cityDialogue);
+    if (cityDialogue.index < lines.length - 1) { setCityDialogue({ ...cityDialogue, index: cityDialogue.index + 1 }); return; }
+    if (cityDialogue.kind === "fuego-flight-briefing") { setCityDialogue(null); startCityFlight(); return; }
+    if (cityDialogue.kind === "disconnected") commitCity("disconnected-met");
+    else if (cityDialogue.kind === "vigilante-intro") commitCity("vigilante-start");
+    else if (cityDialogue.kind === "vigilante-phase") commitCity("vigilante-phase-seen");
+    else if (cityDialogue.kind === "vigilante-defeat") commitCity("vigilante-defeated");
+    else if (cityDialogue.kind === "escape" || cityDialogue.kind === "fuego-ignition") commitCity("escape-briefed");
+    else if (cityDialogue.kind === "fuego-key") commitCity("fuego-key-take");
+    else if (cityDialogue.kind === "fuego-record") { commitCity("fuego-record-shown"); setCityFuegoPanel("vehicle"); }
+    else if (cityDialogue.kind.startsWith("fuego-")) { /* Items are collected by explicit terminal actions. */ }
+    else commitCity("citizen:" + cityDialogue.id);
+    setCityDialogue(null);
+  }
+  useEffect(() => {
+    if (!cityDialogue || activeScene !== "buenos-aires-2049" || paused || mapOpen || inventoryOpen || combatHearts === 0) return undefined;
+    const onKey = event => {
+      if ((event.code === "KeyE" || event.code === "Enter") && !event.repeat) {
+        event.preventDefault(); advanceCityDialogue();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [cityDialogue, activeScene, paused, mapOpen, inventoryOpen, combatHearts]);
+  function performCityFuegoAction(event) {
+    const before = cityProgressRef.current;
+    if ((event.startsWith("fuego-install:") || event === "fuego-power-on") && nearby?.id !== "ba-escape-fuego") return;
+    if (event === "fuego-power-on") {
+      if (cityDialogue || !canStartEscape(before)) return;
+      setCityFuegoPanel(null); setCityDialogue({kind:"fuego-flight-briefing",index:0}); return;
+    }
+    const next = commitCity(event);
+    if (event === "fuego-power-take" && next.fuegoPowerCellTaken && !before.fuegoPowerCellTaken) {
+      setCityFuegoPanel(null); setCityDialogue({ kind: "fuego-power", index: 0 });
+    } else if (event === "fuego-navigation-take" && next.fuegoNavigationModuleTaken && !before.fuegoNavigationModuleTaken) {
+      setCityFuegoPanel(null); setCityDialogue({ kind: "fuego-navigation", index: 0 });
+    } else if (event.startsWith("fuego-install:") && next.fuegoNavigationModuleInstalled && !next.fuegoRecordShown) {
+      setCityFuegoPanel(null); setCityDialogue({ kind: "fuego-record", index: 0 });
+    } else if (event === "fuego-power-on" && next.fuegoPowered) setCityFuegoPanel(null);
+  }
+  // A reload during the hidden recording resumes it until its final line is read.
+  useEffect(() => {
+    if (activeScene === "buenos-aires-2049" && cityProgress.fuegoNavigationModuleInstalled && !cityProgress.fuegoRecordShown &&
+        !cityDialogue && !cityNotice && !cityFuegoPanel && !paused && !mapOpen && !inventoryOpen)
+      setCityDialogue({ kind: "fuego-record", index: 0 });
+  }, [activeScene, cityProgress.fuegoNavigationModuleInstalled, cityProgress.fuegoRecordShown, cityDialogue, cityNotice, cityFuegoPanel, paused, mapOpen, inventoryOpen]);
+  function examineCity(id) {
+    if (combatHeartsRef.current === 0 || cityFlightApiRef.current?.active) return;
+    if (id === "ba-escape-fuego" && cityProgressRef.current.vigilanteDefeated) {
+      if (!cityProgressRef.current.fuegoStarted) {
+        commitCity("fuego-start"); setCityDialogue({ kind: "fuego-intro", index: 0 });
+      } else if (canStartEscape(cityProgressRef.current)) { setCityDialogue({kind:"fuego-flight-briefing",index:0}); }
+      else setCityFuegoPanel("vehicle");
+      return;
+    }
+    if (cityProgressRef.current.fuegoStarted && id.startsWith("ba-fuego-")) {
+      if (id === "ba-fuego-power") { commitCity("fuego-power-examine"); setCityFuegoPanel("power"); }
+      if (id === "ba-fuego-navigation") setCityFuegoPanel("navigation");
+      const clue = FUEGO_CLUES.find(item => id === "ba-fuego-clue-" + item.id);
+      if (clue) { commitCity("fuego-navigation-clue:" + clue.id); setCityNotice(clue.symbol + " / " + clue.text + " Anotado en el diario."); }
+      return;
+    }
+    if (cityProgressRef.current.vigilanteStarted && !cityProgressRef.current.vigilanteDefeated) return;
+    if (id === "ba-disconnected" || /^ba-(man|woman|executive|elder)-\d$/.test(id)) { beginCityDialogue(id); return; }
+    if (id === "ba-obelisk") { handleCityEvent("obelisk-explored"); return; }
+    if (id === "ba-corrientes") { setCityNotice("Corrientes sigue encendida: teatros, bares y carteles de una ciudad que no dej\u00f3 de moverse."); return; }
+    const p = cityProgressRef.current;
+    if (id === "ba-advert-clue") {
+      setCityNotice("Inscripci\u00f3n digital: Primero capturamos tus ojos. Despu\u00e9s despertamos el deseo. Finalmente decid\u00eds consumir.");
+      return;
+    }
+    if (id.startsWith("ba-advert-")) {
+      const symbol = id.slice(10);
+      if (!p.disconnectedMet) { setCityNotice("Primero habl\u00e1 con la Desconectada."); return; }
+      if (!p.visionActive) { setCityNotice("Activ\u00e1 Visi\u00f3n de Frecuencia con C para revelar la marca oculta."); return; }
+      if (p.advertisingComplete) { setCityNotice("Este transmisor ya est\u00e1 desconectado."); return; }
+      if (!p.advertInspected.includes(symbol)) { handleCityEvent("advert-inspect:" + symbol); return; }
+      if (p.advertInspected.length < 3) { setCityNotice("Examin\u00e1 las tres pantallas antes de activarlas."); return; }
+      handleCityEvent("advert-activate:" + symbol); return;
+    }
+    if (id === "ba-traffic-clue") {
+      setCityNotice("Gabinete de tr\u00e1nsito: La se\u00f1al define una ruta. La ruta alcanza el control. Activ\u00e1 Visi\u00f3n de Frecuencia; lanz\u00e1 el Orbe a SE\u00d1AL, rebot\u00e1 hacia RUTA y termin\u00e1 en CONTROL.");
+      return;
+    }
+    if (id === "ba-core-clue") {
+      setCityNotice("Campo del Obelisco: La se\u00f1al nace, se conecta y finalmente concentra su poder. Busc\u00e1 ORIGEN, ENLACE y N\u00daCLEO con Visi\u00f3n de Frecuencia.");
+      return;
+    }
+    if (id === "ba-traffic-reflector" || id === "ba-core-reflector") {
+      const stage = id === "ba-traffic-reflector" ? "traffic" : "core";
+      if (!p.visionActive) { setCityNotice("Activ\u00e1 Visi\u00f3n de Frecuencia para orientar el reflector."); return; }
+      if (stage === "traffic" && !p.advertisingComplete || stage === "core" && !p.trafficComplete) {
+        setCityNotice("Primero resolv\u00e9 el transmisor anterior."); return;
+      }
+      handleCityEvent(stage + "-align"); return;
+    }
+  }
+  function advanceThroneDialogue(skip = false) {
+    if (!throneDialogue) return;
+    const { type, index } = throneDialogue;
+    const lines = THRONE_DIALOGUES[type];
+    if (!skip && index < lines.length - 1) { setThroneDialogue({ type, index: index + 1 }); return; }
+    setThroneDialogue(null);
+    if (type === "encounter") commitThrone("boss-intro");
+    if (type === "defeat") setThroneMessage("El Soberano cayó. Investigá el núcleo suspendido detrás del trono.");
+    if (type === "future") { commitThrone("complete"); setThroneFinalOpen(true); }
+  }
+  function examineThrone(id) {
+    const p = throneProgressRef.current;
+    if (id === "throne-return") { enterScenario("cathedral"); return; }
+    if (id === "throne-inscription") {
+      commitThrone("inscription");
+      setThroneMessage("Sin memoria no existe elección. Sin voluntad no existe libertad. Y sin libertad no existe destino. La Visión de Frecuencia revela las marcas ocultas.");
+      return;
+    }
+    if (id.startsWith("throne-vow-")) {
+      const vow = id.slice("throne-vow-".length);
+      if (!p.inscriptionRead) { setThroneMessage("Primero leé la inscripción central."); return; }
+      if (!p.visionActive) { setThroneMessage("Las marcas de las estatuas solo se leen con la Visión de Frecuencia."); return; }
+      const next = commitThrone("vow", vow);
+      setThroneMessage(next.hallOpen ? "Los tres juramentos iluminan la piedra. La Cámara del Núcleo está abierta."
+        : next.vows.length > p.vows.length ? vow.toUpperCase() + " responde. " + next.vows.length + "/3."
+        : "Secuencia incorrecta. Las estatuas se apagan; podés volver a intentarlo.");
+      return;
+    }
+    if (id === "throne-hall-gate") { setThroneMessage(p.hallOpen ? "La Cámara del Núcleo está abierta." : "La puerta espera los tres juramentos en el orden correcto."); return; }
+    if (id.startsWith("throne-core-") && id !== "throne-core-inscription") {
+      const conductor = id.slice("throne-core-".length);
+      const next = commitThrone("inspect-core", conductor);
+      setThroneMessage(next.coreInspected.includes(conductor) ? conductor.toUpperCase() + ": conductor localizado. Las conexiones ocultas aparecen con la Visión de Frecuencia." : "Todavía no podés examinarlo.");
+      return;
+    }
+    if (id === "throne-core-inscription") { setThroneMessage("Lo que nace deja un eco. Y aquello que responde establece el enlace."); return; }
+    if (id === "throne-reflector") {
+      const next = commitThrone("reflector-rotate");
+      setThroneMessage("Reflector orientado hacia " + ["ORIGEN", "ECO", "ENLACE"][next.reflectorIndex] + ". Con la Visión activa, lanzá el Orbe al cristal unido por el haz dorado.");
+      return;
+    }
+    if (id === "throne-arena-gate") { setThroneMessage(p.throneOpen ? "La barrera cayó. El Trono Negro aguarda." : "Los tres conductores aún no están sincronizados."); return; }
+    if (id === "throne-soberano") {
+      if (!p.bossIntro && !p.bossDefeated) setThroneDialogue({ type: "encounter", index: 0 });
+      return;
+    }
+    if (id === "throne-transmission") {
+      if (!p.bossDefeated) return;
+      commitThrone("transmission");
+      if (p.completed) setThroneFinalOpen(true);
+      else setThroneDialogue({ type: "future", index: 0 });
+    }
+  }
+  function restartThroneForTesting() {
+    if (!import.meta.env.DEV || activeScene !== "abyss-throne") return;
+    const fresh = advanceThrone(null, "enter", null, true);
+    throneProgressRef.current = fresh; setThroneProgress(fresh);
+    cityProgressRef.current = normalizeBuenosAiresProgress(null, false); setCityProgress(cityProgressRef.current); setCitySequenceLine(null); setCityFeedback(null); cityPlayerRef.current = null;
+    thronePlayerRef.current = { x: 0, z: THRONE_LAYOUT.spawnZ, yaw: Math.PI, viewYaw: 0 };
+    combatHeartsRef.current = 3; setCombatHearts(3);
+    combatInvulnerableUntil.current = performance.now() + 1800;
+    setThroneDialogue({ type: "arrival", index: 0 }); setThroneMessage(null); setThroneFinalOpen(false);
+    setThroneResetKey(key => key + 1);
+  }
   function commitCathedral(event,value){
     const before=cathedralProgressRef.current;
     const next=advanceCathedral(before,event,value,Boolean(underworldProgressRef.current.completed));
@@ -654,58 +1249,95 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     if(type==="altar"){commitCathedral("recording");setCathedralReveal(true);}
     if(type==="farewell"){commitCathedral("complete");setCathedralFinalOpen(true);}
   }
+  function cathedralPuzzleNotice(heading,title,line,color="#ef718f",kind="error",hint=null) {
+    setCathedralFeedback({heading,title,line,color,kind,hint,stamp:Date.now()});
+  }
   function examineCathedral(id){
     const p=cathedralProgressRef.current;
     if(id==="cathedral-return"){enterScenario("underworld");return;}
     if(id==="cathedral-inscription"){
       commitCathedral("inscription");
-      setCathedralMessage("La piedra dice: «Primero recordá. Luego dejá pasar el tiempo. Solo entonces conocerás la verdad».");
+      setCathedralMessage("La piedra dice: \u00abSolo quien recuerda comprende el paso del tiempo y enfrenta la verdad.\u00bb");
       return;
     }
     if(id.startsWith("cathedral-seal-")){
       const seal=id.slice("cathedral-seal-".length);
       if(p.archiveOpen){setCathedralMessage("Los tres sellos ya abrieron el Archivo de los Condenados.");return;}
+      if(!p.inscriptionRead){setCathedralMessage("La Catedral espera que leas la inscripci\u00f3n de la Nave de los Ecos.");return;}
+      const expected=["memoria","tiempo","verdad"][p.seals.length];
       const next=commitCathedral("seal",seal);
-      setCathedralMessage(next.archiveOpen?"Los tres sellos responden. La puerta del Archivo se abre.":
-        next.seals.length===0?"Los sellos pierden su luz. La secuencia se reinicia; podés volver a intentarlo.":
-        "El sello de "+seal.toUpperCase()+" se ilumina. "+next.seals.length+"/3.");
+      if(seal!==expected){
+        cathedralPuzzleNotice("LA CATEDRAL RECHAZA LA SECUENCIA","SELLOS DESALINEADOS","No... as\u00ed no era.","#ef718f","error",
+          "El eco del Custodio: Recordar no es suficiente. El tiempo ordena, y la verdad revela.");
+      } else if(next.archiveOpen) {
+        cathedralPuzzleNotice("NAVE DE LOS ECOS","ARCHIVO DESBLOQUEADO","Los tres sellos responden. La puerta del Archivo se abre.","#a9dcd2","success");
+      } else {
+        cathedralPuzzleNotice("NAVE DE LOS ECOS","SELLO ACTIVADO",seal.toUpperCase()+" responde. "+next.seals.length+"/3.","#cbb6e8","success");
+      }
       return;
     }
     if(id==="cathedral-archive-door"){
-      setCathedralMessage(p.archiveOpen?"El Archivo de los Condenados está abierto. La señal conduce hacia los atriles.":
-        "La reja está sellada. Tres mecanismos esperan una secuencia.");
+      setCathedralMessage(p.archiveOpen?"El Archivo de los Condenados est\u00e1 abierto. La se\u00f1al conduce hacia los atriles.":
+        "La reja est\u00e1 sellada. Tres mecanismos esperan una secuencia.");
       return;
     }
     if(id.startsWith("cathedral-memory-")){
       const memory=id.slice("cathedral-memory-".length);
-      if(p.memories.includes(memory)){return;}
-      if(!p.visionActive){setCathedralMessage("El registro está incompleto. Activá la Visión de Frecuencia para revelar sus marcas.");return;}
-      if(p.altarOpen){return;}
-      const next=commitCathedral("memory",memory);
-      if(next.memories.length===0) setCathedralMessage("Los recuerdos se desordenan y la secuencia vuelve a empezar. No perdés vida.");
+      if(p.memories.includes(memory))return;
+      if(!p.visionActive){setCathedralMessage("El registro est\u00e1 incompleto. Activ\u00e1 la Visi\u00f3n de Frecuencia para revelar sus marcas.");return;}
+      if(p.altarOpen)return;
+      const expected=["nave","partenon","fracturada"][p.memories.length];
+      commitCathedral("memory",memory);
+      if(memory!==expected) cathedralPuzzleNotice("LA MEMORIA HA SIDO ALTERADA","SECUENCIA CORRUPTA",
+        "Algo ac\u00e1 est\u00e1 mal... la se\u00f1al est\u00e1 deformando el recuerdo.","#ef718f","error",
+        "El eco del Custodio: Algunos recuerdos fueron heridos por la se\u00f1al.");
       // Successful pickups use non-blocking subtitles; scene effects observe the accepted saved state.
       return;
     }
     if(id==="cathedral-custodian"){
       startCathedralDialogue(!p.custodianMet?"first":!p.anomalyHeard?"anomaly":
-        p.altarOpen&&!p.altarHintHeard?"hint":p.recordingHeard&&!p.completed?"farewell":"repeat");
+        p.altarOpen&&!p.altarHintHeard?"hint":p.recordingHeard&&!p.completed?"farewell":
+        !p.altarOpen?"archiveHint":"repeat");
       return;
     }
     if(id==="cathedral-altar-door"){
-      setCathedralMessage(p.altarOpen?"La puerta del altar está abierta. La transmisión original aguarda al fondo.":
-        "Las marcas del Archivo aún no forman una secuencia completa.");
+      setCathedralMessage(p.altarOpen?"La puerta del altar est\u00e1 abierta. La transmisi\u00f3n original aguarda al fondo.":
+        "Las marcas del Archivo a\u00fan no forman una secuencia completa.");
       return;
     }
     if(id==="cathedral-abyss"){
-      setCathedralMessage("EL TRONO DEL ABISMO — PRÓXIMAMENTE. La Catedral permanece abierta para seguir explorando.");
+      if (p.completed) { setCathedralFinalOpen(false); enterScenario("abyss-throne"); }
+      else setCathedralMessage("El portal permanece sellado. Termin? la transmisi?n del Altar de la Primera Voz.");
+      return;
+    }
+    if(id.startsWith("cathedral-tone-")){
+      const tone=id.slice("cathedral-tone-".length);
+      if(!p.altarTuning){setCathedralMessage("Primero examin\u00e1 el Altar de la Primera Voz.");return;}
+      if(p.altarActivated){setCathedralMessage("Los tres resonadores ya estabilizaron la transmisi\u00f3n.");return;}
+      if(!p.visionActive){setCathedralMessage("Las marcas del resonador est\u00e1n ocultas. Activ\u00e1 la Visi\u00f3n de Frecuencia.");return;}
+      if(p.altarSequence.includes(tone))return;
+      const expected=CATHEDRAL_TONES[p.altarSequence.length];
+      const next=commitCathedral("altar-node",tone);
+      if(tone!==expected){
+        cathedralPuzzleNotice("SE\u00d1AL INESTABLE","SINTON\u00cdA INTERRUMPIDA","No... la frecuencia todav\u00eda no est\u00e1 alineada.");
+      } else if(next.altarActivated) {
+        startCathedralDialogue("altar");
+      } else {
+        cathedralPuzzleNotice("ALTAR DE LA PRIMERA VOZ","RESONADOR ALINEADO",tone.toUpperCase()+" responde. "+next.altarSequence.length+"/3.","#9ce7d4","success");
+      }
       return;
     }
     if(id==="cathedral-altar"){
-      if(!p.altarOpen){setCathedralMessage("El núcleo no responde. Reconstruí los tres recuerdos del Archivo.");return;}
+      if(!p.altarOpen){setCathedralMessage("El n\u00facleo no responde. Reconstru\u00ed los tres recuerdos del Archivo.");return;}
       if(p.completed){setCathedralFinalOpen(true);return;}
       if(p.recordingHeard){startCathedralDialogue("farewell");return;}
-      commitCathedral("altar");
-      startCathedralDialogue("altar");
+      if(p.altarActivated){startCathedralDialogue("altar");return;}
+      if(!p.altarTuning){
+        commitCathedral("altar");
+        setCathedralMessage("Tres resonadores rodean el altar. Us\u00e1 la Visi\u00f3n de Frecuencia para leer sus marcas y sintonizarlos.");
+        return;
+      }
+      setCathedralMessage("La transmisi\u00f3n necesita alinear los tres resonadores. El Custodio conoce una pista.");
     }
   }
   useEffect(()=>{
@@ -821,6 +1453,10 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     setCombatHearts(health);
     setDamageTick(tick => tick + 1);
     if (health === 0 && activeScene === "underworld") { clearUnderworldDialogue(); setUnderworldMessage(null); }
+    if (health === 0 && activeScene === "abyss-throne") { setThroneDialogue(null); setThroneMessage(null); }
+    if (health === 0 && activeScene === "buenos-aires-2049") {
+      setCityDialogue(null); setCityNotice(null); setCitySequenceLine(null); setCityCombatHint(null); setCityInterference(false);
+    }
     if (health === 0 && document.pointerLockElement) document.exitPointerLock();
   }
   function replayInvasionBoss() {
@@ -841,10 +1477,21 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
       storePlayerRef.current={x:0,z:storeInvasionProgressRef.current.transmissionOff?-5.5:-2,yaw:Math.PI,viewYaw:0};
       setInvasionPanel(null);setInvasionCrateHeld(false);setCombatRetryKey(key=>key+1);return;
     }
+    if(activeScene==="buenos-aires-2049"){
+      commitCity("vigilante-retry"); cityPlayerRef.current={...VIGILANTE_CHECKPOINT};
+      setCityDialogue(null);setCityNotice(null);setCityInterference(false);setCityCombatHint(null);
+      setCitySequenceLine(null);setNearby(null);setCombatRetryKey(key=>key+1);return;
+    }
+    if(activeScene==="abyss-throne"){
+      commitThrone("retry");
+      thronePlayerRef.current={x:0,z:-54,yaw:Math.PI,viewYaw:0};
+      setThroneDialogue(null);setThroneMessage("CHECKPOINT / TRONO NEGRO. Los acertijos se conservan.");
+      setThroneResetKey(key=>key+1);return;
+    }
     if(activeScene==="underworld"){
-      underworldPlayerRef.current={x:0,z:underworldProgressRef.current.bridgeCrossed?-33:10.5,yaw:Math.PI,viewYaw:0};
+      underworldPlayerRef.current={x:0,z:underworldProgressRef.current.ferryCompleted?-33:10.5,yaw:Math.PI,viewYaw:0};
       clearUnderworldDialogue();
-      setUnderworldMessage("CHECKPOINT / PUENTE DE LAS ALMAS");
+      setUnderworldMessage(underworldProgressRef.current.ferryCompleted ? "CHECKPOINT / PLATAFORMA RITUAL" : "CHECKPOINT / PUENTE DE LAS ALMAS");
       setCombatRetryKey(key=>key+1);return;
     }
     if(activeScene==="matrix"){
@@ -876,11 +1523,29 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     }
     setCombatRetryKey(key => key + 1);
   }
-  function restartUnderworldForTesting() {
-    if (!import.meta.env.DEV || activeScene !== "underworld") return;
+  function restartUnderworldLevel() {
+    if (activeScene !== "underworld" && activeScene !== "cathedral" && activeScene !== "abyss-throne") return;
+    setUnderworldResetOpen(false);
+    setCathedralResetOpen(false);
     const freshProgress = normalizeUnderworldProgress(null, true);
     underworldProgressRef.current = freshProgress;
     setUnderworldProgress(freshProgress);
+    const freshCathedralProgress = normalizeCathedralProgress(null, false);
+    cathedralProgressRef.current = freshCathedralProgress;
+    setCathedralProgress(freshCathedralProgress);
+    cathedralPlayerRef.current = null;
+    throneProgressRef.current = normalizeThroneProgress(null, false);
+    setThroneProgress(throneProgressRef.current);
+    thronePlayerRef.current = null;
+    cityProgressRef.current = normalizeBuenosAiresProgress(null, false); setCityProgress(cityProgressRef.current); setCitySequenceLine(null); setCityFeedback(null); cityPlayerRef.current = null;
+    setCathedralDialogue(null);
+    setCathedralMessage(null);
+    setCathedralFinalOpen(false);
+    setCathedralDiaryOpen(false);
+    setCathedralTransition(false);
+    setCathedralFeedback(null);
+    setCathedralCinema(null);
+    setCathedralReveal(false);
     underworldPlayerRef.current = { x: 0, z: 10.5, yaw: Math.PI, viewYaw: 0 };
     combatHeartsRef.current = 3;
     setCombatHearts(3);
@@ -903,6 +1568,41 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     if (document.pointerLockElement) document.exitPointerLock();
     onPause?.(false);
     setCombatRetryKey((key) => key + 1);
+    setActiveScene("underworld");
+  }
+  function restartCathedralLevel() {
+    if (activeScene !== "cathedral" || !underworldProgressRef.current.completed) return;
+    setCathedralResetOpen(false);
+    throneProgressRef.current = normalizeThroneProgress(null, false);
+    setThroneProgress(throneProgressRef.current);
+    thronePlayerRef.current = null;
+    cityProgressRef.current = normalizeBuenosAiresProgress(null, false); setCityProgress(cityProgressRef.current); setCitySequenceLine(null); setCityFeedback(null); cityPlayerRef.current = null;
+    const freshProgress = advanceCathedral(null, "enter", null, true);
+    cathedralProgressRef.current = freshProgress;
+    setCathedralProgress(freshProgress);
+    cathedralPlayerRef.current = { x: 0, z: CATHEDRAL_LAYOUT.spawnZ, yaw: Math.PI, viewYaw: 0 };
+    setCathedralDialogue(null);
+    setCathedralMessage(null);
+    setCathedralFinalOpen(false);
+    setCathedralDiaryOpen(false);
+    setCathedralTransition(false);
+    setCathedralFeedback(null);
+    setCathedralCinema(null);
+    setCathedralReveal(false);
+    setCathedralSequenceSkip(0);
+    setMapOpen(false);
+    setInventoryOpen(false);
+    setOrbStatus({ phase: "ready", cooldown: 0 });
+    setNearby(null);
+    setFirstPerson(false);
+    setJumping(false);
+    setDamageTick(0);
+    combatHeartsRef.current = 3;
+    setCombatHearts(3);
+    combatInvulnerableUntil.current = performance.now() + 1800;
+    if (document.pointerLockElement) document.exitPointerLock();
+    onPause?.(false);
+    setCathedralResetKey((key) => key + 1);
   }
   function restartMatrixForTesting() {
     if (!import.meta.env.DEV || activeScene !== "matrix") return;
@@ -1078,8 +1778,8 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
 
   gameSnapshotRef.current = () => ({
     scene: activeScene === "frequency" ? "arcade" : activeScene, credits: creditsRef.current, selectedId, activeGroup,
-    storyProgress, studioProgress, masterTape, clubQuest, rikyProgress, friendsProgress, arcadeProgress, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress, cathedralProgress, combatHearts, mapUnlocks: unlockedScenarios,
-    positions: { store: storePlayerRef.current, studio: studioPlayerRef.current, club: clubPlayerRef.current, arcade: arcadePlayerRef.current, rooftop: rooftopPlayerRef.current, "lost-ship": lostShipPlayerRef.current, parthenon: parthenonPlayerRef.current, matrix: matrixPlayerRef.current, underworld: underworldPlayerRef.current, cathedral: cathedralPlayerRef.current },
+    storyProgress, studioProgress, masterTape, clubQuest, rikyProgress, friendsProgress, arcadeProgress, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress, cathedralProgress, throneProgress, cityProgress, chapter15Progress, combatHearts, mapUnlocks: unlockedScenarios,
+    positions: { "buenos-aires-2049": cityPlayerRef.current, "chapter15-studio": chapter15StudioPlayerRef.current, "chapter15-store": chapter15StorePlayerRef.current, store: storePlayerRef.current, studio: studioPlayerRef.current, club: clubPlayerRef.current, arcade: arcadePlayerRef.current, rooftop: rooftopPlayerRef.current, "lost-ship": lostShipPlayerRef.current, parthenon: parthenonPlayerRef.current, matrix: matrixPlayerRef.current, underworld: underworldPlayerRef.current, cathedral: cathedralPlayerRef.current, "abyss-throne": thronePlayerRef.current },
   });
   function advanceStoreStep(event) {
     const next = advanceStoreInvestigation(arcadeProgressRef.current, event);
@@ -1107,7 +1807,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     if (!onAutosave) return undefined;
     const timer = window.setTimeout(() => onAutosave(gameSnapshotRef.current?.()), 700);
     return () => window.clearTimeout(timer);
-  }, [onAutosave, activeScene, credits, selectedId, activeGroup, storyProgress, studioProgress, masterTape, clubQuest, rikyProgress, friendsProgress, arcadeProgress, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress, cathedralProgress, mapUnlocks]);
+  }, [onAutosave, activeScene, credits, selectedId, activeGroup, storyProgress, studioProgress, masterTape, clubQuest, rikyProgress, friendsProgress, arcadeProgress, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress, cathedralProgress, throneProgress, cityProgress, chapter15Progress, combatHearts, mapUnlocks]);
   useEffect(() => () => onAutosave?.(gameSnapshotRef.current?.()), [onAutosave]);
   useEffect(() => {
     if (!onAutosave) return undefined;
@@ -1272,7 +1972,14 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   useEffect(() => {
 
     const onKeyDown = (event) => {
-      if (combatHearts === 0 && (activeScene === "lost-ship" || activeScene === "parthenon" || activeScene === "matrix" || activeScene === "underworld" || (activeScene === "store" && storeInvaded))) return;
+      if (activeScene.startsWith("chapter15-") && chapter15Panel && event.code === "KeyE" && !event.repeat) {
+        if (CHAPTER15_DIALOGUES[chapter15Panel.kind]) { event.preventDefault(); event.stopImmediatePropagation(); advanceChapter15Dialogue(); }
+        return;
+      }
+      if (activeScene.startsWith("chapter15-") && chapter15Panel && event.code === "Escape") {
+        event.preventDefault(); event.stopImmediatePropagation(); setChapter15Panel(null); return;
+      }
+      if (combatHearts === 0 && (activeScene === "lost-ship" || activeScene === "parthenon" || activeScene === "matrix" || activeScene === "underworld" || activeScene === "abyss-throne" || activeScene === "buenos-aires-2049" || (activeScene === "store" && storeInvaded))) return;
       if (activeScene === "frequency" && event.key === "Escape" && !paused) {
         event.preventDefault(); event.stopImmediatePropagation(); onPause?.(true); return;
       }
@@ -1330,7 +2037,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
         else if (conversation) closeConversation();
         else if (jukeboxOpen) closeJukebox();
         else if (onPause) onPause(true);
-        else if (activeScene === "studio" || activeScene === "club" || activeScene === "arcade" || activeScene === "rooftop" || activeScene === "lost-ship" || activeScene === "parthenon" || activeScene === "matrix" || activeScene === "underworld") openMap();
+        else if (activeScene.startsWith("chapter15-") || activeScene === "studio" || activeScene === "club" || activeScene === "arcade" || activeScene === "rooftop" || activeScene === "lost-ship" || activeScene === "parthenon" || activeScene === "matrix" || activeScene === "underworld") openMap();
         else onClose?.();
       }
       if (event.key === "Tab" && !paused) {
@@ -1345,7 +2052,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [onClose, standalone, jukeboxOpen, activeVideoIndex, conversation, archiveOpen, sessionsOpen, studioWorkbench, studioAnalyzerOpen, studioAnomalyPhase, clubMessage, arcadeMessage, studioMessage, mapOpen, inventoryOpen, activeScene, paused, onPause, concertPhase, gameOpen, frequencyPhase, rooftopPuzzle, lostShipPanel, parthenonPanel, invasionPanel, chapter10Sequence, storeInvaded, combatHearts, underworldDialogue, underworldMessage, cathedralDialogue, cathedralFinalOpen, cathedralMessage]);
+  }, [onClose, standalone, jukeboxOpen, activeVideoIndex, conversation, archiveOpen, sessionsOpen, studioWorkbench, studioAnalyzerOpen, studioAnomalyPhase, clubMessage, arcadeMessage, studioMessage, mapOpen, inventoryOpen, activeScene, paused, onPause, concertPhase, gameOpen, frequencyPhase, rooftopPuzzle, lostShipPanel, parthenonPanel, invasionPanel, chapter10Sequence, chapter15Panel, storeInvaded, combatHearts, underworldDialogue, underworldMessage, cathedralDialogue, cathedralFinalOpen, cathedralMessage]);
   useEffect(() => {
     if (studioAnomalyPhase !== "active" || activeScene !== "studio") return;
     let frame = 0;
@@ -1668,6 +2375,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   }
 
   function openMap() {
+    if (cityFlightApiRef.current?.active) return;
     if (chapter10Sequence || inventoryOpen || studioAnalyzerOpen || lostShipPanel || parthenonPanel || combatHearts === 0 || studioAnomalyPhase === "active" || frequencyPhaseRef.current !== "idle") return;
     if (gameOpen) setArcadeGameId(null);
     if (concertPhase !== "idle") stopConcert();
@@ -1682,6 +2390,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   }
 
   function openInventory() {
+    if (cityFlightApiRef.current?.active) return;
     if (gameOpen || paused || mapOpen || parthenonPanel || combatHearts === 0 || conversation || jukeboxOpen || archiveOpen || sessionsOpen || studioWorkbench || lostShipPanel || studioMessage || clubMessage || arcadeMessage) return;
     inventoryReturnFocusRef.current = document.activeElement;
     if (document.pointerLockElement) document.exitPointerLock();
@@ -1694,9 +2403,10 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   }
 
   function useInventoryAction(actionId) {
-    const context = { scene: activeScene, nearby, masterTape, clubQuest, lostShipProgress };
+    const context = { scene: activeScene, nearby, masterTape, clubQuest, lostShipProgress, cityProgress };
     if (!inventoryItems.some((item) => getUniverseInventoryAction(item, context)?.id === actionId)) return;
     closeInventory(false);
+    if (actionId.startsWith("fuego-install:")) { setCityFuegoPanel("vehicle"); performCityFuegoAction(actionId); return; }
     if (actionId === "give-tape") setConversation({ npc: "hugo", nodeId: "master:hugo-tape", lastChoice: "" });
     if (actionId === "give-master") setConversation({ npc: "tito", nodeId: "master:tito-return", lastChoice: "" });
     if (actionId === "present-credential") {
@@ -1747,8 +2457,16 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     setParthenonPanel(null); setParthenonMessage(null);setMatrixPanel(null);setMatrixMessage(null);setMatrixCinematic(null); setParthenonBossStatus({ phase: "idle", health: 6, maxHealth: 6, petrification: 0, phaseNumber: 1 });
     combatHeartsRef.current = 3; setCombatHearts(3);
     if (activeScene === "rooftop") setRooftopPhase("idle");
+    setThroneMessage(null);setThroneDialogue(null);setThroneFinalOpen(false);setCityNotice(null);setCityDialogue(null);
     setConversation(null);
-    if (destination === "recording-studio") {
+    if (destination === "chapter15-studio" || destination === "chapter15-store") {
+      if (!cityProgressRef.current.completed || (destination === "chapter15-store" && !chapter15ProgressRef.current.tapeTaken)) { closeMap(); return; }
+      const first = destination === "chapter15-studio" && !chapter15ProgressRef.current.arrived;
+      commitChapter15(destination === "chapter15-studio" ? "arrive" : "store-enter", destination);
+      setNearby(null); setFirstPerson(false); setJumping(false); setChapter15Notice(null);
+      setChapter15Panel(first ? { kind: "arrival", index: 0 } : null);
+      setActiveScene(destination);
+    } else if (destination === "recording-studio") {
       const snapshot = scenePlayerRef.current?.getSnapshot?.();
       if (snapshot) {
         playbackRef.current = snapshot;
@@ -1795,6 +2513,20 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     } else if(destination==="matrix"){
       if(!parthenonProgressRef.current.frequencyFragment02Analyzed){closeMap();return;}
       commitMatrix("enter");setNearby(null);setFirstPerson(false);setJumping(false);setActiveScene("matrix");
+    } else if (destination === "buenos-aires-2049") {
+      if (!throneProgressRef.current.completed) { closeMap(); return; }
+      const firstEntry = !cityProgressRef.current.introSeen;
+      commitCity("enter");
+      setNearby(null); setFirstPerson(false); setJumping(false);
+      setCityIntro(firstEntry ? -1 : null); setCityNotice(null); setCityDialogue(null); setCityVehicleLine(null);
+      setActiveScene("buenos-aires-2049");
+    } else if (destination === "abyss-throne") {
+      if (!cathedralProgressRef.current.completed) { closeMap(); return; }
+      const firstEntry=!throneProgressRef.current.entered;
+      commitThrone("enter");
+      setNearby(null);setFirstPerson(false);setJumping(false);setThroneReady(false);
+      setThroneDialogue(firstEntry?{type:"arrival",index:0}:null);
+      setActiveScene("abyss-throne");
     } else if (destination === "cathedral") {
       if (!underworldProgressRef.current.completed) { closeMap(); return; }
       const firstEntry=!cathedralProgressRef.current.entered;
@@ -2281,7 +3013,7 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
 
   const inventoryButton = <button type="button" onClick={openInventory} aria-keyshortcuts="I"><Backpack size={17} /> INVENTARIO</button>;
   const inventoryPanel = inventoryOpen && <UniverseInventory items={inventoryItems} onClose={closeInventory}
-    resolveAction={(item) => getUniverseInventoryAction(item, { scene: activeScene, nearby, masterTape, clubQuest, lostShipProgress })}
+    resolveAction={(item) => getUniverseInventoryAction(item, { scene: activeScene, nearby, masterTape, clubQuest, lostShipProgress, cityProgress })}
     onAction={useInventoryAction} />;
   const inventoryToast = inventoryNotice && <div className="universe-inventory-notice" role="status" aria-live="polite">
     <small>OBJETO OBTENIDO</small><strong>{inventoryNotice}</strong>
@@ -2317,26 +3049,223 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     <footer className="studio-footer"><span>FREQUENCY 09</span><span>DIMENSIÓN INTERIOR</span><span>1999 / ?</span></footer>
   </div>;
 
+  const underworldResetDialog = underworldResetOpen && <div className="underworld-reset-backdrop"><section className="underworld-reset-card" role="dialog" aria-modal="true" aria-labelledby="underworld-reset-title"><small>CAPÍTULO 11 · PUENTE DE LAS ALMAS</small><h2 id="underworld-reset-title">¿Reiniciar el nivel?</h2><p>Volverás al inicio del puente. Se borrarán las pistas, pruebas y combates del capítulo 11. Los capítulos 12 y 13 también se reiniciarán porque dependen del puente; los capítulos anteriores conservarán su progreso.</p><div className="underworld-reset-actions"><button type="button" onClick={() => setUnderworldResetOpen(false)}>Cancelar</button><button type="button" onClick={restartUnderworldLevel}>Sí, reiniciar</button></div></section></div>;
+  const cathedralResetDialog = cathedralResetOpen && <div className="underworld-reset-backdrop"><section className="underworld-reset-card" role="dialog" aria-modal="true" aria-labelledby="cathedral-reset-title"><small>CAPÍTULO 12 · CATEDRAL DE LOS CONDENADOS</small><h2 id="cathedral-reset-title">¿Reiniciar el capítulo 12?</h2><p>Volverás a la entrada de la Catedral. Se borrarán los sellos, recuerdos y la sintonización del altar de este capítulo. El capítulo 13 también se reiniciará porque depende de la Catedral. El capítulo 11 y los anteriores conservarán su progreso.</p><div className="underworld-reset-actions"><button type="button" autoFocus onClick={() => setCathedralResetOpen(false)}>Cancelar</button><button type="button" onClick={restartCathedralLevel}>Sí, reiniciar cap. 12</button></div></section></div>;
+  if (activeScene === "chapter15-studio" || activeScene === "chapter15-store") {
+    const inStudio = activeScene === "chapter15-studio";
+    const chapter15Locked = paused || mapOpen || inventoryOpen || Boolean(chapter15Panel);
+    return <div ref={storeRef} className="neon-record-store neon-recording-studio neon-chapter15"
+      data-frequency-vision={chapter15Progress.visionActive ? "active" : "inactive"}
+      role={standalone ? "region" : "dialog"} aria-modal={standalone ? undefined : "true"} aria-label="Capítulo 15, El origen de la señal">
+      <RecordStoreScene scenario={activeScene} chapter15 chapter15Progress={chapter15Progress}
+        onSceneReady={() => chapter15SceneReady(inStudio)}
+        albums={DISCOGRAPHY_ALBUMS} onNearby={setNearby} onExamine={examineChapter15}
+        onHugoInteract={() => { setChapter15Notice(null); setChapter15Panel({ kind: "hugo", index: 0 }); }}
+        onNpcInteract={talkChapter15Npc} onSelect={() => setChapter15Notice("Algunas portadas tienen fechas que todavía no existen. Buscá las pistas marcadas por la señal.")}
+        onOpenJukebox={() => { playChapter15Resonance(); setChapter15Notice("La rockola emite una resonancia que la cinta alterada parece reconocer."); }}
+        onTakeCoins={() => 0} onChapter15Vision={() => commitChapter15("vision-toggle")}
+        onViewChange={setFirstPerson} onJumpChange={setJumping} interactionLocked={chapter15Locked}
+        paused={chapter15Locked} firstPerson={firstPerson} activeNpc={chapter15Panel?.kind || null}
+        playerSnapshotRef={inStudio ? chapter15StudioPlayerRef : chapter15StorePlayerRef}
+        studioTransformsRef={studioTransformsRef} studioAssetApiRef={inStudio ? studioAssetApiRef : undefined} />
+      <header className="studio-header"><div><span>NEONBOY UNIVERSE / CAPÍTULO 15</span><h2>EL ORIGEN DE LA SEÑAL</h2><p>{inStudio ? "NEON RECORDING STUDIO · BUENOS AIRES — 1999" : "DISQUERÍA DE TITO · BUENOS AIRES — 1999"}</p></div>
+        <div className="studio-header-actions">{inventoryButton}<button type="button" onClick={() => setChapter15Panel({ kind: "diary" })}>DIARIO</button><button type="button" onClick={openMap}><MapPinned size={17} /> MAPA</button></div></header>
+      <div className="studio-control-hint">WASD: caminar | Arrastrar: mirar | E: hablar / examinar | C: visión | I: inventario | M: mapa</div>
+      <Chapter15Mission progress={chapter15Progress} />
+      <div className="chapter15-senses">
+      <button type="button" className={"chapter15-vision" + (chapter15Progress.visionActive ? " is-active" : "")}
+        aria-pressed={chapter15Progress.visionActive} disabled={chapter15Locked} onClick={() => commitChapter15("vision-toggle")}>◈ VISIÓN DE FRECUENCIA · {chapter15Progress.visionActive ? "ACTIVA" : "INACTIVA"}</button>
+      {inStudio && <button type="button" className="chapter15-audio" aria-label="Sonido ambiente" aria-pressed={!chapter15AudioMuted}
+        title={chapter15AudioMuted ? "Activar sonido ambiente" : "Silenciar sonido ambiente"} onClick={toggleChapter15Audio}>
+        {chapter15AudioMuted ? <VolumeX size={15} /> : <Volume2 size={15} />} Ambiente {chapter15AudioMuted ? "apagado" : "activado"}
+      </button>}
+      </div>
+      {nearby && !chapter15Locked && <button type="button" className="chapter15-cue" onClick={() => nearby.kind === "hugo" ? setChapter15Panel({ kind: "hugo", index: 0 }) : nearby.kind === "npc" ? talkChapter15Npc(nearby.id) : nearby.kind === "examine" ? examineChapter15(nearby.id) : setChapter15Notice("El disco parece normal hasta que la frecuencia cambia.")}>E · {nearby.kind === "hugo" ? "Hablar con Hugo" : nearby.kind === "npc" ? "Hablar con " + nearby.id.toUpperCase() : nearby.label || "Examinar"}</button>}
+      {chapter15Notice && !chapter15Panel && <div className="studio-examine-message" role="status"><small>REGISTRO / 1999</small><p>{chapter15Notice}</p><button type="button" onClick={() => setChapter15Notice(null)} aria-label="Cerrar aviso">×</button></div>}
+      {CHAPTER15_DIALOGUES[chapter15Panel?.kind] && <Chapter15Dialogue panel={chapter15Panel} onNext={advanceChapter15Dialogue} onClose={() => setChapter15Panel(null)} />}
+      {chapter15Panel?.kind === "console" && <Chapter15Console progress={chapter15Progress} onAction={handleChapter15Mix} onClose={() => setChapter15Panel(null)} />}
+      {chapter15Panel?.kind === "diary" && <Chapter15Diary progress={chapter15Progress} onCompare={compareChapter15Evidence} onClose={() => setChapter15Panel(null)} />}
+      {inStudio && chapter15Progress.tapeTaken && <button className="chapter15-next" type="button" onClick={() => enterScenario("chapter15-store")}>Ir a la disquería de Tito →</button>}
+      {mapOpen && <NeonUniverseMap onClose={closeMap} onEnter={enterScenario} unlockedScenarios={unlockedScenarios} />}
+      {inventoryPanel}{inventoryToast}
+      <footer className="studio-footer"><span>BUENOS AIRES · 1999</span><span>{firstPerson ? "PRIMERA PERSONA" : "TERCERA PERSONA"}</span><span>SEÑAL ALTERADA</span></footer>
+    </div>;
+  }
+
+  if (activeScene === "buenos-aires-2049") return <div ref={storeRef} className="neon-record-store neon-recording-studio neon-underworld neon-buenos-aires"
+    data-frequency-vision={cityProgress.visionActive ? "active" : "inactive"}
+    data-interference={cityInterference ? "active" : "inactive"} data-flight={cityFlight ? "active" : "inactive"}
+    role={standalone ? "region" : "dialog"} aria-modal={standalone ? undefined : "true"} aria-label="Capitulo 14, Buenos Aires 2049">
+    <RecordStoreScene key={"city-"+combatRetryKey} scenario="buenos-aires-2049" albums={DISCOGRAPHY_ALBUMS}
+      onNearby={setNearby} onExamine={examineCity} onViewChange={setFirstPerson} onJumpChange={setJumping}
+      interactionLocked={paused || mapOpen || inventoryOpen || cityIntro === -1 || Boolean(cityFuegoPanel) || Boolean(cityNotice) || Boolean(cityDialogue) || combatHearts === 0}
+      paused={paused || mapOpen || inventoryOpen || cityIntro === -1 || Boolean(cityFuegoPanel) || Boolean(cityNotice) || Boolean(cityDialogue) || combatHearts === 0}
+      firstPerson={firstPerson} playerSnapshotRef={cityPlayerRef} lostShipProgress={lostShipProgress}
+      onCombatDamage={onCombatDamage} playerFallen={combatHearts === 0} cityProgress={cityProgress} onCityEvent={handleCityEvent} cityFeedback={cityFeedback}
+      cityFlightApiRef={cityFlightApiRef} onCityFlightState={setCityFlight}
+      cityDialogueSpeaker={cityDialogue ? cityDialogueLines(cityDialogue)[cityDialogue.index]?.speaker : citySequenceLine !== null ? BUENOS_AIRES_SYNCHRONIZATION_DIALOGUE[citySequenceLine].speaker : null}
+      orbApiRef={orbApiRef} onOrbStatus={setOrbStatus} orbStatus={orbStatus} />
+    <header className="studio-header"><div><span>NEONBOY UNIVERSE / CAP&Iacute;TULO 14</span><h2>BUENOS AIRES 2049</h2><p>LA CIUDAD DE LOS AUSENTES</p></div>
+      <div className="studio-header-actions">{inventoryButton}<button type="button" onClick={() => setCityDiaryOpen(open => !open)}>DIARIO</button><button type="button" onClick={openMap}><MapPinned size={17} /> MAPA</button></div></header>
+    <div className="studio-control-hint">WASD: caminar | Arrastrar: mirar | V: vista | C: visi&oacute;n | E: examinar | F/Click: Orbe Ne&oacute;n | R: recuperar | M: mapa</div>
+    <UniverseMissionCard className="underworld-mission city-mission" title={cityProgress.completed ? "FUGA DE LA RED" : cityProgress.fuegoStarted && !cityProgress.fuegoPowered ? "EL ÚLTIMO FUEGO" : cityProgress.escapeUnlocked ? "ESCAPÁ DE BUENOS AIRES 2049" : cityProgress.vigilanteDefeated ? "EL ÚLTIMO FUEGO" : cityProgress.vigilanteStarted ? "VIGILANTE DE LA RED" : cityProgress.synchronizationSeen ? "LA RED TE ENCONTR\u00d3" : cityProgress.disconnectedMet ? "INVESTIG\u00c1 LOS TRES TRANSMISORES DE LA RED" : "NADIE ESCUCHA"} kind="signal"
+      objective={buenosAiresObjective(cityProgress)} complete={cityProgress.completed}
+      details={[cityProgress.fuegoStarted && "COMPONENTES " + countFuegoComponents(cityProgress) + "/3",
+        cityProgress.fuegoStarted && "INSTALADOS " + countFuegoInstalled(cityProgress) + "/3",
+        "CIUDADANOS / " + cityProgress.citizens.length + " DE 3",
+        cityProgress.signalFound ? "SE\u00d1AL / DETECTADA" : "SE\u00d1AL / OCULTA",
+        cityProgress.obeliskExplored ? "OBELISCO / RECONOCIDO" : "OBELISCO / SIN EXPLORAR",
+        "TRANSMISORES / " + [cityProgress.advertisingComplete, cityProgress.trafficComplete, cityProgress.coreComplete].filter(Boolean).length + " DE 3",
+        cityProgress.synchronizationSeen ? "RED / TE DETECT\u00d3" : "RED / SIN ALERTA"]}
+      footer={cityDiaryOpen && <div className="cathedral-diary-notes"><strong>DIARIO DE NEONBOY</strong>
+        <p>Volv&iacute; a Buenos Aires, pero llegu&eacute; cincuenta a&ntilde;os despu&eacute;s de 1999.</p>
+        {cityProgress.obeliskExplored && <p>Reconozco el Obelisco. Lo que lo rodea pertenece a otra &eacute;poca.</p>}
+        {cityProgress.citizens.length >= 3 && <p>Nadie escucha: todos responden como si leyeran una pantalla.</p>}
+        {cityProgress.signalFound && <p>Los teléfonos y carteles comparten una señal que converge en el Obelisco.</p>}
+        {cityProgress.disconnectedMet && <p>{"La Desconectada afirma que una red utiliza las pantallas y los dispositivos de Buenos Aires 2049 para alterar la atenci\u00f3n y los recuerdos de sus habitantes."}</p>}
+        {cityProgress.advertisingComplete && <p>{"Desconect\u00e9 la publicidad de Corrientes: MIRAR, DESEAR, CONSUMIR."}</p>}
+        {cityProgress.trafficComplete && <p>{"Liber\u00e9 el control de tr\u00e1nsito: SE\u00d1AL, RUTA, CONTROL."}</p>}
+        {cityProgress.coreComplete && <p>{"El n\u00facleo del Obelisco qued\u00f3 expuesto; la barrera se desvaneci\u00f3."}</p>}
+        {cityProgress.synchronizationSeen && <p>{"La Red identific\u00f3 a NeonBoy como un usuario no registrado. La Desconectada advierte que los Vigilantes podr\u00edan estar acerc\u00e1ndose."}</p>}
+        {cityProgress.record1999Found && <p>{"El Vigilante reconoció a NeonBoy y mencionó un registro del Neon Recording Studio de 1999. La relación entre ese estudio y la Red sigue siendo desconocida."}</p>}
+        {cityProgress.fuegoStarted && <p>{"El Fuego necesita tres piezas. La llave se perdi\u00f3 cerca de la confiter\u00eda de Corrientes. Hay una celda en su estaci\u00f3n de carga y un m\u00f3dulo en la terminal al este del Obelisco."}</p>}
+        {FUEGO_CLUES.filter(clue => cityProgress.fuegoNavigationClues.includes(clue.id)).map(clue => <p key={clue.id}><strong>{clue.symbol}</strong> / {clue.text}</p>)}
+        {cityProgress.fuegoRecordShown && <p>ARCHIVO DE ORIGEN / Neon Recording Studio, 1999. Transmisi&oacute;n inicial: registro incompleto.</p>}
+      </div>} />
+    <div className="underworld-vision-control"><button type="button" className={cityProgress.visionActive ? "is-active" : ""} aria-pressed={cityProgress.visionActive}
+      onClick={() => handleCityEvent("vision-toggle")} disabled={paused || mapOpen || inventoryOpen || cityIntro === -1 || Boolean(cityDialogue) || Boolean(cityFuegoPanel) || combatHearts === 0}>VISI&Oacute;N DE FRECUENCIA <kbd>C</kbd> &middot; {cityProgress.visionActive ? "ACTIVA" : "INACTIVA"}</button></div>
+    <div className="parthenon-hearts" role="status" aria-label={"Salud " + combatHearts + " de 3"}>{Array.from({length:3},(_,i)=><span key={i}>{i<combatHearts?"\u2665":"\u2661"}</span>)}</div>
+    {cityProgress.vigilanteEncountered && !cityProgress.vigilanteDefeated && <div className="city-vigilante-health" role="progressbar" aria-label="Vigilante de la Red" aria-valuemin={0} aria-valuemax={VIGILANTE_MAX_HEALTH} aria-valuenow={cityProgress.vigilanteHealth}>
+      <strong>VIGILANTE DE LA RED</strong><div><span style={{width:(cityProgress.vigilanteHealth/VIGILANTE_MAX_HEALTH*100)+"%"}} /></div>
+      <small>{vigilanteShielded(cityProgress) ? "ESCUDO / NODOS " + cityProgress.vigilanteNodes.length + "/3" : cityProgress.vigilanteHealth === 0 ? "FALLO CRÍTICO" : "PROTOCOLO DE CONTENCIÓN"}</small>
+    </div>}
+    {cityInterference && <div className="city-interference" aria-hidden="true" />}
+    {cityCombatHint && <div className="city-combat-hint" role="status">{cityCombatHint}</div>}
+    {damageTick > 0 && <div key={damageTick} className="parthenon-damage" aria-hidden="true" />}
+    {combatHearts === 0 && <div className="parthenon-fallen"><section className="parthenon-fallen-card" role="dialog" aria-modal="true" aria-label="Has caído ante el Vigilante"><h2>LA RED TE ALCANZÓ</h2><p>Los tres transmisores se conservan. Volvé a intentar el encuentro con el Vigilante.</p><button type="button" onClick={retryCombat}>Reintentar combate</button></section></div>}
+    {!cityFlight && <NeonOrbHud progress={lostShipProgress} status={orbStatus} label="BUENOS AIRES"
+      locked={paused || mapOpen || inventoryOpen || cityIntro === -1 || Boolean(cityFuegoPanel) || Boolean(cityNotice) || Boolean(cityDialogue) || combatHearts === 0}
+      onFire={() => orbApiRef.current?.fire()} onRecall={() => orbApiRef.current?.recall()} />}
+    {nearby?.kind === "examine" && !cityFlight && !cityFuegoPanel && !cityNotice && !cityDialogue && cityIntro === null && !paused && combatHearts > 0 && (!cityProgress.vigilanteStarted || cityProgress.vigilanteDefeated) &&
+      <InteractionPrompt className="studio-examine-cue" onClick={() => examineCity(nearby.id)}>[E] {nearby.label}</InteractionPrompt>}
+    {cityIntro === -1 && <div className="city-arrival" role="status" aria-live="polite"><small>CAP&Iacute;TULO 14</small><h3>BUENOS AIRES 2049</h3><p>LA CIUDAD DE LOS AUSENTES</p><button type="button" onClick={finishCityIntro}>Omitir introducci&oacute;n</button></div>}
+    {cityIntro !== null && cityIntro >= 0 && <div className="underworld-message underworld-subtitle city-subtitle" role="status" aria-live="polite" data-line-id={"city-intro-" + cityIntro}>
+      <small>NEONBOY</small><p>{["\u00bfBuenos Aires? \u00a1Por fin volv\u00ed a casa!", "Par\u00e1... \u00bfQu\u00e9 pas\u00f3 con todos estos edificios?", "Esto no se parece mucho al 99..."][cityIntro]}</p>
+      <button type="button" className="underworld-subtitle-close" onClick={finishCityIntro} aria-label="Omitir subtitulos">&times;</button>
+    </div>}
+    {cityVehicleLine && cityIntro === null && !cityFuegoPanel && !cityNotice && !cityDialogue &&
+      <div className="underworld-message underworld-subtitle city-subtitle" role="status" aria-live="polite" data-line-id="yellow-car-first-sight">
+        <small>NEONBOY</small><p>{cityVehicleLine}</p>
+      </div>}
+    {cityDialogue && <div className="underworld-message city-notice city-dialogue" role="dialog" aria-modal="true" aria-label="Conversación en Buenos Aires" data-line-id={cityDialogueLines(cityDialogue)[cityDialogue.index].id || "city-" + cityDialogue.kind + "-" + cityDialogue.index}>
+      {cityDialogue.kind === "fuego-record" && <div className="city-fuego-record"><strong>ARCHIVO DE ORIGEN DETECTADO</strong><p>NEON RECORDING STUDIO / A&Ntilde;O 1999<br />TRANSMISI&Oacute;N INICIAL &mdash; REGISTRO INCOMPLETO</p></div>}
+      <small>{cityDialogueLines(cityDialogue)[cityDialogue.index].speaker}</small>
+      <p>{cityDialogueLines(cityDialogue)[cityDialogue.index].text}</p>
+      <button type="button" disabled={paused || mapOpen || inventoryOpen || combatHearts === 0} onClick={advanceCityDialogue}>{cityDialogue.index === cityDialogueLines(cityDialogue).length - 1 ? "Terminar" : "Continuar"} <kbd>E</kbd></button>
+    </div>}
+    {citySequenceLine !== null && !cityFuegoPanel && !cityNotice && !cityDialogue && <div className="underworld-message underworld-subtitle city-subtitle city-sync-subtitle" role="status" aria-live="polite" data-line-id={BUENOS_AIRES_SYNCHRONIZATION_DIALOGUE[citySequenceLine].id}>
+      <strong>USUARIO NO REGISTRADO ? IDENTIDAD: NEONBOY ? PROTOCOLO DE CONTENCIÓN INICIADO</strong>
+      <small>{BUENOS_AIRES_SYNCHRONIZATION_DIALOGUE[citySequenceLine].speaker}</small>
+      <p>{BUENOS_AIRES_SYNCHRONIZATION_DIALOGUE[citySequenceLine].text}</p>
+    </div>}
+    {cityNotice && <div className={"underworld-message city-notice" + (cityNotice.startsWith("SECUENCIA RECHAZADA") ? " city-rejected" : "")} role="status"><small>BUENOS AIRES / 2049</small><p>{cityNotice}</p><button type="button" onClick={() => setCityNotice(null)}>Continuar</button></div>}
+    {cityFlight && <BuenosAiresEscapeHud state={cityFlight} apiRef={cityFlightApiRef} paused={paused} onPause={onPause} onExit={exitCityFlight} />}
+    {mapOpen && <NeonUniverseMap onClose={closeMap} onEnter={enterScenario} unlockedScenarios={unlockedScenarios} />}
+    {cityFuegoPanel && !paused && !mapOpen && !inventoryOpen && <BuenosAiresFuegoPanel key={cityFuegoPanel} kind={cityFuegoPanel} progress={cityProgress}
+      onAction={performCityFuegoAction} onClose={() => setCityFuegoPanel(null)}
+      onInventory={() => { setCityFuegoPanel(null); openInventory(); }} />}
+    {inventoryPanel}{inventoryToast}
+    <footer className="studio-footer"><span>CAP&Iacute;TULO 14 / BUENOS AIRES</span><span>{firstPerson ? "PRIMERA PERSONA" : "TERCERA PERSONA"}</span><span>2049 / LA CIUDAD DE LOS AUSENTES</span></footer>
+  </div>;
+
+  if (activeScene === "abyss-throne") return <div ref={storeRef} className="neon-record-store neon-recording-studio neon-underworld neon-throne"
+    data-frequency-vision={throneProgress.visionActive ? "active" : "inactive"} data-chapter-ready={throneReady}
+    role={standalone ? "region" : "dialog"} aria-modal={standalone ? undefined : "true"} aria-label="Capítulo 13, El Trono del Abismo">
+    <RecordStoreScene key={"throne-"+throneResetKey} scenario="abyss-throne" albums={DISCOGRAPHY_ALBUMS}
+      onNearby={setNearby} onExamine={examineThrone} onViewChange={setFirstPerson} onJumpChange={setJumping}
+      onSceneReady={() => setThroneReady(true)}
+      interactionLocked={paused || mapOpen || inventoryOpen || Boolean(throneMessage) || Boolean(throneDialogue) || throneFinalOpen || combatHearts === 0}
+      paused={paused || mapOpen || inventoryOpen || Boolean(throneMessage) || Boolean(throneDialogue) || throneFinalOpen || combatHearts === 0}
+      firstPerson={firstPerson} playerSnapshotRef={thronePlayerRef} lostShipProgress={lostShipProgress}
+      throneProgress={throneProgress} onThroneEvent={handleThroneEvent} onCombatDamage={onCombatDamage} playerFallen={combatHearts === 0}
+      orbApiRef={orbApiRef} onOrbStatus={setOrbStatus} orbStatus={orbStatus} />
+    <header className="studio-header"><div><span>NEONBOY UNIVERSE / CAPÍTULO 13</span><h2>EL TRONO DEL ABISMO</h2><p>La señal original aguarda entre memoria, voluntad y libertad</p></div>
+      <div className="studio-header-actions">{inventoryButton}<button type="button" onClick={() => setThroneDiaryOpen(open => !open)}>DIARIO</button><button type="button" onClick={openMap}><MapPinned size={17} /> MAPA</button>
+        {import.meta.env.DEV && <button type="button" onClick={restartThroneForTesting}>↻ Reiniciar cap. 13</button>}</div></header>
+    <div className="studio-control-hint">WASD: caminar | Arrastrar: mirar | C: visión | E: examinar | F/Click: Orbe Neón | R: recuperar | M: mapa</div>
+    <UniverseMissionCard className="underworld-mission throne-mission" title="CAPÍTULO 13 / EL TRONO DEL ABISMO" kind="signal"
+      objective={throneObjective(throneProgress)} complete={throneProgress.completed}
+      details={[
+        "JURAMENTOS · "+throneProgress.vows.length+"/3",
+        throneProgress.hallOpen && "NÚCLEO · "+throneProgress.conductors.length+"/3",
+        throneProgress.bossIntro && !throneProgress.bossDefeated && "SOBERANO · "+throneProgress.bossHealth+"/"+THRONE_MAX_HEALTH,
+        throneProgress.shieldActive && "ESCUDO · "+throneProgress.shieldNodes.length+"/3",
+        throneProgress.completed && "BUENOS AIRES — 2049"
+      ]}
+      footer={throneDiaryOpen && <div className="cathedral-diary-notes"><strong>DIARIO DE NEONBOY</strong>
+        <p>La Primera Voz me condujo a un salón suspendido sobre lava. La inscripción habla de tres juramentos.</p>
+        {throneProgress.hallOpen && <p>El orden de los juramentos abrió la Cámara del Núcleo.</p>}
+        {throneProgress.coreInspected.length === 3 && <p>La frecuencia nace, deja un eco y establece un enlace. El reflector responde al Orbe y a la Visión.</p>}
+        {throneProgress.bossIntro && <p>El Soberano protege una parte de la transmisión original. Dice que no conoce a quien me envió.</p>}
+        {throneProgress.completed && <p>El Abismo no es el origen. La transmisión apunta a Buenos Aires en 2049.</p>}
+      </div>} />
+    {throneProgress.bossIntro && !throneProgress.bossDefeated && <div className="throne-boss-health" role="status" aria-label={"Vida del Soberano "+throneProgress.bossHealth+" de "+THRONE_MAX_HEALTH}>
+      <small>EL SOBERANO DEL ABISMO</small><div className="throne-boss-health-track"><span style={{width:(throneProgress.bossHealth/THRONE_MAX_HEALTH*100)+"%"}} /></div>
+      <em>{throneProgress.shieldActive ? "ESCUDO DE TRES FRECUENCIAS" : throneProgress.bossHealth <= 4 ? "EL TRONO SE FRACTURA" : "EL GUARDIÁN"}</em>
+    </div>}
+    <div className="underworld-vision-control"><button type="button" className={throneProgress.visionActive ? "is-active" : ""} aria-pressed={throneProgress.visionActive}
+      onClick={() => commitThrone("vision-toggle")} disabled={paused || mapOpen || inventoryOpen || Boolean(throneDialogue) || combatHearts === 0}>◈ VISIÓN DE FRECUENCIA <kbd>C</kbd> · {throneProgress.visionActive ? "ACTIVA" : "INACTIVA"}</button></div>
+    <div className="parthenon-hearts" role="status" aria-label={"Salud "+combatHearts+" de 3"}>{Array.from({length:3},(_,i)=><span key={i}>{i<combatHearts?"♥":"♡"}</span>)}</div>
+    <NeonOrbHud progress={lostShipProgress} status={orbStatus} label="TRONO"
+      locked={paused || mapOpen || inventoryOpen || Boolean(throneMessage) || Boolean(throneDialogue) || throneFinalOpen || combatHearts === 0}
+      onFire={() => orbApiRef.current?.fire()} onRecall={() => orbApiRef.current?.recall()} />
+    {nearby?.kind === "examine" && !throneMessage && !throneDialogue && !paused && combatHearts > 0 &&
+      <InteractionPrompt className="studio-examine-cue">[E] {nearby.id === "throne-transmission" ? "Proyección temporal" : nearby.label}</InteractionPrompt>}
+    {throneLine && <RecordStoreConversation key={throneLine.id} npc={THRONE_CONVERSATION_NPC}
+      node={{id:throneLine.id,kicker:"CAPÍTULO 13 · EL TRONO DEL ABISMO",
+        lines:[{speaker:throneLine.speaker,text:throneLine.text}],
+        options:[{id:"continue",label:throneDialogue.index===THRONE_DIALOGUES[throneDialogue.type].length-1?"Terminar":"Continuar"},{id:"skip",label:"Omitir"}]}}
+      lastChoice="" overlayClassName="underworld-conversation-overlay" lineId={throneLine.id}
+      sequenceId={throneDialogue.type} voiceUrlOverride={getThroneVoiceUrl(throneLine.id)}
+      onChoose={choiceId=>advanceThroneDialogue(choiceId==="skip")}
+      onClose={()=>advanceThroneDialogue(true)} onVoiceEnded={()=>advanceThroneDialogue()} />}
+    {throneMessage && !throneLine && <div className="underworld-message" role="status"><small>TRONO / FRECUENCIA</small><p>{throneMessage}</p><button type="button" onClick={()=>setThroneMessage(null)}>Continuar</button></div>}
+    {combatHearts === 0 && <div className="parthenon-fallen"><section className="parthenon-fallen-card" role="dialog" aria-modal="true" aria-label="Has caído ante el Soberano">
+      <h2>LA FRECUENCIA SE APAGÓ</h2><p>Los juramentos y conductores se conservan. El combate se reinicia desde la entrada de la arena.</p>
+      <div className="parthenon-fallen-actions"><button type="button" onClick={retryCombat}>Reintentar combate</button><button type="button" onClick={()=>enterScenario("cathedral")}>Volver a la Catedral</button></div>
+    </section></div>}
+    {throneFinalOpen && <div className="cathedral-final-backdrop"><section className="cathedral-final-panel" role="dialog" aria-modal="true" aria-label="Capítulo 13 completado">
+      <small>TRANSMISIÓN TEMPORAL / TIERRA</small><h3>CAPÍTULO 13 COMPLETADO</h3><p>EL TRONO DEL ABISMO · NUEVA COORDENADA TEMPORAL DETECTADA</p>
+      <strong>BUENOS AIRES — 2049</strong><span>ANOMALÍA: PROPAGACIÓN MASIVA · CONEXIONES HUMANAS: SINCRONIZADAS</span>
+      <p>Una silueta conocida emerge de la se&ntilde;al: el Obelisco. La transmisi&oacute;n abre el camino a Buenos Aires en 2049.</p>
+      <button type="button" onClick={()=>enterScenario("buenos-aires-2049")}>Viajar a Buenos Aires 2049</button><button type="button" onClick={()=>setThroneFinalOpen(false)}>Seguir explorando</button>
+    </section></div>}
+    {mapOpen && <NeonUniverseMap onClose={closeMap} onEnter={enterScenario} unlockedScenarios={unlockedScenarios} />}
+    {inventoryPanel}{inventoryToast}
+    <footer className="studio-footer"><span>CAPÍTULO 13 / INFRAMUNDO</span><span>{firstPerson?"PRIMERA PERSONA":"TERCERA PERSONA"}</span><span>{throneProgress.completed?"BUENOS AIRES — 2049":"FRECUENCIA DESCONOCIDA"}</span></footer>
+  </div>;
+
   if (activeScene === "cathedral") return <div ref={storeRef} className="neon-record-store neon-recording-studio neon-underworld neon-cathedral" data-frequency-vision={cathedralProgress.visionActive ? "active" : "inactive"} role={standalone ? "region" : "dialog"} aria-modal={standalone ? undefined : "true"} aria-label="Capítulo 12, La Catedral de los Condenados">
-    <RecordStoreScene scenario="cathedral" albums={DISCOGRAPHY_ALBUMS}
+    <RecordStoreScene key={"cathedral-" + cathedralResetKey} scenario="cathedral" albums={DISCOGRAPHY_ALBUMS}
       onNearby={setNearby} onExamine={examineCathedral} onViewChange={setFirstPerson} onJumpChange={setJumping}
-      interactionLocked={paused || mapOpen || inventoryOpen || Boolean(cathedralMessage) || Boolean(cathedralDialogue) || cathedralFinalOpen || cathedralTransition || cathedralReveal}
-      paused={paused || mapOpen || inventoryOpen || Boolean(cathedralMessage) || Boolean(cathedralDialogue) || cathedralFinalOpen || cathedralTransition || cathedralReveal}
+      interactionLocked={paused || mapOpen || inventoryOpen || underworldResetOpen || cathedralResetOpen || Boolean(cathedralMessage) || Boolean(cathedralDialogue) || cathedralFinalOpen || cathedralTransition || cathedralReveal}
+      paused={paused || mapOpen || inventoryOpen || underworldResetOpen || cathedralResetOpen || Boolean(cathedralMessage) || Boolean(cathedralDialogue) || cathedralFinalOpen || cathedralTransition || cathedralReveal}
       firstPerson={firstPerson} playerSnapshotRef={cathedralPlayerRef} lostShipProgress={lostShipProgress}
       cathedralProgress={cathedralProgress} cathedralCue={cathedralLine} onCathedralEvent={commitCathedral}
       onCathedralFeedback={handleCathedralFeedback} cathedralSequenceSkip={cathedralSequenceSkip}
-      cathedralPresentationPaused={paused || mapOpen || inventoryOpen}
+      cathedralPresentationPaused={paused || mapOpen || inventoryOpen || underworldResetOpen || cathedralResetOpen}
       orbApiRef={orbApiRef} onOrbStatus={setOrbStatus} orbStatus={orbStatus} />
     <header className="studio-header"><div><span>NEONBOY UNIVERSE / CAPÍTULO 12</span><h2>LA CATEDRAL DE LOS CONDENADOS</h2><p>Los ecos guardan una transmisión imposible</p>
         <div className="cathedral-controls" aria-label="Controles del teclado">
           <span><kbd>WASD</kbd> Caminar</span><span>Arrastrar · Mirar</span><span><kbd>E</kbd> Examinar</span>
           <span><kbd>V</kbd> Vista</span><span><kbd>F</kbd> Orbe</span><span><kbd>R</kbd> Recuperar</span>
         </div></div>
-      <div className="studio-header-actions">{inventoryButton}<button type="button" onClick={() => setCathedralDiaryOpen((open) => !open)}>DIARIO</button><button type="button" onClick={openMap}><MapPinned size={17} /> MAPA</button>{cathedralProgress.completed && <button type="button" onClick={() => setCathedralFinalOpen(true)}>REGISTRO FINAL</button>}</div></header>
+      <div className="studio-header-actions">{inventoryButton}<button type="button" onClick={() => setCathedralDiaryOpen((open) => !open)}>DIARIO</button><button type="button" onClick={openMap}><MapPinned size={17} /> MAPA</button><button type="button" className="cathedral-restart-current" aria-label="Reiniciar capitulo 12" onClick={() => setCathedralResetOpen(true)}><span className="cathedral-restart-full">REINICIAR CAP. 12</span><span className="cathedral-restart-compact" aria-hidden="true">↻ CAP. 12</span></button><button type="button" className="cathedral-restart-bridge" onClick={() => setUnderworldResetOpen(true)}>REINICIAR CAP. 11</button>{cathedralProgress.completed && <button type="button" onClick={() => setCathedralFinalOpen(true)}>REGISTRO FINAL</button>}</div></header>
     <UniverseMissionCard className={"underworld-mission cathedral-mission" + (cathedralDiaryOpen ? " is-diary-open" : "")} title="CAPÍTULO 12 / LA PRIMERA VOZ" kind="signal"
       objective={cathedralObjective(cathedralProgress)} complete={cathedralProgress.completed}
       details={[cathedralProgress.archiveOpen ? "ARCHIVO · ABIERTO" : "SELLOS · "+cathedralProgress.seals.length+"/3",
         "RECUERDOS · "+cathedralProgress.memories.length+"/3", cathedralProgress.altarOpen && "ALTAR · ABIERTO",
+        cathedralProgress.altarTuning && "SINTON\u00cdA \u00b7 "+cathedralProgress.altarSequence.length+"/3",
         cathedralProgress.custodianMet && "CUSTODIO · ENCONTRADO",
         cathedralProgress.anomalyHeard && "ANOMALÍA · SEÑAL DIVIDIDA",
         cathedralProgress.completed && "TRANSMISIÓN · LOCALIZADA"]}
@@ -2347,18 +3276,21 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
         {cathedralProgress.anomalyHeard && <p>Los fragmentos de frecuencia forman parte de una transmisión original dividida deliberadamente.</p>}
         {cathedralProgress.altarHintHeard && <p>El Custodio señaló el Altar de la Primera Voz: responderá a una frecuencia conocida.</p>}
         {cathedralProgress.altarOpen && <p>El Archivo reconstruyó tres recuerdos, pero aún no conozco su origen.</p>}
+        {cathedralProgress.altarTuning && !cathedralProgress.altarActivated && <p>La primera voz nace en un pulso, deja un eco y busca su origen. Las marcas de los resonadores aparecen con la Visión de Frecuencia.</p>}
         {cathedralProgress.completed && <p>El Altar contenía una grabación imposible: una melodía mía registrada hace más de mil años. Las respuestas aguardan en el Trono del Abismo.</p>}
       </div>} />
     <div className="underworld-vision-control"><button type="button" className={cathedralProgress.visionActive ? "is-active" : ""} aria-pressed={cathedralProgress.visionActive} onClick={() => commitCathedral("vision-toggle")} disabled={paused || mapOpen || inventoryOpen || Boolean(cathedralDialogue) || cathedralFinalOpen || cathedralReveal}>◈ VISIÓN DE FRECUENCIA <kbd>C</kbd> · {cathedralProgress.visionActive ? "ACTIVA" : "INACTIVA"}</button></div>
     <div className="parthenon-hearts" role="status" aria-label={"Salud " + combatHearts + " de 3"}>{Array.from({ length: 3 }, (_, i) => <span key={i}>{i < combatHearts ? "♥" : "♡"}</span>)}</div>
     <NeonOrbHud progress={lostShipProgress} status={orbStatus} label="CATEDRAL"
-      locked={paused || mapOpen || inventoryOpen || Boolean(cathedralMessage) || Boolean(cathedralDialogue) || cathedralFinalOpen || cathedralTransition || cathedralReveal}
+      locked={paused || mapOpen || inventoryOpen || underworldResetOpen || cathedralResetOpen || Boolean(cathedralMessage) || Boolean(cathedralDialogue) || cathedralFinalOpen || cathedralTransition || cathedralReveal}
       onFire={() => orbApiRef.current?.fire()} onRecall={() => orbApiRef.current?.recall()} />
     {nearby?.kind === "examine" && !cathedralMessage && !cathedralDialogue && !paused && !cathedralFinalOpen && !cathedralReveal && <InteractionPrompt className="studio-examine-cue">[E] {nearby.label}</InteractionPrompt>}
-    {cathedralFeedback && !cathedralDialogue && !cathedralFinalOpen && !paused && !mapOpen && !inventoryOpen && <aside className="cathedral-recall-toast" role="status" style={{"--recall-color":cathedralFeedback.color}}>
+    {cathedralFeedback?.kind==="error" && !paused && <div key={cathedralFeedback.stamp} className="cathedral-error-pulse" aria-hidden="true" />}
+    {cathedralFeedback && !cathedralDialogue && !cathedralFinalOpen && !paused && !mapOpen && !inventoryOpen && <aside className={"cathedral-recall-toast"+(cathedralFeedback.kind==="error"?" is-error":"")} role="status" style={{"--recall-color":cathedralFeedback.color}}>
       <small>{cathedralFeedback.heading}</small><strong>{cathedralFeedback.title}</strong>
       <p><span>NEONBOY</span> {cathedralFeedback.line}</p>
-      {cathedralProgress.altarOpen && <em>La transmisión vuelve a unirse. El Altar de la Primera Voz está abierto.</em>}
+      {cathedralFeedback.hint && <em>{cathedralFeedback.hint}</em>}
+      {cathedralFeedback.id==="fracturada" && cathedralProgress.altarOpen && <em>La transmisión vuelve a unirse. El Altar de la Primera Voz está abierto.</em>}
       <button type="button" aria-label="Cerrar recuerdo" onClick={()=>setCathedralFeedback(null)}>×</button>
     </aside>}
     {cathedralCinema && !cathedralDialogue && !paused && !mapOpen && !inventoryOpen && <button type="button" className="cathedral-skip-sequence" onClick={skipCathedralSequence}>Omitir secuencia</button>}
@@ -2380,12 +3312,15 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
       <h3>{cathedralProgress.completed?"CAPÍTULO 12 COMPLETADO":"TRANSMISIÓN ORIGINAL LOCALIZADA"}</h3>
       <p>{cathedralProgress.completed?"LA CATEDRAL DE LOS CONDENADOS · NUEVO DESTINO IDENTIFICADO: EL TRONO DEL ABISMO":
         "REGISTRO TEMPORAL: INCOMPATIBLE · ORIGEN: DESCONOCIDO. Una melodía de NeonBoy fue registrada hace más de mil años."}</p>
-      <strong>SIGUIENTE DESTINO: EL TRONO DEL ABISMO</strong><span>Próximamente</span>
+      <strong>SIGUIENTE DESTINO: EL TRONO DEL ABISMO</strong><span>FRECUENCIA: DESCONOCIDA</span>
       {!cathedralProgress.completed && <button type="button" onClick={()=>startCathedralDialogue("farewell")}>Escuchar al Custodio</button>}
+      {cathedralProgress.completed && <button type="button" onClick={() => { setCathedralFinalOpen(false); enterScenario("abyss-throne"); }}>Atravesar portal</button>}
       <button type="button" onClick={() => setCathedralFinalOpen(false)}>Seguir explorando</button>
     </section></div>}
     {(cathedralDialogue?.type==="altar" || cathedralReveal) && <div className="cathedral-ritual-fx" aria-hidden="true" />}
     {cathedralTransition && <div className="cathedral-entry-transition" aria-hidden="true"><span>CAPÍTULO 12 · LA CATEDRAL DE LOS CONDENADOS</span></div>}
+    {underworldResetDialog}
+    {cathedralResetDialog}
     {mapOpen && <NeonUniverseMap onClose={closeMap} onEnter={enterScenario} unlockedScenarios={unlockedScenarios} />}
     {inventoryPanel}{inventoryToast}
     <footer className="studio-footer"><span>CAPÍTULO 12 / INFRAMUNDO</span><span>{firstPerson ? "PRIMERA PERSONA" : "TERCERA PERSONA"}</span><span>{cathedralProgress.completed ? "TRANSMISIÓN ORIGINAL" : "LA PRIMERA VOZ"}</span></footer>
@@ -2394,17 +3329,25 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
   if (activeScene === "underworld") return <div ref={storeRef} className="neon-record-store neon-recording-studio neon-underworld" data-frequency-vision={underworldProgress.visionActive ? "active" : "inactive"} role={standalone ? "region" : "dialog"} aria-modal={standalone ? undefined : "true"} aria-label="Capítulo 11, Puente de las Almas">
     <RecordStoreScene key={"underworld-" + combatRetryKey} scenario="underworld" albums={DISCOGRAPHY_ALBUMS}
       onNearby={setNearby} onExamine={examineUnderworld} onViewChange={setFirstPerson} onJumpChange={setJumping} onSceneReady={() => setUnderworldSceneReady(true)}
-      interactionLocked={paused || mapOpen || inventoryOpen || Boolean(underworldMessage) || Boolean(underworldDialogue) || combatHearts === 0}
-      paused={paused || mapOpen || inventoryOpen || Boolean(underworldMessage) || Boolean(underworldDialogue) || combatHearts === 0}
+      interactionLocked={paused || mapOpen || inventoryOpen || underworldResetOpen || Boolean(underworldMessage) || Boolean(underworldDialogue) || combatHearts === 0}
+      paused={paused || mapOpen || inventoryOpen || underworldResetOpen || Boolean(underworldMessage) || Boolean(underworldDialogue && underworldDialogue.key !== "ferry-ride") || combatHearts === 0}
       firstPerson={firstPerson} playerSnapshotRef={underworldPlayerRef} lostShipProgress={lostShipProgress}
       underworldProgress={underworldProgress} onUnderworldEvent={handleUnderworldEvent} onCombatDamage={onCombatDamage}
       orbApiRef={orbApiRef} onOrbStatus={setOrbStatus} orbStatus={orbStatus} />
     <header className="studio-header"><div><span>NEONBOY UNIVERSE / CAPÍTULO 11</span><h2>PUENTE DE LAS ALMAS</h2><p>Primer ingreso al Inframundo</p></div>
-      <div className="studio-header-actions">{inventoryButton}<button type="button" onClick={openMap}><MapPinned size={17} /> MAPA</button>{import.meta.env.DEV && <button type="button" className="underworld-dev-reset" onClick={restartUnderworldForTesting}>↻ Reiniciar nivel · DEV</button>}</div></header>
+      <div className="studio-header-actions">{inventoryButton}<button type="button" onClick={openMap}><MapPinned size={17} /> MAPA</button><button type="button" className="underworld-reset-button" onClick={() => setUnderworldResetOpen(true)}>↻ Reiniciar nivel</button></div></header>
     <div className="studio-control-hint">WASD: caminar | Arrastrar: mirar | C: visión | E: examinar | F/Click: Orbe Neón | R: recuperar | M: mapa</div>
     <UniverseMissionCard className="underworld-mission" title="CAPÍTULO 11 / PUENTE DE LAS ALMAS" kind="signal"
       objective={underworldObjective(underworldProgress)} complete={underworldProgress.completed}
-      details={[underworldProgress.bridgeCrossed && "PUENTE · CRUZADO", `CENTINELAS · ${underworldProgress.enemies.filter((health) => health === 0).length}/2`, underworldProgress.enemies.some((health)=>health===0) && "GÁRGOLA · "+(UNDERWORLD_MAX_HEALTH.gargola-underworldProgress.gargolaHealth)+"/"+UNDERWORLD_MAX_HEALTH.gargola, underworldProgress.gargolaHealth===0 && "TESTIGO · "+(UNDERWORLD_MAX_HEALTH.testigo-underworldProgress.testigoHealth)+"/"+UNDERWORLD_MAX_HEALTH.testigo, underworldProgress.completed && "UMBRAL · ACTIVO"]} />
+      details={["LLAMAS \u00b7 "+underworldProgress.flames.length+"/6",
+        underworldProgress.bridgeTrialComplete && "PUENTE \u00b7 SUPERADO",
+        underworldProgress.ferrymanTrialStarted && "RECUERDOS \u00b7 "+underworldProgress.memorySymbols.length+"/3",
+        underworldProgress.ferryCompleted && "BARCA \u00b7 CRUZADA",
+        underworldProgress.mechanismSolved && "ANILLOS \u00b7 ALINEADOS",
+        underworldProgress.mechanismSolved && "EMBOSCADA \u00b7 "+underworldProgress.ambushHealth.filter((health)=>health===0).length+"/2",
+        underworldProgress.mechanismSolved && "CENTINELAS \u00b7 "+underworldProgress.enemies.filter((health)=>health===0).length+"/2",
+        underworldProgress.shieldActive && "RUNAS \u00b7 "+underworldProgress.witnessRunes.length+"/3",
+        underworldProgress.completed && "UMBRAL \u00b7 ACTIVO"]} />
     <div className="underworld-vision-control"><button type="button" className={underworldProgress.visionActive ? "is-active" : ""} aria-pressed={underworldProgress.visionActive} onClick={() => commitUnderworld("vision-toggle")} disabled={paused || mapOpen || inventoryOpen || Boolean(underworldDialogue) || combatHearts === 0}>◈ VISIÓN DE FRECUENCIA <kbd>C</kbd> · {underworldProgress.visionActive ? "ACTIVA" : "INACTIVA"}</button></div>
     <div className="parthenon-hearts" role="status" aria-label={"Salud " + combatHearts + " de 3"}>{Array.from({ length: 3 }, (_, i) => <span key={i}>{i < combatHearts ? "♥" : "♡"}</span>)}</div>
     <NeonOrbHud progress={lostShipProgress} status={orbStatus} label="INFRAMUNDO"
@@ -2425,7 +3368,8 @@ export default function DiscographyStore({ onClose, standalone = false, initialS
     </div>}
     {underworldMessage && !underworldLine && <div className="underworld-message" role="status"><small>{underworldMessage.speaker || "INFRAMUNDO / ECO"}</small><p>{underworldMessage.text || underworldMessage}</p><button type="button" onClick={() => setUnderworldMessage(null)}>Continuar</button></div>}
     {damageTick > 0 && <div key={damageTick} className="parthenon-damage" aria-hidden="true" />}
-    {combatHearts === 0 && <div className="parthenon-fallen"><section className="parthenon-fallen-card" role="dialog" aria-modal="true" aria-label="Has caído en el Inframundo"><h2>LA FRECUENCIA SE APAGÓ</h2><p>La inscripción y los enemigos derrotados se conservan.</p><div className="parthenon-fallen-actions"><button type="button" onClick={retryCombat}>Reintentar desde el puente</button>{import.meta.env.DEV && <button type="button" onClick={restartUnderworldForTesting}>Reiniciar nivel · DEV</button>}<button type="button" onClick={() => enterScenario("recording-studio")}>Volver al estudio</button></div></section></div>}
+    {combatHearts === 0 && !underworldResetOpen && <div className="parthenon-fallen"><section className="parthenon-fallen-card" role="dialog" aria-modal="true" aria-label="Has caído en el Inframundo"><h2>LA FRECUENCIA SE APAGÓ</h2><p>La inscripción y los enemigos derrotados se conservan.</p><div className="parthenon-fallen-actions"><button type="button" onClick={retryCombat}>{underworldProgress.ferryCompleted ? "Reintentar desde la plataforma" : "Reintentar desde el puente"}</button><button type="button" onClick={() => setUnderworldResetOpen(true)}>Reiniciar nivel</button><button type="button" onClick={() => enterScenario("recording-studio")}>Volver al estudio</button></div></section></div>}
+    {underworldResetDialog}
     {mapOpen && <NeonUniverseMap onClose={closeMap} onEnter={enterScenario} unlockedScenarios={unlockedScenarios} />}
     {inventoryPanel}{inventoryToast}
     <footer className="studio-footer"><span>CAPÍTULO 11 / INFRAMUNDO</span><span>{firstPerson ? "PRIMERA PERSONA" : "TERCERA PERSONA"}</span><span>{underworldProgress.completed ? "UMBRAL ACTIVADO" : "SEÑAL 666"}</span></footer>

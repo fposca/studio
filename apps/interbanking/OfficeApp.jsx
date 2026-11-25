@@ -1,15 +1,20 @@
 import React, { useEffect, useRef, useState } from "react";
 import { ArrowRight, Camera, Coffee, Eye, MessageCircle, Mouse, X } from "lucide-react";
 import OfficeScene from "./OfficeScene.jsx";
+import CustomAvatarPreview from "./CustomAvatarPreview.jsx";
+import AvatarCustomizer from "./AvatarCustomizer.jsx";
+import { CUSTOM_AVATAR_DEFAULTS, normalizeAvatarCustomization, readOfficeAvatarPreferences, saveOfficeAvatarPreferences } from "./avatarCustomization.js";
 import { OFFICE_ALFREDO, OFFICE_ALFREDO_DIALOGUE, OFFICE_DIALOGUE, OFFICE_LOGO_TEXT, OFFICE_ROXY, getOfficeDialogueNode } from "./officeDialogue.js";
 import { OFFICE_VOICES } from "./officeVoices.js";
 import { createOfficeVoicePlayer } from "./officeAudio.js";
+import { DEMO_COMPANY } from "./branding/brand.js";
 
-const logoUrl = new URL("../../src/assets/neonboy-animaciones/interbanking/interbanking-logo.png", import.meta.url).href;
+const logoUrl = DEMO_COMPANY.logo;
 const NEAR_LABEL = { roxy: "Hablar con Roxy", alfredo: "Hablar con Alfredo", logo: "Inspeccionar logo", coffee: "Ver cocina" };
 const AVATARS = Object.freeze({
   fernando: { name: "Fernando", description: "Avatar masculino", portrait: new URL("./avatars/fernando.png", import.meta.url).href },
   victoria: { name: "Victoria", description: "Avatar femenino", portrait: new URL("./avatars/victoria.png", import.meta.url).href },
+  custom: { name: "Alex", description: "Personalizable" },
 });
 
 function Conversation({ node, speaker = OFFICE_ROXY, avatarName, lastChoice, awaitingReply, onChoose, onClose }) {
@@ -39,14 +44,14 @@ function InfoPanel({ kind, onClose }) {
   const isLogo = kind === "logo";
   return <div className="office-dialogue-overlay">
     <section className="office-dialogue office-info" role="dialog" aria-modal="true"
-      aria-label={isLogo ? "Acerca de Interbanking" : "La cocina de la oficina"}>
+      aria-label={isLogo ? `Acerca de ${DEMO_COMPANY.name}` : "La cocina de la oficina"}>
       <div className="office-dialogue-head">
         <span className="office-dialogue-avatar" aria-hidden="true">{isLogo ? <Eye size={23} /> : <Coffee size={23} />}</span>
         <div><small>{isLogo ? "CONOCÉ EL LUGAR" : "UN DESCANSO PARA EMPEZAR"}</small>
-          <h2>{isLogo ? "Interbanking" : "La cocina"}</h2></div>
+          <h2>{isLogo ? DEMO_COMPANY.name : "La cocina"}</h2></div>
         <button type="button" onClick={onClose} className="office-dialogue-close" aria-label="Cerrar"><X size={21} /></button>
       </div>
-      {isLogo && <img src={logoUrl} alt="Logo de Interbanking" className="office-info-logo" />}
+      {isLogo && <img src={logoUrl} alt={`Logo de ${DEMO_COMPANY.name}`} className="office-info-logo" />}
       <p className="office-info-body">{isLogo ? OFFICE_LOGO_TEXT
         : "Acá podés servirte un café, un té o alguna de las infusiones disponibles. Es un buen lugar para hacer una pausa y conocer al equipo."}</p>
       <button className="office-info-return" type="button" onClick={onClose}>Volver a la oficina <ArrowRight size={16} /></button>
@@ -54,43 +59,60 @@ function InfoPanel({ kind, onClose }) {
   </div>;
 }
 
-function StartScreen({ selectedAvatar, onSelect, onStart }) {
-  return <section className="office-cover" aria-label="Inicio del recorrido">
+function StartScreen({ selectedAvatar, customization, onSelect, onCustomize, onStart }) {
+  return <section className={"office-cover" + (selectedAvatar === "custom" ? " is-customizing" : "")} aria-label="Inicio del recorrido">
     <div className="office-cover-content">
-      <img src={logoUrl} className="office-cover-logo" alt="Interbanking" />
+      <img src={logoUrl} className="office-cover-logo" alt={DEMO_COMPANY.name} />
       <p className="office-cover-eyebrow">RECORRIDO INTERACTIVO <span /> PRIMER DÍA</p>
       <h1>Tu primer día<br /><em>empieza acá.</em></h1>
       <p className="office-cover-lead">Elegí tu avatar y recorré la oficina. Roxy te espera para darte la bienvenida.</p>
-      <div className="office-avatar-heading"><strong>ELEGÍ TU AVATAR</strong><span>01 / 02</span></div>
+      <div className="office-avatar-heading"><strong>ELEGÍ TU AVATAR</strong><span>{String(Object.keys(AVATARS).indexOf(selectedAvatar) + 1).padStart(2, "0")} / 03</span></div>
       <div className="office-avatar-grid" role="group" aria-label="Selección de avatar">
         {Object.entries(AVATARS).map(([id, avatar]) => <button key={id} type="button"
           className={"office-avatar-card" + (selectedAvatar === id ? " is-selected" : "")}
           aria-pressed={selectedAvatar === id} onClick={() => onSelect(id)}>
-          <span className="office-avatar-portrait"><img src={avatar.portrait} alt="" /></span>
-          <span className="office-avatar-copy"><strong>{avatar.name}</strong><small>{avatar.description}</small></span>
+          <span className="office-avatar-portrait">{id === "custom"
+            ? <CustomAvatarPreview customization={customization} /> : <img src={avatar.portrait} alt="" />}</span>
+          <span className="office-avatar-copy"><strong>{id === "custom" ? customization.name : avatar.name}</strong><small>{avatar.description}</small></span>
           <span className="office-avatar-status">{selectedAvatar === id ? "SELECCIONADO" : "DISPONIBLE"}</span>
         </button>)}
       </div>
-      <button type="button" className="office-cover-start" disabled={!selectedAvatar} onClick={onStart}>
+      <button type="button" className="office-cover-start" onClick={onStart}>
         Comenzar recorrido <ArrowRight size={20} />
       </button>
       <p className="office-cover-footnote">Explorá la oficina a tu ritmo. Las conversaciones cambian según lo que preguntes.</p>
     </div>
-    <div className="office-cover-side" aria-hidden="true"><span>INTERBANKING</span><strong>Un nuevo comienzo</strong><small>Oficina interactiva · Buenos Aires</small></div>
+    {selectedAvatar === "custom" && <AvatarCustomizer customization={customization} onChange={onCustomize}
+      onReset={() => onCustomize(CUSTOM_AVATAR_DEFAULTS, true)} />}
+    <div className="office-cover-side" aria-hidden="true"><span>{DEMO_COMPANY.name}</span><strong>Un nuevo comienzo</strong><small>Oficina interactiva · Demo</small></div>
   </section>;
 }
 
 export default function OfficeApp() {
+  const [touchMove, setTouchMove] = useState({ forward: 0, side: 0 });
   const [started, setStarted] = useState(false);
-  const [selectedAvatar, setSelectedAvatar] = useState("fernando");
+  const [avatarPreferences, setAvatarPreferences] = useState(readOfficeAvatarPreferences);
+  const { selectedAvatar, customization } = avatarPreferences;
+  const avatarName = selectedAvatar === "custom" ? (customization.name || "Alex") : AVATARS[selectedAvatar].name;
+  const setSelectedAvatar = id => setAvatarPreferences(current => ({ ...current, selectedAvatar: id }));
+  const updateCustomization = (patch, reset = false) => setAvatarPreferences(current => ({ ...current,
+    customization: normalizeAvatarCustomization(reset ? patch : { ...current.customization, ...patch }),
+  }));
+  useEffect(() => { saveOfficeAvatarPreferences(avatarPreferences); }, [avatarPreferences]);
   const [firstPerson, setFirstPerson] = useState(false);
   const [nearby, setNearby] = useState(null);
   const [panel, setPanel] = useState(null);
   const [nodeId, setNodeId] = useState("welcome");
   const [lastChoice, setLastChoice] = useState("");
   const [awaitingReply, setAwaitingReply] = useState(false);
+  const appRef = useRef(null);
   const voicePlayer = useRef(null);
   if (!voicePlayer.current) voicePlayer.current = createOfficeVoicePlayer();
+  useEffect(() => {
+    if (!started || panel) return undefined;
+    const frame = requestAnimationFrame(() => appRef.current?.querySelector(".office-canvas")?.focus({ preventScroll: true }));
+    return () => cancelAnimationFrame(frame);
+  }, [started, panel]);
 
   function closePanel() {
     voicePlayer.current.stop();
@@ -104,7 +126,7 @@ export default function OfficeApp() {
       setNodeId("welcome");
       setLastChoice("");
       setAwaitingReply(false);
-      if (kind === "roxy") voicePlayer.current.play([selectedAvatar === "victoria" ? OFFICE_VOICES.roxy.welcomeVictoria : OFFICE_VOICES.roxy.welcome]);
+      if (kind === "roxy" && selectedAvatar !== "custom") voicePlayer.current.play([selectedAvatar === "victoria" ? OFFICE_VOICES.roxy.welcomeVictoria : OFFICE_VOICES.roxy.welcome]);
     }
     setPanel(kind);
   }
@@ -122,7 +144,7 @@ export default function OfficeApp() {
     if (!choice) return;
     setLastChoice(choice.spoken);
     setAwaitingReply(true);
-    const avatarVoice = OFFICE_VOICES[selectedAvatar][nodeId][choice.id];
+    const avatarVoice = OFFICE_VOICES[selectedAvatar === "custom" ? "fernando" : selectedAvatar][nodeId][choice.id];
     voicePlayer.current.play([avatarVoice], () => {
       if (!choice.next) {
         setAwaitingReply(false);
@@ -131,7 +153,8 @@ export default function OfficeApp() {
       }
       setNodeId(choice.next);
       setAwaitingReply(false);
-      voicePlayer.current.play([choice.next === "welcome" && selectedAvatar === "victoria" ? OFFICE_VOICES.roxy.welcomeVictoria : OFFICE_VOICES.roxy[choice.next]]);
+      voicePlayer.current.play([choice.next === "welcome" && selectedAvatar === "custom" ? null
+        : choice.next === "welcome" && selectedAvatar === "victoria" ? OFFICE_VOICES.roxy.welcomeVictoria : OFFICE_VOICES.roxy[choice.next]]);
     });
   }
   useEffect(() => {
@@ -148,11 +171,11 @@ export default function OfficeApp() {
     };
   }, []);
 
-  return <main className={"office-app" + (!started ? " is-on-cover" : "")}>
-    <OfficeScene avatar={selectedAvatar} firstPerson={firstPerson} locked={!started || Boolean(panel)}
-      onInteract={interact} onNearby={setNearby} onViewChange={setFirstPerson} />
+  return <div ref={appRef} className={"office-app" + (!started ? " is-on-cover" : "")}>
+    {started && <OfficeScene avatar={selectedAvatar} customization={customization} firstPerson={firstPerson} mobileInput={touchMove} locked={Boolean(panel)}
+      onInteract={interact} onNearby={setNearby} onViewChange={setFirstPerson} />}
     <header className="office-header">
-      <div className="office-brand"><img src={logoUrl} alt="Interbanking" /><span>RECORRIDO INTERACTIVO</span></div>
+      <div className="office-brand"><img src={logoUrl} alt={DEMO_COMPANY.name} /><span>RECORRIDO INTERACTIVO</span></div>
       <div className="office-header-right"><span className="office-live-dot" /> Oficina · Primer día</div>
     </header>
     {started && <button type="button" className="office-view-button" aria-pressed={firstPerson}
@@ -167,15 +190,17 @@ export default function OfficeApp() {
       <span><kbd>E</kbd> Interactuar</span>
       <span><kbd>C</kbd> Cambiar vista</span>
     </aside>
+    {started && !panel && <div className="office-touch-controls" aria-label="Controles táctiles"><button type="button" aria-label="Avanzar" onPointerDown={() => setTouchMove({forward: 1, side: 0})} onPointerUp={() => setTouchMove({forward: 0, side: 0})} onPointerCancel={() => setTouchMove({forward: 0, side: 0})}>↑</button><div><button type="button" aria-label="Izquierda" onPointerDown={() => setTouchMove({forward: 0, side: -1})} onPointerUp={() => setTouchMove({forward: 0, side: 0})} onPointerCancel={() => setTouchMove({forward: 0, side: 0})}>←</button><button type="button" aria-label="Retroceder" onPointerDown={() => setTouchMove({forward: -1, side: 0})} onPointerUp={() => setTouchMove({forward: 0, side: 0})} onPointerCancel={() => setTouchMove({forward: 0, side: 0})}>↓</button><button type="button" aria-label="Derecha" onPointerDown={() => setTouchMove({forward: 0, side: 1})} onPointerUp={() => setTouchMove({forward: 0, side: 0})} onPointerCancel={() => setTouchMove({forward: 0, side: 0})}>→</button></div></div>}
     {nearby && !panel && <button type="button" className="office-nearby" onClick={() => interact(nearby)}>
       <kbd>E</kbd><span>{NEAR_LABEL[nearby]}</span><ArrowRight size={17} aria-hidden="true" />
     </button>}
-    <footer className="office-footer"><span>{AVATARS[selectedAvatar].name.toUpperCase()} · PRIMER DÍA</span><span>INTERBANKING</span></footer>
-    {panel === "roxy" && <Conversation node={getOfficeDialogueNode(nodeId, selectedAvatar)} avatarName={AVATARS[selectedAvatar].name} lastChoice={lastChoice}
+    <footer className="office-footer"><span>{avatarName.toUpperCase()} · PRIMER DÍA</span><span>{DEMO_COMPANY.name}</span></footer>
+    {panel === "roxy" && <Conversation node={getOfficeDialogueNode(nodeId, selectedAvatar, avatarName)} avatarName={avatarName} lastChoice={lastChoice}
       awaitingReply={awaitingReply} onChoose={choose} onClose={closePanel} />}
     {panel === "alfredo" && <Conversation node={OFFICE_ALFREDO_DIALOGUE[nodeId]} speaker={OFFICE_ALFREDO}
-      avatarName={AVATARS[selectedAvatar].name} lastChoice={lastChoice} awaitingReply={false} onChoose={choose} onClose={closePanel} />}
+      avatarName={avatarName} lastChoice={lastChoice} awaitingReply={false} onChoose={choose} onClose={closePanel} />}
     {(panel === "logo" || panel === "coffee") && <InfoPanel kind={panel} onClose={closePanel} />}
-    {!started && <StartScreen selectedAvatar={selectedAvatar} onSelect={setSelectedAvatar} onStart={() => setStarted(true)} />}
-  </main>;
+    {!started && <StartScreen selectedAvatar={selectedAvatar} customization={customization} onSelect={setSelectedAvatar}
+      onCustomize={updateCustomization} onStart={() => setStarted(true)} />}
+  </div>;
 }

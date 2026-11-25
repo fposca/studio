@@ -1,10 +1,17 @@
 import * as THREE from "three";
-import { CATHEDRAL_INTERACTIONS, canStandInCathedral } from "./cathedralLayout.js";
+import { FontLoader } from "three/addons/loaders/FontLoader.js";
+import { TextGeometry } from "three/addons/geometries/TextGeometry.js";
+import { CATHEDRAL_ALTAR_PLATFORM, CATHEDRAL_INTERACTIONS, CATHEDRAL_RESONATOR_COLLIDERS, canStandInCathedral } from "./cathedralLayout.js";
 import { createCathedralArt, cathedralStoneBox } from "./cathedralArt.js";
 import { createCathedralEnergy } from "./cathedralEnergy.js";
 import { createCathedralPresentation } from "./cathedralPresentation.js";
 import { cathedralProfile } from "./cathedralQuality.js";
 import { createCathedralAudio } from "./cathedralAudio.js";
+
+const INSCRIPTION_FONT_URL = new URL("../assets/fonts/helvetiker_regular.typeface.json", import.meta.url).href;
+let inscriptionFontPromise;
+const loadInscriptionFont = () => inscriptionFontPromise ||= new FontLoader().loadAsync(INSCRIPTION_FONT_URL);
+const INSCRIPTION_LINES = ["SOLO QUIEN RECUERDA", "COMPRENDE EL PASO", "DEL TIEMPO Y ENFRENTA", "LA VERDAD"];
 
 const STONE_URL = new URL("../assets/environments/bridge-stone.chapter11.jpg", import.meta.url).href;
 const BASALT_URL = new URL("../assets/environments/basalt.chapter11.jpg", import.meta.url).href;
@@ -27,6 +34,8 @@ export function buildCathedral(scene, { initialProgress, onFeedback, tier = "hig
     dark: new THREE.MeshStandardMaterial({ color: 0x5c5868, roughness: .8, metalness: .08 }),
     bronze: new THREE.MeshStandardMaterial({ color: 0x9d805b, roughness: .43, metalness: .55 }),
     violet: new THREE.MeshStandardMaterial({ color: 0x32253f, emissive: 0x6d4a90, emissiveIntensity: .25, roughness: .4, metalness: .2 }),
+    inscriptionFace: new THREE.MeshStandardMaterial({ color: 0xd4b98d, roughness: .56, metalness: .32, emissive: 0x38251b, emissiveIntensity: .12 }),
+    inscriptionEdge: new THREE.MeshStandardMaterial({ color: 0x5b463b, roughness: .78, metalness: .16 }),
   };
   const box = new THREE.BoxGeometry(1, 1, 1);
   const column = new THREE.CylinderGeometry(.56, .72, 8.1, 16);
@@ -101,9 +110,35 @@ export function buildCathedral(scene, { initialProgress, onFeedback, tier = "hig
     art.pedestal(x, z, id, index);
     art.sigil(id, x, 2.16, z);
   });
-  const inscription = cube(materials.dark, "inscripción de los tres sellos", 0, 1.55, 6.1, 2.7, 1.7, .22);
+  // Raised, bevelled lettering belongs to the existing stone on both approaches.
+  const inscription = cube(materials.dark, "inscripcion de los tres sellos", 0, 1.55, 6.1, 2.7, 1.7, .22);
   inscription.rotation.y = Math.PI;
-  use(torus, materials.bronze, "marca del origen", 0, 1.55, 5.97, .61, .61, 1);
+  const inscriptionRing = new THREE.TorusGeometry(.28, .014, 8, 48);
+  stoneGeometries.push(inscriptionRing);
+  const inscriptionFaces = [];
+  for (const side of [1, -1]) {
+    const face = new THREE.Group();
+    face.name = side === 1 ? "Inscripcion en relieve / entrada" : "Inscripcion en relieve / reverso";
+    face.position.set(0, 0, 6.1 + side * .126);
+    if (side === -1) face.rotation.y = Math.PI;
+    root.add(face);
+    inscriptionFaces.push(face);
+    use(inscriptionRing, materials.bronze, "sello circular tallado", 0, 2.09, .012, 1, 1, 1, face);
+    use(box, materials.bronze, "filete bajo el sello", 0, 1.76, .012, 1.5, .012, .018, face);
+  }
+  function addInscriptionRelief(font) {
+    for (const face of inscriptionFaces) INSCRIPTION_LINES.forEach((line, index) => {
+      const geometry = new TextGeometry(line, {
+        font, size: .127, depth: .019, curveSegments: 3,
+        bevelEnabled: true, bevelThickness: .004, bevelSize: .002, bevelSegments: 1,
+      });
+      geometry.computeBoundingBox();
+      geometry.translate(-(geometry.boundingBox.min.x + geometry.boundingBox.max.x) / 2, 0, 0);
+      stoneGeometries.push(geometry);
+      use(geometry, [materials.inscriptionFace, materials.inscriptionEdge],
+        "verso en relieve / " + (index + 1), 0, 1.59 - index * .24, .018, 1, 1, 1, face);
+    });
+  }
 
   for (const side of [-1, 1]) for (const z of [-22, -28, -35]) {
     cube(materials.dark, "estantería de registros", side * 6.55, 2.1, z, 1.35, 4.2, 3.6);
@@ -126,7 +161,7 @@ export function buildCathedral(scene, { initialProgress, onFeedback, tier = "hig
   const custodianLight = new THREE.PointLight(0x9a5bca, 3.5, 7, 2);
   custodianLight.position.set(4.9, 3.1, -34.5); root.add(custodianLight);
 
-  cube(materials.dark, "plataforma ceremonial", 0, .36, -53.6, 6.5, .72, 5.4);
+  cube(materials.dark, "plataforma ceremonial", CATHEDRAL_ALTAR_PLATFORM.x, .36, CATHEDRAL_ALTAR_PLATFORM.z, CATHEDRAL_ALTAR_PLATFORM.hx * 2, .72, CATHEDRAL_ALTAR_PLATFORM.hz * 2);
   cube(materials.dark, "mesa de obsidiana del primer registro", 0, 1.1, -53.6, 3.6, .5, 2.1);
   cube(materials.bronze, "filete superior del altar", 0, 1.365, -53.6, 3.65, .035, 2.15);
   cube(materials.bronze, "filete inferior del altar", 0, .87, -53.6, 3.65, .035, 2.15);
@@ -142,11 +177,16 @@ export function buildCathedral(scene, { initialProgress, onFeedback, tier = "hig
   const rim = new THREE.DirectionalLight(0x9bafd9, .8); rim.position.set(6, 5, -25); root.add(rim);
   art.finish(); art.setQuality(quality);
   const obstacles = [
+    // The entrance inscription is a solid stone slab, including its rear face.
+    { x: 0, z: 6.1, hx: 1.35, hz: .11 },
     ...[[-3.5, -5.3], [0, -7.3], [3.5, -5.3], [-3.4, -26.5], [0, -30.4], [3.4, -26.5]].map(([x, z]) => ({ x, z, radius: .68 })),
-    { x: 0, z: -53.6, radius: 1.85 },
+    // Match the full raised stone platform, not only the altar table at its center.
+    { ...CATHEDRAL_ALTAR_PLATFORM },
+    ...CATHEDRAL_RESONATOR_COLLIDERS.map((node) => ({ ...node })),
   ];
   const interactions = CATHEDRAL_INTERACTIONS.map((spot) => ({ ...spot }));
   const custodianSpot = interactions.find((spot) => spot.id === "cathedral-custodian");
+  const toneSpots = interactions.filter((spot) => spot.id.startsWith("cathedral-tone-"));
   const abyssSpot = interactions.find((spot) => spot.id === "cathedral-abyss");
   abyssSpot.reach = 0;
   let stoneTexture = null, basaltTexture = null, stoneBump = null, basaltBump = null;
@@ -167,14 +207,15 @@ export function buildCathedral(scene, { initialProgress, onFeedback, tier = "hig
   }
   async function loadAssets(loader, isAlive = () => true) {
     const textureLoader = new THREE.TextureLoader();
-    const [stone, basalt, model] = await Promise.allSettled([
-      textureLoader.loadAsync(STONE_URL), textureLoader.loadAsync(BASALT_URL), loader.loadAsync(CUSTODIAN_URL),
+    const [stone, basalt, model, inscriptionFont] = await Promise.allSettled([
+      textureLoader.loadAsync(STONE_URL), textureLoader.loadAsync(BASALT_URL), loader.loadAsync(CUSTODIAN_URL), loadInscriptionFont(),
     ]);
     if (disposed || !isAlive()) {
       if (stone.status === "fulfilled") stone.value.dispose();
       if (basalt.status === "fulfilled") basalt.value.dispose();
       return true;
     }
+    if (inscriptionFont.status === "fulfilled") addInscriptionRelief(inscriptionFont.value);
     if (stone.status === "fulfilled") {
       stoneTexture = stone.value; stoneTexture.colorSpace = THREE.SRGBColorSpace;
       stoneTexture.wrapS = stoneTexture.wrapT = THREE.RepeatWrapping;
@@ -237,6 +278,9 @@ export function buildCathedral(scene, { initialProgress, onFeedback, tier = "hig
     altarLight.intensity = THREE.MathUtils.lerp(altarLight.intensity, ritual ? 6 : progress?.altarOpen ? 5 : 2.5, lightBlend);
     art.update(dt, progress, suspended, reducedMotion, camera);
     energy.update(dt, progress, suspended, reducedMotion, camera, { fx: latestFx, player, profile: quality });
+    // Before and after tuning, keep the altar prompt clear of the nearby resonators.
+    const tuning = Boolean(progress?.altarTuning && !progress?.altarActivated);
+    for (const spot of toneSpots) spot.reach = tuning ? 1.55 : 0;
     abyssSpot.reach = progress?.completed ? 2.4 : 0;
     scene.fog.color.setHex(vision ? 0x132d30 : 0x242331);
     archiveGate.bars.visible = !progress?.archiveOpen;

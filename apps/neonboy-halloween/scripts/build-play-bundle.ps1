@@ -2,7 +2,7 @@
   [string]$KeystorePath = (Join-Path $env:USERPROFILE '.android\neonboy-halloween-upload.jks'),
   [string]$ProtectedPasswordPath = (Join-Path $env:USERPROFILE '.android\neonboy-halloween-upload-password.dpapi'),
   [string]$Alias = 'neonboy-halloween-upload',
-  [string]$ArtifactName = ('neonboy-halloween-v1.0.5-{0}-play.aab' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+  [string]$ArtifactName = ('neonboy-halloween-v1.0.8-{0}-play.aab' -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,24 +41,36 @@ if (-not $env:NEONBOY_UPLOAD_PASSWORD) { throw 'La contraseña de la clave de ca
 try {
   Push-Location $appRoot
   try {
+    $ErrorActionPreference = 'Continue'
     & npm.cmd run android:sync
-    if ($LASTEXITCODE -ne 0) { throw 'Falló android:sync.' }
+    $nativeExit = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+    if ($nativeExit -ne 0) { throw 'Falló android:sync.' }
   } finally { Pop-Location }
 
   Push-Location $androidRoot
   try {
+    $ErrorActionPreference = 'Continue'
     & .\gradlew.bat bundleRelease
-    if ($LASTEXITCODE -ne 0) { throw 'Falló bundleRelease.' }
+    $nativeExit = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+    if ($nativeExit -ne 0) { throw 'Falló bundleRelease.' }
   } finally { Pop-Location }
 
   if (-not (Test-Path -LiteralPath $unsignedBundle -PathType Leaf)) { throw 'Gradle no generó el AAB.' }
   New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
   Copy-Item -LiteralPath $unsignedBundle -Destination $signedBundle
+  $ErrorActionPreference = 'Continue'
   & jarsigner.exe -keystore $KeystorePath -storepass:env NEONBOY_UPLOAD_PASSWORD -keypass:env NEONBOY_UPLOAD_PASSWORD -sigalg SHA256withRSA -digestalg SHA-256 $signedBundle $Alias
-  if ($LASTEXITCODE -ne 0) { throw 'Falló la firma del AAB.' }
+  $nativeExit = $LASTEXITCODE
+  $ErrorActionPreference = 'Stop'
+  if ($nativeExit -ne 0) { throw 'Falló la firma del AAB.' }
+  $ErrorActionPreference = 'Continue'
   $verification = & jarsigner.exe -verify $signedBundle 2>&1
+  $nativeExit = $LASTEXITCODE
+  $ErrorActionPreference = 'Stop'
   $verification | ForEach-Object { Write-Output $_ }
-  if ($LASTEXITCODE -ne 0 -or -not ($verification -match 'jar verified\.')) { throw 'La verificación de firma del AAB falló.' }
+  if ($nativeExit -ne 0 -or -not ($verification -match 'jar verified\.')) { throw 'La verificación de firma del AAB falló.' }
   Write-Output "AAB firmado: $signedBundle"
   Get-FileHash -Algorithm SHA256 -LiteralPath $signedBundle | Select-Object Path,Hash
 } finally {

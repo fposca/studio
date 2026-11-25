@@ -34,7 +34,8 @@ test("first return plays once and Tito keeps his old topics beside the new inves
   await expect(store.locator(".record-store-story-event--intro")).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("altered-store-intro.png") });
   await expect(store.getByText("Hablá con Tito sobre lo que pasó.")).toBeVisible({ timeout: 12_000 });
-  await expect(store.getByText(/Hablar con Tito/)).toBeVisible();
+  await expect(store.getByRole("status").filter({ hasText: /Hablar.*Tito/ })).toBeVisible();
+  await expect(store.locator("canvas")).not.toHaveAttribute("data-chapter15-visuals", /.+/);
   await page.keyboard.press("e");
   const talk = store.getByRole("dialog", { name: /Conversación con Tito/ });
   await expect(talk).toBeVisible();

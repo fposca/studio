@@ -209,7 +209,8 @@
 .universe-map-detail-bottom small { color: #967e9f; font-size: 9px; font-weight: 700; letter-spacing: .08em; }
 @media (max-width: 800px) {
   .universe-map-header { padding: 13px 15px; }
-  .universe-map-body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; gap: 10px; padding: 10px; }
+  .universe-map-body { grid-template-columns: 1fr; grid-template-rows: minmax(220px, .8fr) minmax(0, 1fr); gap: 10px; padding: 10px; }
+  .universe-map-detail { overflow-y: auto; }
   .universe-map-detail { padding: 15px; }
   .universe-map-status { margin-top: 10px; }
   .universe-map-detail-bottom { padding-top: 15px; }
@@ -225,9 +226,28 @@
   .universe-map-marker, .universe-map-marker-label { transition: none; }
 }
 
-.neon-record-store .universe-map-dimensional-link {
-  margin-top: 18px; padding: 11px 9px; border: 1px solid #b75eba; border-radius: 4px;
-  color: #f5d7ed; background: #361d48; cursor: pointer; font-size: 11px; font-weight: 800; letter-spacing: .07em;
+.universe-map-routes{display:grid;gap:12px;min-height:0;margin-top:17px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#85577f transparent}
+.universe-map-route-group{display:grid;gap:6px}
+.universe-map-route-group>span{color:#df8acb;font-size:9px;font-weight:800;letter-spacing:.15em}
+.universe-map-route-group>div{display:grid;gap:5px}
+.neon-record-store .universe-map-route-link{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:34px;padding:7px 9px;border:1px solid #a45ca3;border-radius:4px;background:#321e42;color:#f6def0;text-align:left;cursor:pointer;font-size:10px;font-weight:800;line-height:1.25;letter-spacing:.035em}
+.universe-map-route-link svg{flex:none}
+.neon-record-store .universe-map-route-link.is-locked,.neon-record-store .universe-map-route-link.is-secret{border-color:#6e526e;color:#aa94aa;background:#241b2e}
+.neon-record-store .universe-map-route-link:hover,.neon-record-store .universe-map-route-link:focus-visible,.neon-record-store .universe-map-route-link.is-selected{border-color:#f3a5d9;background:#623268;color:#fff1f8;outline:none}
+
+.universe-map-marker.is-identified{border-color:#ff8fab;box-shadow:0 0 17px #e83c75,0 0 38px #ad275d}.universe-map-status.is-identified{border-color:#ff8fab;color:#ffe5ef;background:#622445}
+
+/* Short Android landscape: keep the route list scrollable above the destination action. */
+@media (min-width:801px) and (max-height:500px) {
+  .universe-map-header { padding: 8px 14px; }
+  .universe-map-header p, .universe-map-image-note { display: none; }
+  .universe-map-body { padding: 8px; gap: 8px; }
+  .universe-map-detail { padding: 9px; overflow: hidden; }
+  .universe-map-status { margin-top: 3px; padding: 3px 6px; }
+  .universe-map-detail h3 { margin: 4px 0; font-size: 18px; }
+  .universe-map-detail > p { display: none; }
+  .universe-map-routes { flex: 1 1 0; margin-top: 5px; overflow-y: auto; }
+  .universe-map-detail-bottom { flex: none; gap: 0; margin-top: 4px; padding-top: 4px; }
+  .universe-map-detail-bottom small { display: none; }
+  .neon-record-store .universe-map-enter { padding: 7px; }
 }
-.neon-record-store .universe-map-dimensional-link:hover { background: #67306e; }
-\n.universe-map-marker.is-identified{border-color:#ff8fab;box-shadow:0 0 17px #e83c75,0 0 38px #ad275d}.universe-map-status.is-identified{border-color:#ff8fab;color:#ffe5ef;background:#622445}\n

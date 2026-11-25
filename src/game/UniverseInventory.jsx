@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Archive, Backpack, CassetteTape, CircleDot, Coins, Disc3, IdCard, Ticket, X } from "lucide-react";
+import { FUEGO_ITEM_ICONS } from "./buenosAiresFuegoIcons.js";
 import { INVENTORY_CATEGORIES } from "./universeInventory.js";
 import "./universeInventory.css";
 
@@ -12,6 +13,7 @@ const TYPE_LABELS = {
 };
 
 function ItemIcon({ item, size = 28 }) {
+  if (FUEGO_ITEM_ICONS[item.id]) return <img src={FUEGO_ITEM_ICONS[item.id]} width={size} height={size} alt="" />;
   const Icon = ICONS[item.icon] || Backpack;
   return <Icon size={size} strokeWidth={1.7} aria-hidden="true" />;
 }

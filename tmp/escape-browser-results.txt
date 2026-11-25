@@ -1,0 +1,4 @@
+Verified: 5 Playwright tests passed in 7.3 minutes.
+Command: node node_modules/@playwright/test/cli.js test --config tests/game.playwright.config.js tests/game/buenos-aires-escape.spec.js tests/game/buenos-aires-fuego.spec.js --reporter=line
+Android UA, touch input, initial low tier adapted to medium on desktop: 90 frames in 1516.6ms, 59.34 FPS. Physical Android performance not measured.
+After final pulse, yaw and audio cleanup: 2/2 desktop/touch smoke tests passed in 1.7 minutes; Android-UA desktop sample 59.34 FPS, adaptive medium tier. 9/9 focused flight/audio unit tests passed. Final Vite build passed in 3.99 seconds.

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import * as THREE from "three";
 import { chooseEnemyReappearance, createUnderworldCombat } from "./underworldCombat.js";
 import { canStandInUnderworld } from "./underworldLayout.js";
+import { advanceUnderworldChase } from "./underworldActors.js";
 
 test("enemy reappearance stays on the arena and gives the player room to dodge", () => {
   const actor = { homeZ: -40.5, group: { position: { x: 5, z: -40.5 } } };
@@ -14,6 +15,17 @@ test("enemy reappearance stays on the arena and gives the player room to dodge",
   assert.equal(chooseEnemyReappearance(actor, { x: 0, z: -24 }, false, canStandInUnderworld), null);
   assert.equal(canStandInUnderworld(3.9, 8, true), false);
   assert.equal(canStandInUnderworld(0, 8, true), true);
+});
+
+test("the final boss pursues across the arena and navigates onto the bridge after the mechanism is solved", () => {
+  const progress = { mechanismSolved: true, ferryCompleted: true };
+  const boss = { x: 4.5, z: -32.5 };
+  const player = { x: 0, z: -24 };
+  for (let frame = 0; frame < 160; frame++)
+    advanceUnderworldChase(boss, player, 2.65, .05, false, progress);
+  assert.ok(boss.z > -30, `boss did not enter the bridge: ${boss.z}`);
+  assert.ok(Math.hypot(boss.x - player.x, boss.z - player.z) < 1);
+  assert.equal(canStandInUnderworld(boss.x, boss.z, false, 1.35, progress), true);
 });
 
 test("enemy projectiles and impact animations freeze on pause and never damage twice", () => {

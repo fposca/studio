@@ -80,3 +80,11 @@ test("new game overwrites the completed local progress with a clean game", () =>
   assert.equal(next.progress.chest.collected, false);
   assert.deepEqual(next.progress.discoveredSecrets, []);
 });
+
+test("camera tutorials survive save/load without becoming mission discoveries", () => {
+  const store = storage();
+  const saved = writeHalloweenSave(store,0,{ guideSeen:["welcome","demon","people","demon","fake"], discoveredSecrets:[] },123);
+  assert.deepEqual(readHalloweenSaves(store)[0].progress.guideSeen,["welcome","demon","people"]);
+  assert.deepEqual(saved.progress.discoveredSecrets,[]);
+  assert.deepEqual(normalizeHalloweenProgress({}).guideSeen,[]);
+});

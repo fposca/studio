@@ -1,3 +1,4 @@
+import { createStudioSignalBuffer } from "./studioSignalAudio.js";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { isSignalClean, signalInterference, SIGNAL_TARGET } from "./studioImpossibleRecording.js";
 import "./studioSignalAnalyzer.css";
@@ -18,21 +19,6 @@ function wavePath(interference) {
   }).join(" ");
 }
 
-function makeSignal(context, reverse, interference) {
-  const length = Math.floor(context.sampleRate * SIGNAL_LENGTH);
-  const buffer = context.createBuffer(1, length, context.sampleRate);
-  const samples = buffer.getChannelData(0);
-  for (let index = 0; index < length; index++) {
-    const time = index / context.sampleRate;
-    const pulse = [.43, 1.05, 1.69, 2.31].reduce((sum, beat) =>
-      sum + Math.exp(-Math.pow((time - beat) * 15, 2)), 0);
-    const carrier = Math.sin(time * Math.PI * 2 * 110) * .13 +
-      Math.sin(time * Math.PI * 2 * 220) * .07;
-    const staticNoise = Math.sin(index * 1.721) * Math.sin(index * .337) * .11 * interference;
-    samples[reverse ? length - 1 - index : index] = (carrier + pulse * .18 + staticNoise) * .72;
-  }
-  return buffer;
-}
 
 export default function StudioSignalAnalyzer({ progress, paused, onMilestone, onBack }) {
   const [bands, setBands] = useState(INITIAL_BANDS);
@@ -83,7 +69,7 @@ export default function StudioSignalAnalyzer({ progress, paused, onMilestone, on
       audio.context ||= new AudioContext();
       await audio.context.resume();
       const source = audio.context.createBufferSource();
-      source.buffer = makeSignal(audio.context, reverse, cleaned ? 0 : interference / 100);
+      source.buffer = createStudioSignalBuffer(audio.context, reverse, cleaned ? 0 : interference / 100);
       const gain = audio.context.createGain();
       gain.gain.value = .22;
       source.connect(gain).connect(audio.context.destination);

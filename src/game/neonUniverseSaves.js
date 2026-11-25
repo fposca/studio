@@ -25,14 +25,19 @@ import { UNDERWORLD_LAYOUT, UNDERWORLD_PORTAL_STOP_Z, canStandInUnderworld } fro
 import { UNDERWORLD_INITIAL, normalizeUnderworldProgress } from "./underworldQuest.js";
 import { CATHEDRAL_LAYOUT, canStandInCathedral } from "./cathedralLayout.js";
 import { CATHEDRAL_INITIAL, normalizeCathedralProgress } from "./cathedralQuest.js";
+import { THRONE_INITIAL, normalizeThroneProgress } from "./throneQuest.js";
+import { THRONE_LAYOUT, safeThroneSpawn } from "./throneLayout.js";
+import { BUENOS_AIRES_LAYOUT, safeBuenosAiresSpawn } from "./buenosAiresLayout.js";
+import { BUENOS_AIRES_INITIAL, normalizeBuenosAiresProgress } from "./buenosAiresQuest.js";
+import { CHAPTER15_INITIAL, normalizeChapter15Progress } from "./chapter15Quest.js";
 
 export const UNIVERSE_SAVES_KEY = "neonboy.universe.saves.v1";
 export const UNIVERSE_SAVE_SLOTS = ["autosave", "slot-1", "slot-2", "slot-3"];
-const SCENES = ["store", "studio", "club", "arcade", "rooftop", "lost-ship", "parthenon", "matrix", "underworld", "cathedral"];
-const LAYOUTS = { store: STORE_LAYOUT, studio: STUDIO_LAYOUT, club: ROCK_CLUB_LAYOUT, arcade: ARCADE_LAYOUT, rooftop: ROOFTOP_LAYOUT, "lost-ship": LOST_SHIP_LAYOUT, parthenon: PARTHENON_LAYOUT, matrix: MATRIX_LAYOUT, underworld: UNDERWORLD_LAYOUT, cathedral: CATHEDRAL_LAYOUT };
+const SCENES = ["store", "studio", "club", "arcade", "rooftop", "lost-ship", "parthenon", "matrix", "underworld", "cathedral", "abyss-throne", "buenos-aires-2049", "chapter15-studio", "chapter15-store"];
+const LAYOUTS = { store: STORE_LAYOUT, studio: STUDIO_LAYOUT, club: ROCK_CLUB_LAYOUT, arcade: ARCADE_LAYOUT, rooftop: ROOFTOP_LAYOUT, "lost-ship": LOST_SHIP_LAYOUT, parthenon: PARTHENON_LAYOUT, matrix: MATRIX_LAYOUT, underworld: UNDERWORLD_LAYOUT, cathedral: CATHEDRAL_LAYOUT, "abyss-throne": THRONE_LAYOUT, "buenos-aires-2049": BUENOS_AIRES_LAYOUT, "chapter15-studio": STUDIO_LAYOUT, "chapter15-store": STORE_LAYOUT };
 const ALBUM_IDS = new Set(DISCOGRAPHY_ALBUMS.map((album) => album.id));
 const GROUPS = new Set(["instrumental", "band"]);
-const UNLOCKS = new Set(["recording-studio", "rock-club", "arcade-1999", "neonboy-rooftop", "lost-ship", "parthenon", "matrix", "underworld", "cathedral", "abyss-throne"]);
+const UNLOCKS = new Set(["recording-studio", "rock-club", "arcade-1999", "neonboy-rooftop", "lost-ship", "parthenon", "matrix", "underworld", "cathedral", "abyss-throne", "buenos-aires-2049", "chapter15-studio", "chapter15-store"]);
 
 export function createNewUniverseGame() {
   return {
@@ -46,8 +51,8 @@ export function createNewUniverseGame() {
     arcadeProgress: { ...INITIAL_ARCADE_PROGRESS, met: [] },
     rooftopProgress: { ...INITIAL_ROOFTOP_PROGRESS, switches: [] },
     lostShipProgress: { ...INITIAL_LOST_SHIP_PROGRESS },
-    parthenonProgress: { ...PARTHENON_INITIAL }, matrixProgress: { ...MATRIX_INITIAL }, storeInvasionProgress: { ...STORE_INVASION_INITIAL }, chapter10Progress: { ...CHAPTER10_INITIAL, channelInput: [] }, underworldProgress: { ...UNDERWORLD_INITIAL, enemies: [3, 3] }, cathedralProgress: { ...CATHEDRAL_INITIAL, seals: [], memories: [] }, combatHearts: 3,
-    mapUnlocks: [], positions: { store: null, studio: null, club: null, arcade: null, rooftop: null, "lost-ship": null, parthenon: null, matrix: null, underworld: null, cathedral: null },
+    parthenonProgress: { ...PARTHENON_INITIAL }, matrixProgress: { ...MATRIX_INITIAL }, storeInvasionProgress: { ...STORE_INVASION_INITIAL }, chapter10Progress: { ...CHAPTER10_INITIAL, channelInput: [] }, underworldProgress: { ...UNDERWORLD_INITIAL, enemies: [5, 5], flames: [], memorySymbols: [], ringSequence: [], ambushHealth: [3, 3], witnessRunes: [] }, cathedralProgress: { ...CATHEDRAL_INITIAL, seals: [], memories: [] }, throneProgress: { ...THRONE_INITIAL, vows: [], coreInspected: [], conductors: [], shieldNodes: [] }, cityProgress: { ...BUENOS_AIRES_INITIAL }, chapter15Progress: { ...CHAPTER15_INITIAL, mixSequence: [], evidence: [], talked: [] }, combatHearts: 3,
+    mapUnlocks: [], positions: { store: null, studio: null, club: null, arcade: null, rooftop: null, "lost-ship": null, parthenon: null, matrix: null, underworld: null, cathedral: null, "abyss-throne": null, "buenos-aires-2049": null, "chapter15-studio": null, "chapter15-store": null },
   };
 }
 
@@ -87,6 +92,9 @@ export function normalizeUniverseGame(data) {
   const chapter10Progress = normalizeChapter10Progress(data.chapter10Progress, storeInvasionProgress.bossDefeated);
   const underworldProgress = normalizeUnderworldProgress(data.underworldProgress, chapter10Progress.chapterCompleted);
   const cathedralProgress = normalizeCathedralProgress(data.cathedralProgress, underworldProgress.completed);
+  const throneProgress = normalizeThroneProgress(data.throneProgress, cathedralProgress.completed);
+  const cityProgress = normalizeBuenosAiresProgress(data.cityProgress, throneProgress.completed);
+  const chapter15Progress = normalizeChapter15Progress(data.chapter15Progress, cityProgress.completed);
   const narrativeUnlocks = [
     ...(phase.phase === "new" ? [] : ["recording-studio"]),
     ...(clubQuest.credentialGranted ? ["rock-club"] : []),
@@ -98,9 +106,12 @@ export function normalizeUniverseGame(data) {
     ...(chapter10Progress.chapterCompleted ? ["underworld"] : []),
     ...(underworldProgress.completed ? ["cathedral"] : []),
     ...(cathedralProgress.completed ? ["abyss-throne"] : []),
+    ...(throneProgress.completed ? ["buenos-aires-2049"] : []),
+    ...(cityProgress.completed ? ["chapter15-studio"] : []),
+    ...(chapter15Progress.tapeTaken ? ["chapter15-store"] : []),
   ];
   return {
-    scene: data.scene === "cathedral" && !underworldProgress.completed ? (chapter10Progress.chapterCompleted ? "underworld" : "store") : data.scene === "underworld" && !chapter10Progress.chapterCompleted ? "store" : data.scene === "matrix" && !parthenonProgress.frequencyFragment02Analyzed ? "lost-ship" : data.scene === "parthenon" && !lostShipProgress.orbReceiverActivated
+    scene: data.scene.startsWith("chapter15-") && !cityProgress.completed ? "buenos-aires-2049" : data.scene === "chapter15-store" && !chapter15Progress.tapeTaken ? "chapter15-studio" : data.scene === "buenos-aires-2049" && !throneProgress.completed ? (cathedralProgress.completed ? "abyss-throne" : underworldProgress.completed ? "cathedral" : chapter10Progress.chapterCompleted ? "underworld" : "store") : data.scene === "abyss-throne" && !cathedralProgress.completed ? "cathedral" : data.scene === "cathedral" && !underworldProgress.completed ? (chapter10Progress.chapterCompleted ? "underworld" : "store") : data.scene === "underworld" && !chapter10Progress.chapterCompleted ? "store" : data.scene === "matrix" && !parthenonProgress.frequencyFragment02Analyzed ? "lost-ship" : data.scene === "parthenon" && !lostShipProgress.orbReceiverActivated
       ? (lostShipProgress.linkActivated ? "lost-ship" : rooftopProgress.missionCompleted ? "rooftop" : "store")
       : data.scene === "lost-ship" && !lostShipProgress.linkActivated
         ? (rooftopProgress.missionCompleted ? "rooftop" : "store") : data.scene,
@@ -110,7 +121,7 @@ export function normalizeUniverseGame(data) {
     storyProgress: validatedProgress(loadStoreProgress, STORE_DIALOGUE_SAVE_KEY, data.storyProgress),
     studioProgress,
     rooftopProgress,
-    lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress, cathedralProgress,
+    lostShipProgress, parthenonProgress, matrixProgress, storeInvasionProgress, chapter10Progress, underworldProgress, cathedralProgress, throneProgress, cityProgress, chapter15Progress,
     combatHearts: Number.isInteger(data.combatHearts) ? Math.max(0, Math.min(3, data.combatHearts)) : 3,
     masterTape: phase,
     clubQuest,
@@ -122,11 +133,15 @@ export function normalizeUniverseGame(data) {
       rikyFrequencyClueKnown: canDiscoverRikyClue(rikyProgress, phase) && rikyProgress.rikyFrequencyClueKnown,
       postShowSeen: clubQuest.anomalySeen && rikyProgress.postShowSeen,
     },
-    mapUnlocks: [...new Set([...(Array.isArray(data.mapUnlocks) ? data.mapUnlocks.filter((id) => UNLOCKS.has(id) && (id !== "rock-club" || clubQuest.credentialGranted) && (id !== "arcade-1999" || clubQuest.anomalySeen) && (id !== "neonboy-rooftop" || studioProgress.rooftopClueKnown) && (id !== "lost-ship" || lostShipProgress.linkActivated) && (id !== "parthenon" || lostShipProgress.orbReceiverActivated) && (id !== "matrix" || parthenonProgress.frequencyFragment02Analyzed) && (id !== "underworld" || chapter10Progress.chapterCompleted) && (id !== "cathedral" || underworldProgress.completed) && (id !== "abyss-throne" || cathedralProgress.completed)) : []), ...narrativeUnlocks])],
+    mapUnlocks: [...new Set([...(Array.isArray(data.mapUnlocks) ? data.mapUnlocks.filter((id) => UNLOCKS.has(id) && (id !== "rock-club" || clubQuest.credentialGranted) && (id !== "arcade-1999" || clubQuest.anomalySeen) && (id !== "neonboy-rooftop" || studioProgress.rooftopClueKnown) && (id !== "lost-ship" || lostShipProgress.linkActivated) && (id !== "parthenon" || lostShipProgress.orbReceiverActivated) && (id !== "matrix" || parthenonProgress.frequencyFragment02Analyzed) && (id !== "underworld" || chapter10Progress.chapterCompleted) && (id !== "cathedral" || underworldProgress.completed) && (id !== "abyss-throne" || cathedralProgress.completed) && (id !== "buenos-aires-2049" || throneProgress.completed) && (id !== "chapter15-studio" || cityProgress.completed) && (id !== "chapter15-store" || chapter15Progress.tapeTaken)) : []), ...narrativeUnlocks])],
     positions: Object.fromEntries(SCENES.map((scene) => {
       const position = safePosition(data.positions?.[scene], LAYOUTS[scene]);
+      if (scene === "buenos-aires-2049" && position) return [scene, safeBuenosAiresSpawn(position, cityProgress.coreComplete)];
+      if (scene === "abyss-throne" && position) return [scene, safeThroneSpawn(position, throneProgress)];
       if (scene === "cathedral" && position && !canStandInCathedral(position.x, position.z, cathedralProgress)) return [scene, { ...position, x: 0, z: cathedralProgress.archiveOpen ? -22 : CATHEDRAL_LAYOUT.spawnZ }];
-      if (scene !== "underworld" || !position || canStandInUnderworld(position.x, position.z, underworldProgress.visionActive)) return [scene, position];
+      if (scene === "underworld" && position && !underworldProgress.ferryCompleted && !underworldProgress.completed && position.z < -31.4)
+          return [scene, { ...position, x: 0, z: UNDERWORLD_LAYOUT.spawnZ }];
+        if (scene !== "underworld" || !position || canStandInUnderworld(position.x, position.z, underworldProgress.visionActive, 1.08, underworldProgress)) return [scene, position];
       return [scene, { ...position, x: 0, z: position.z < UNDERWORLD_PORTAL_STOP_Z && underworldProgress.bridgeCrossed
         ? -47.9 : underworldProgress.bridgeCrossed ? -33 : UNDERWORLD_LAYOUT.spawnZ }];
     })),

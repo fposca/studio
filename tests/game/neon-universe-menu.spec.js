@@ -44,7 +44,12 @@ test("the universe starts at its title and can save, load, pause and resume", as
 
   await menu.getByRole("button", { name: "Nueva partida" }).click();
   const shop = page.getByRole("region", { name: "Tienda de discos Neonboy" });
+  const openCatalog = async () => {
+    await shop.getByRole("complementary", { name: "Puesto de escucha" }).hover();
+    await shop.getByRole("tab", { name: "Discos" }).click();
+  };
   await expect(shop.locator(".record-store-3d")).toHaveAttribute("data-ready", "true", { timeout: 90_000 });
+  await openCatalog();
   await shop.getByRole("button", { name: "Disco Gloom", exact: true }).click();
   await page.keyboard.press("Escape");
   const pause = page.getByRole("dialog", { name: "Menú de pausa" });
@@ -64,16 +69,19 @@ test("the universe starts at its title and can save, load, pause and resume", as
   await menu.getByRole("button", { name: "Nueva partida" }).click();
   await confirm.getByRole("button", { name: "Confirmar" }).click();
   await expect(shop.locator(".record-store-3d")).toHaveAttribute("data-ready", "true", { timeout: 90_000 });
+  await openCatalog();
   await expect(shop.getByRole("button", { name: "Disco Glowshine", exact: true })).toHaveAttribute("aria-pressed", "true");
 
   await page.keyboard.press("Escape");
   await pause.getByRole("button", { name: "Cargar partida" }).click();
   await pause.getByRole("button", { name: /Partida 1/ }).click();
   await expect(shop.locator(".record-store-3d")).toHaveAttribute("data-ready", "true", { timeout: 90_000 });
+  await openCatalog();
   await expect(shop.getByRole("button", { name: "Disco Gloom", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.reload();
   await page.getByRole("button", { name: /comenzar/ }).click();
   await menu.getByRole("button", { name: "Continuar" }).click();
+  await openCatalog();
   await expect(shop.getByRole("button", { name: "Disco Gloom", exact: true })).toHaveAttribute("aria-pressed", "true");
   expect(errors).toEqual([]);
 });

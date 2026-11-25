@@ -27,7 +27,10 @@ test("the bridge encounter loads enemy health bars and attacks without WebGL err
       chapter10Progress: { coreAnalyzed: true, signalDetected: true, hugoConsulted: true,
         signalReconstructed: true, underworldUnlocked: true, chapterCompleted: true },
       underworldProgress: { arrivalRead: true, introSeen: true, visionActive: true,
-        bridgeCrossed: true, combatVersion: 1, enemies: [5, 5], gargolaHealth: 4,
+        bridgeCrossed: true, bridgeTrialComplete: true, flames: [0,1,2,3,4,5],
+        ferrymanTrialStarted: true, memorySymbols: ["memory","oblivion","rebirth"],
+        ferryCompleted: true, mechanismSolved: true, ambushHealth: [0,0],
+        combatVersion: 1, enemies: [5, 5], gargolaHealth: 4,
         testigoHealth: 8, testigoIntroSeen: false },
       positions: { underworld: { x: 0, z: -32, yaw: Math.PI, viewYaw: 0 } },
     };

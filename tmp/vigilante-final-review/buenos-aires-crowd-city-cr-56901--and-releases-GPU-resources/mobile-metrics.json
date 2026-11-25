@@ -1,0 +1,16 @@
+{
+  "tier": "low",
+  "near": 4,
+  "middle": 10,
+  "far": 14,
+  "off": 36,
+  "skeletons": 4,
+  "nearTriangles": 126093,
+  "total": 64,
+  "logicalCitizens": 11,
+  "synchronized": 0,
+  "medianFrameMs": 16.69999999999891,
+  "p95FrameMs": 16.899999999999636,
+  "calls": 178,
+  "triangles": 433958
+}

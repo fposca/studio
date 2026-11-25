@@ -1,0 +1,59 @@
+.neon-throne { --throne-red:#bd4662; --throne-violet:#9169d4; background:#110910; }
+.neon-throne .studio-header { background:linear-gradient(180deg,rgba(12,13,21,.83),rgba(12,13,21,.34) 62%,transparent); border-bottom:0; }
+.neon-throne .studio-header h2 { color:#ffe8dc; text-shadow:0 2px 18px rgba(192,42,91,.36); }
+.neon-throne .throne-mission { border-color:rgba(181,89,137,.55); background:linear-gradient(135deg,rgba(27,12,27,.94),rgba(17,12,25,.91)); }
+.neon-throne .studio-footer { border-color:rgba(176,72,103,.45); background:rgba(15,7,15,.88); }
+.throne-boss-health { position:absolute; z-index:18; top:64px; left:50%; transform:translateX(-50%); width:min(380px,calc(100vw - 40px)); padding:9px 13px 7px; color:#f9e3d9; text-align:center; background:linear-gradient(90deg,rgba(15,8,19,.93),rgba(36,9,24,.96),rgba(15,8,19,.93)); border:1px solid rgba(223,104,135,.65); box-shadow:0 4px 22px rgba(0,0,0,.45),inset 0 0 16px rgba(155,28,66,.2); pointer-events:none; }
+.throne-boss-health small { display:block; font:700 10px/1.2 Arial,sans-serif; letter-spacing:.18em; }
+.throne-boss-health-track { height:7px; margin:7px 0 4px; background:#261723; border:1px solid #60374d; overflow:hidden; }
+.throne-boss-health-track span { display:block; height:100%; background:linear-gradient(90deg,#77193a,#ee607d,#ffaf7c); box-shadow:0 0 8px #ed4e79; transition:width .25s ease; }
+.throne-boss-health em { display:block; color:#e9b3c6; font:700 9px/1.2 Arial,sans-serif; letter-spacing:.13em; font-style:normal; }
+.neon-throne[data-frequency-vision="active"] .throne-boss-health { border-color:rgba(107,222,220,.72); }
+@media (max-width:800px), (max-height:560px) {
+  .neon-throne .throne-mission { top:108px; left:10px; width:min(260px,31vw); max-height:80px; padding:7px 9px; overflow:hidden; }
+  .neon-throne .throne-mission .universe-mission-card__icon { flex-basis:26px; height:26px; }
+  .neon-throne .throne-mission .universe-mission-card__heading h3 { font-size:11px; }
+  .neon-throne .throne-mission .universe-mission-card__status { font-size:7px; margin-bottom:2px; }
+  .neon-throne .throne-mission .universe-mission-card__objective { margin-top:5px; padding:5px 6px; }
+  .neon-throne .throne-mission .universe-mission-card__objective p { font-size:10px; line-height:1.25; }
+  .neon-throne .throne-mission .universe-mission-card__meta { display:none; }
+  .neon-throne .throne-boss-health { top:96px; width:min(240px,30vw); padding:6px 9px; }
+  .neon-throne .throne-boss-health small { font-size:8px; }
+  .neon-throne .throne-boss-health em { font-size:8px; }
+}
+@media (pointer:coarse), (max-height:560px) {
+  .neon-throne .record-store-mobile-move {
+    position:absolute; z-index:14; display:grid; top:auto; bottom:109px; left:12px;
+    grid-template-columns:repeat(3,42px); grid-template-rows:repeat(2,42px); gap:3px;
+  }
+  .neon-throne .record-store-mobile-move button { min-width:42px; min-height:42px; }
+  .neon-throne .record-store-mobile-move button:nth-child(1) { grid-column:2; }
+  .neon-throne .record-store-mobile-move button:nth-child(2) { grid-column:1; grid-row:2; }
+  .neon-throne .record-store-mobile-move button:nth-child(3) { grid-column:2; grid-row:2; }
+  .neon-throne .record-store-mobile-move button:nth-child(4) { grid-column:3; grid-row:2; }
+  .neon-throne .record-store-mobile-actions {
+    position:absolute; z-index:14; display:flex; top:auto; bottom:60px; right:12px; left:auto;
+    width:174px; gap:4px;
+  }
+  .neon-throne .record-store-mobile-actions button {
+    min-width:0; min-height:42px; padding:3px 5px; font-size:9px;
+  }
+}
+
+/* Keep the architecture visible behind a compact, consistent desktop HUD. */
+@media (min-width:801px) and (min-height:561px) {
+  .neon-throne .studio-header { padding:18px 24px 26px; }
+  .neon-throne .studio-header > div:first-child { max-width:47vw; }
+  .neon-throne .studio-header h2 { margin:7px 0 6px; font-size:clamp(24px,2.2vw,34px); line-height:1.08; letter-spacing:-.02em; color:#eee4d6; text-shadow:0 2px 12px #090a12; }
+  .neon-throne .studio-header p { color:#bbb8c3; font-size:11px; font-weight:500; }
+  .neon-throne .studio-header > div > span { color:#b9a389; font-size:9px; letter-spacing:.2em; }
+  .neon-throne .studio-header .studio-header-actions { display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px;max-width:49vw;padding-right:93px; }
+  .neon-throne .studio-header button { padding:9px 11px;min-height:36px;border-color:#a48c6b66;border-radius:5px;background:#151821dd;color:#e4dbce;font-size:10px; }
+  .universe-game-root:has(.neon-throne) > .universe-pause-trigger { top:18px;right:24px;left:auto;min-height:36px;padding:9px 11px;border:1px solid #a48c6b66;border-radius:5px;background:#151821dd;color:#e4dbce;font-size:10px; }
+  .neon-throne .studio-control-hint { top:102px; background:#13151c99;border-color:#b9a38945;font-size:9px; }
+  .neon-throne .throne-mission { top:157px;max-width:335px;border-color:#b9a38955;background:linear-gradient(135deg,#20202cdd,#11131de8); }
+  .neon-throne .underworld-vision-control { top:82px;right:24px; }
+  .neon-throne .underworld-vision-control button { padding:9px 12px;border-color:#a48c6b66;border-radius:5px;background:#151821dd;color:#d5cbbb;font-size:10px; }
+  .neon-throne .parthenon-hearts { top:132px;right:24px;border-color:#a48c6b66;border-radius:5px;background:#151821cc; }
+  .neon-throne .throne-boss-health { top:83px;width:min(350px,27vw);border-color:#b8937766;background:linear-gradient(90deg,#14131ce8,#30202be8,#14131ce8); }
+}

@@ -1,0 +1,314 @@
+[
+  {
+    "file": "src\\assets\\neonboy-animaciones\\bsas\\vigilante-ataca.glb",
+    "MB": 23.88,
+    "triangles": 102037,
+    "bones": 67,
+    "rigHash": "28fd82908ed5",
+    "bounds": [
+      {
+        "min": [
+          -0.7594459056854248,
+          2.6759718885216444e-09,
+          -0.2028253674507141
+        ],
+        "max": [
+          0.7594460248947144,
+          1.7000000476837158,
+          0.2028253823518753
+        ]
+      }
+    ],
+    "animations": [
+      {
+        "name": "Charged_Spell_Cast_1",
+        "duration": 4.300000190734863,
+        "channels": 192,
+        "rootMotion": [
+          {
+            "node": "mixamorig:Hips",
+            "first": [
+              0.03890921548008919,
+              0.8753972053527832,
+              -0.025420501828193665
+            ],
+            "last": [
+              0.0389150008559227,
+              0.8753834366798401,
+              -0.02543674409389496
+            ]
+          }
+        ]
+      }
+    ],
+    "rootNodes": [
+      {
+        "children": [
+          67,
+          66
+        ],
+        "name": "SmartRigArmature"
+      }
+    ]
+  },
+  {
+    "file": "src\\assets\\neonboy-animaciones\\bsas\\vigilante-camina.glb",
+    "MB": 23.63,
+    "triangles": 102037,
+    "bones": 67,
+    "rigHash": "28fd82908ed5",
+    "bounds": [
+      {
+        "min": [
+          -0.7594459056854248,
+          2.6759718885216444e-09,
+          -0.2028253674507141
+        ],
+        "max": [
+          0.7594460248947144,
+          1.7000000476837158,
+          0.2028253823518753
+        ]
+      }
+    ],
+    "animations": [
+      {
+        "name": "Walking",
+        "duration": 1.0333333015441895,
+        "channels": 192,
+        "rootMotion": [
+          {
+            "node": "mixamorig:Hips",
+            "first": [
+              0.0031212952453643084,
+              1.0342880487442017,
+              -0.015311339870095253
+            ],
+            "last": [
+              0.0031213113106787205,
+              1.034287929534912,
+              -0.01531133521348238
+            ]
+          }
+        ]
+      }
+    ],
+    "rootNodes": [
+      {
+        "children": [
+          67,
+          66
+        ],
+        "name": "SmartRigArmature"
+      }
+    ]
+  },
+  {
+    "file": "src\\assets\\neonboy-animaciones\\bsas\\vigilante-dano.glb",
+    "MB": 23.64,
+    "triangles": 102037,
+    "bones": 67,
+    "rigHash": "28fd82908ed5",
+    "bounds": [
+      {
+        "min": [
+          -0.7594459056854248,
+          2.6759718885216444e-09,
+          -0.2028253674507141
+        ],
+        "max": [
+          0.7594460248947144,
+          1.7000000476837158,
+          0.2028253823518753
+        ]
+      }
+    ],
+    "animations": [
+      {
+        "name": "Hit_Reaction_1",
+        "duration": 1.1999999284744263,
+        "channels": 192,
+        "rootMotion": [
+          {
+            "node": "mixamorig:Hips",
+            "first": [
+              0.036861713975667953,
+              0.9530119299888611,
+              -0.030784012749791145
+            ],
+            "last": [
+              0.03662063181400299,
+              0.9524489641189575,
+              -0.030654413625597954
+            ]
+          }
+        ]
+      }
+    ],
+    "rootNodes": [
+      {
+        "children": [
+          67,
+          66
+        ],
+        "name": "SmartRigArmature"
+      }
+    ]
+  },
+  {
+    "file": "src\\assets\\neonboy-animaciones\\bsas\\vigilante-golpea.glb",
+    "MB": 23.65,
+    "triangles": 102037,
+    "bones": 67,
+    "rigHash": "28fd82908ed5",
+    "bounds": [
+      {
+        "min": [
+          -0.7594459056854248,
+          2.6759718885216444e-09,
+          -0.2028253674507141
+        ],
+        "max": [
+          0.7594460248947144,
+          1.7000000476837158,
+          0.2028253823518753
+        ]
+      }
+    ],
+    "animations": [
+      {
+        "name": "Spartan_Kick",
+        "duration": 1.399999976158142,
+        "channels": 192,
+        "rootMotion": [
+          {
+            "node": "mixamorig:Hips",
+            "first": [
+              0.05922044441103935,
+              0.9069676399230957,
+              -0.030248064547777176
+            ],
+            "last": [
+              0.0588943213224411,
+              0.9048172831535339,
+              -0.028210148215293884
+            ]
+          }
+        ]
+      }
+    ],
+    "rootNodes": [
+      {
+        "children": [
+          67,
+          66
+        ],
+        "name": "SmartRigArmature"
+      }
+    ]
+  },
+  {
+    "file": "src\\assets\\neonboy-animaciones\\bsas\\vigilante-muerte.glb",
+    "MB": 23.78,
+    "triangles": 102037,
+    "bones": 67,
+    "rigHash": "28fd82908ed5",
+    "bounds": [
+      {
+        "min": [
+          -0.7594459056854248,
+          2.6759718885216444e-09,
+          -0.2028253674507141
+        ],
+        "max": [
+          0.7594460248947144,
+          1.7000000476837158,
+          0.2028253823518753
+        ]
+      }
+    ],
+    "animations": [
+      {
+        "name": "Dead",
+        "duration": 2.9666666984558105,
+        "channels": 192,
+        "rootMotion": [
+          {
+            "node": "mixamorig:Hips",
+            "first": [
+              -0.03370271623134613,
+              0.7878698706626892,
+              -0.016067568212747574
+            ],
+            "last": [
+              0.11831874400377274,
+              0.30355194211006165,
+              0.651217520236969
+            ]
+          }
+        ]
+      }
+    ],
+    "rootNodes": [
+      {
+        "children": [
+          67,
+          66
+        ],
+        "name": "SmartRigArmature"
+      }
+    ]
+  },
+  {
+    "file": "src\\assets\\neonboy-animaciones\\bsas\\vigilante-respira.glb",
+    "MB": 24.31,
+    "triangles": 102037,
+    "bones": 67,
+    "rigHash": "28fd82908ed5",
+    "bounds": [
+      {
+        "min": [
+          -0.7594459056854248,
+          2.6759718885216444e-09,
+          -0.2028253674507141
+        ],
+        "max": [
+          0.7594460248947144,
+          1.7000000476837158,
+          0.2028253823518753
+        ]
+      }
+    ],
+    "animations": [
+      {
+        "name": "Idle_3",
+        "duration": 9.966667175292969,
+        "channels": 192,
+        "rootMotion": [
+          {
+            "node": "mixamorig:Hips",
+            "first": [
+              0.004281911998987198,
+              0.9699533581733704,
+              -0.026338383555412292
+            ],
+            "last": [
+              0.004535821732133627,
+              0.969944417476654,
+              -0.026351235806941986
+            ]
+          }
+        ]
+      }
+    ],
+    "rootNodes": [
+      {
+        "children": [
+          67,
+          66
+        ],
+        "name": "SmartRigArmature"
+      }
+    ]
+  }
+]

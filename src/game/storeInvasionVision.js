@@ -40,6 +40,13 @@ if(invasionAmount > .001) {
   vec3 ink = mix(vec3(.09,.58,.31),vec3(.52,.94,.73),head);
   vec3 decoded = base + ink*glyph*(.10+exp(-trail*.19)*.57)*detail;
   decoded += vec3(.01,.06,.033)*rim;
+  #ifdef INVASION_DYNAMIC
+    // Keep moving silhouettes readable even when distant glyphs become subpixel.
+    // Alpha-tested crowd atlases retain their original cutout and pose UVs.
+    decoded = outgoingLight*.10 + vec3(.012,.12,.055)*(relief+.35);
+    decoded += ink*glyph*(.32+exp(-trail*.16)*.9)*detail;
+    decoded += vec3(.025,.18,.08)*rim;
+  #endif
   #ifdef INVASION_PLAYER
     base = outgoingLight*.52 + vec3(.23,.075,.012)*relief;
     base += vec3(.15,.05,.005)*rim;
@@ -73,14 +80,17 @@ export function createStoreInvasionVision(scene, scenery) {
   const originals=new Map(),variants=new Map();
   const background=scene.background?.clone(),fog=scene.fog?.color.clone();
   const greenBackground=new THREE.Color(0x07120e),greenFog=new THREE.Color(0x0d241b);
-  let initialized=false;
+  let initialized=false,disposed=false;
   function register(root,profile='world'){
+    if(disposed)return;
     root.traverse(object=>{
       if(!object.isMesh||object.userData.invasionVisionPreserve||originals.has(object))return;
       const original=object.material;
       const convert=material=>{
-        // Basic UI, video, lettering, glass and effects keep their legibility and colors.
-        if(!material?.isMeshStandardMaterial||material.transparent||material.blending!==THREE.NormalBlending)return material;
+        // Only the explicit crowd profile includes Basic alpha-cutout impostors.
+        // UI, lettering, glass, phone anomalies and propulsion keep their colors.
+        const supported=material?.isMeshStandardMaterial||(profile==='crowd'&&material?.isMeshBasicMaterial);
+        if(!supported||material.transparent||material.blending!==THREE.NormalBlending)return material;
         let profiles=variants.get(material);
         if(!profiles){profiles=new Map();variants.set(material,profiles);}
         if(profiles.has(profile))return profiles.get(profile);
@@ -88,6 +98,7 @@ export function createStoreInvasionVision(scene, scenery) {
         coded.name='Invasion / '+profile+' / '+material.name;
         if(profile==='player')coded.defines={...coded.defines,INVASION_PLAYER:1};
         if(profile==='bridge')coded.defines={...coded.defines,INVASION_BRIDGE:1};
+        if(profile==='dynamic'||profile==='crowd')coded.defines={...coded.defines,INVASION_DYNAMIC:1};
         coded.onBeforeCompile=function(shader,renderer){
           compile.call(this,shader,renderer);Object.assign(shader.uniforms,uniforms);
           shader.vertexShader=VARYINGS+'uniform vec4 invasionPose;\n'+shader.vertexShader;
@@ -108,12 +119,22 @@ export function createStoreInvasionVision(scene, scenery) {
         coded.customProgramCacheKey=()=>key+'/invasion-code-v1/'+profile;
         profiles.set(profile,coded);return coded;
       };
-      originals.set(object,original);
-      object.material=Array.isArray(original)?original.map(convert):convert(original);
+      const coded=Array.isArray(original)?original.map(convert):convert(original);
+      const changed=Array.isArray(original)?coded.some((material,i)=>material!==original[i]):coded!==original;
+      if(changed){originals.set(object,original);object.material=coded;}
+    });
+  }
+  // Near citizens are repeatedly acquired/released by LOD. Forget their meshes
+  // immediately, while retaining the shared material variants for the next clone.
+  function unregister(root){
+    root.traverse(object=>{
+      if(!originals.has(object))return;
+      object.material=originals.get(object);originals.delete(object);
     });
   }
   if(scenery)register(scenery);
-  return {register,update(dt,enabled,player,reducedMotion){
+  return {register,unregister,update(dt,enabled,player,reducedMotion){
+    if(disposed)return;
     const amount=!initialized||reducedMotion||dt===0?Number(enabled):THREE.MathUtils.damp(uniforms.invasionAmount.value,Number(enabled),7,dt);
     initialized=true;uniforms.invasionAmount.value=amount;
     if(!reducedMotion)uniforms.invasionTime.value+=dt;
@@ -121,6 +142,7 @@ export function createStoreInvasionVision(scene, scenery) {
     if(background)scene.background.copy(background).lerp(greenBackground,amount);
     if(fog)scene.fog.color.copy(fog).lerp(greenFog,amount);
   },dispose(){
+    if(disposed)return;disposed=true;
     for(const [object,original] of originals)object.material=original;
     for(const profiles of variants.values())for(const material of profiles.values())material.dispose();
     originals.clear();variants.clear();atlas.dispose();

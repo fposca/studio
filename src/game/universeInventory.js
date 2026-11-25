@@ -1,3 +1,4 @@
+import { FUEGO_COMPONENTS } from "./buenosAiresFuegoQuest.js";
 // Inventory entries are projections of the existing mission and resource state.
 // There is deliberately no second mutable item ledger to desynchronise saves.
 export const INVENTORY_CATEGORIES = Object.freeze([
@@ -9,6 +10,11 @@ export const INVENTORY_CATEGORIES = Object.freeze([
 ]);
 
 export const INVENTORY_DEFINITIONS = Object.freeze({
+  "altered-tape-15": {
+    id: "altered-tape-15", name: "CINTA ALTERADA", category: "mission", icon: "tape",
+    description: "Una grabaci\u00f3n anal\u00f3gica con una frecuencia que no corresponde a su \u00e9poca.",
+    mission: "El origen de la se\u00f1al", stackable: false,
+  },
   "recording-tape": {
     id: "recording-tape", name: "Cinta de grabación de 1999", category: "mission", icon: "tape",
     description: "Una antigua grabación que Tito encontró en su tienda. Necesita pasar por el estudio de Hugo.",
@@ -81,6 +87,21 @@ export const INVENTORY_DEFINITIONS = Object.freeze({
   "matrix-energy-module": {id:"matrix-energy-module",name:"Módulo del Taller",category:"mission",icon:"studio-token",description:"Pieza energética necesaria para la autorización del Núcleo.",mission:"PUERTA 03",stackable:false},
   "matrix-corruption-record": {id:"matrix-corruption-record",name:"Registro del Archivista",category:"mission",icon:"tape",description:"Prueba del origen de la corrupción digital.",mission:"PUERTA 03",stackable:false},
   "matrix-archive-warning": {id:"matrix-archive-warning",name:"Advertencia del Archivo Central",category:"mission",icon:"archive",description:"El patrón de corrupción ya alcanzó Buenos Aires.",mission:"PUERTA 03",stackable:false},
+  "fuego_key": {
+    id: "fuego_key", name: "Llave del Fuego", category: "mission", icon: "badge",
+    description: "Llave retrofuturista del Renault Fuego con un chip cian. Enciende el tablero.",
+    mission: "El Último Fuego", stackable: false,
+  },
+  "fuego_power_cell": {
+    id: "fuego_power_cell", name: "Celda de energía", category: "mission", icon: "studio-token",
+    description: "Celda de alta densidad para los propulsores del Renault Fuego.",
+    mission: "El Último Fuego", stackable: false,
+  },
+  "fuego_navigation_module": {
+    id: "fuego_navigation_module", name: "Módulo de navegación independiente", category: "mission", icon: "archive",
+    description: "Permite volar sin la navegación aérea controlada por la Red.",
+    mission: "El Último Fuego", stackable: false,
+  },
   "forbidden-archive": {
     id: "forbidden-archive", name: "Acceso al Archivo Prohibido", category: "access", icon: "archive",
     description: "Tito habilitó el Archivo Prohibido tras conocer la contraseña. El disco físico todavía no es un objeto entregado.",
@@ -97,7 +118,7 @@ function entry(id, status, quantity = 1, note = "") {
   return { ...INVENTORY_DEFINITIONS[id], status, statusLabel: STATUS_LABELS[status], quantity, note };
 }
 
-export function getUniverseInventory({ masterTape, clubQuest, storyProgress, credits, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress } = {}) {
+export function getUniverseInventory({ masterTape, clubQuest, storyProgress, credits, rooftopProgress, lostShipProgress, parthenonProgress, matrixProgress, cityProgress, chapter15Progress } = {}) {
   const phase = masterTape?.phase || "new";
   const items = [];
   if (["tape", "review", "master", "complete"].includes(phase)) {
@@ -133,14 +154,29 @@ export function getUniverseInventory({ masterTape, clubQuest, storyProgress, cre
   if(matrixProgress?.moduleTaken)items.push(entry("matrix-energy-module",matrixProgress.securityOpen?"used":"available",1,"Recuperado del Taller de Corrupción."));
   if(matrixProgress?.evidenceFound)items.push(entry("matrix-corruption-record","available",1,"El Centinela puede verificar este registro."));
   if(matrixProgress?.archiveRead)items.push(entry("matrix-archive-warning","available",1,"Nueva pista hacia el origen del Archivista."));
+  const fuegoItems = [
+    ["fuego_key", "fuegoKeyTaken", "fuegoKeyInstalled", "Instalada en el tablero.", "Acercate al Renault Fuego y usala desde el inventario."],
+    ["fuego_power_cell", "fuegoPowerCellTaken", "fuegoPowerCellInstalled", "Instalada en los propulsores.", "Acercate al Renault Fuego y usala desde el inventario."],
+    ["fuego_navigation_module", "fuegoNavigationModuleTaken", "fuegoNavigationModuleInstalled", "Instalado en el sistema de navegación.", "Acercate al Renault Fuego y usalo desde el inventario."],
+  ];
+  for (const [id, taken, installed, usedNote, availableNote] of fuegoItems)
+    if (cityProgress?.[taken]) items.push(entry(id, cityProgress[installed] ? "used" : "available", 1,
+      cityProgress[installed] ? usedNote : availableNote));
+  if (chapter15Progress?.tapeTaken) items.push(entry("altered-tape-15", "available", 1, "La cinta del cuarto canal sigue en el inventario para la investigaci\u00f3n."));
   if (storyProgress?.archiveUnlocked)
     items.push(entry("forbidden-archive", "unlocked", 1, "Podés abrir el archivo desde la tienda."));
   return items;
 }
 
 // Only offer actions already backed by a real dialogue or existing screen.
-export function getUniverseInventoryAction(item, { scene, nearby, masterTape, clubQuest, lostShipProgress } = {}) {
+export function getUniverseInventoryAction(item, { scene, nearby, masterTape, clubQuest, lostShipProgress, cityProgress } = {}) {
   if (!item) return null;
+  const fuegoComponent = FUEGO_COMPONENTS.find(component => component.id === item.id);
+  if (item.status === "available" && fuegoComponent
+    && cityProgress?.[fuegoComponent.takenFlag] && !cityProgress?.[fuegoComponent.installedFlag]
+    && scene === "buenos-aires-2049" && nearby?.kind === "examine" && nearby.id === "ba-escape-fuego"
+    && cityProgress?.fuegoStarted && cityProgress?.vigilanteDefeated)
+    return { id: "fuego-install:" + item.id, label: "Instalar en el Renault Fuego" };
   if (item.id === "recording-tape" && item.status === "available" && scene === "studio"
     && nearby?.kind === "hugo" && masterTape?.phase === "tape")
     return { id: "give-tape", label: "Entregar a Hugo" };

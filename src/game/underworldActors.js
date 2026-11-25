@@ -28,17 +28,44 @@ const ASSETS = {
   ],
 };
 
-const BARQUERO_POSITION = Object.freeze({ x: -2.9, z: 4.0, facing: .42 });
-const ALMA_WAYPOINTS = Object.freeze([{ x: 1.8, z: -10.3 }, { x: 1.35, z: -12.15 }]);
+const BARQUERO_POSITION = Object.freeze({ x: 2.2, z: -10.8, facing: .42 });
+const ALMA_WAYPOINTS = Object.freeze([{ x: -1.3, z: -3.5 }, { x: -1.5, z: -5.3 }]);
 
 const SETTINGS = [
   { id: "underworld-0", type: "centinela", name: "Centinela del Abismo I", x: -2.5, z: -35.5, height: 2.75, speed: 1.35, range: 1.9, detect: 7.5, hp: (p) => p?.enemies?.[0] ?? UNDERWORLD_MAX_HEALTH.sentinel },
   { id: "underworld-1", type: "centinela", name: "Centinela del Abismo II", x: 3.4, z: -42, height: 2.75, speed: 1.3, range: 1.9, detect: 7.5, hp: (p) => p?.enemies?.[1] ?? UNDERWORLD_MAX_HEALTH.sentinel },
+  { id: "underworld-ambush-0", type: "gargola", name: "G?rgola de la emboscada I", x: -3.1, z: -36.8, height: 2.45, speed: 1.55, range: 1.7, detect: 7.5, hp: (p) => p?.ambushHealth?.[0] ?? 3 },
+  { id: "underworld-ambush-1", type: "gargola", name: "G?rgola de la emboscada II", x: 3.1, z: -39.2, height: 2.45, speed: 1.55, range: 1.7, detect: 7.5, hp: (p) => p?.ambushHealth?.[1] ?? 3 },
   { id: "underworld-gargola", type: "gargola", name: "Gárgola infernal", x: 5.0, z: -40.5, height: 2.55, speed: 1.8, range: 1.7, detect: 8, hp: (p) => p?.gargolaHealth ?? UNDERWORLD_MAX_HEALTH.gargola },
-  { id: "underworld-testigo", type: "testigo", name: "Testigo de las Cenizas", x: 0, z: -47.1, height: 2.9, speed: 1.55, range: 2, detect: 8.5, hp: (p) => p?.testigoHealth ?? UNDERWORLD_MAX_HEALTH.testigo },
+  { id: "underworld-testigo", type: "testigo", name: "Testigo de las Cenizas", x: 0, z: -47.1, height: 2.9, speed: 2.65, range: 2, detect: 23, hp: (p) => p?.testigoHealth ?? UNDERWORLD_MAX_HEALTH.testigo },
   { id: "alma", type: "alma", name: "Alma Errante", ...ALMA_WAYPOINTS[0], facing: -.6, height: 2.55 },
   { id: "barquero", type: "barquero", name: "Barquero", ...BARQUERO_POSITION, height: 2.7 },
 ];
+
+// Advance toward NeonBoy and slide along arena edges instead of stopping at them.
+export function advanceUnderworldChase(position, player, speed, step, visionActive, progress) {
+  // Line up with the narrow bridge before crossing the pair of entrance pylons.
+  const enteringBridge = player.z > -31 && position.z < -31 && Math.abs(position.x) > 1.1;
+  const targetX = enteringBridge ? 0 : player.x;
+  const targetZ = enteringBridge ? position.z : player.z;
+  const dx = targetX - position.x;
+  const dz = targetZ - position.z;
+  const distance = Math.hypot(dx, dz);
+  if (distance < .001) return false;
+  const movement = Math.min(distance, speed * step);
+  const nextX = position.x + dx / distance * movement;
+  const nextZ = position.z + dz / distance * movement;
+  const canStand = (x, z) => canStandInUnderworld(x, z, visionActive, 1.35, progress);
+  if (canStand(nextX, nextZ)) {
+    position.x = nextX;
+    position.z = nextZ;
+    return true;
+  }
+  let moved = false;
+  if (canStand(nextX, position.z)) { position.x = nextX; moved = true; }
+  if (canStand(position.x, nextZ)) { position.z = nextZ; moved = true; }
+  return moved;
+}
 
 function pickClip(clips, term, fallback = 0) {
   return clips.find((clip) => clip.name.toLowerCase().includes(term.toLowerCase())) || clips[fallback];
@@ -52,7 +79,7 @@ export function createUnderworldActors(root, { onEvent, onDamage } = {}) {
     group.position.set(config.x, 0, config.z);
     group.rotation.y = config.facing ?? 0;
     root.add(group);
-    const maxHp = config.type === "centinela" ? UNDERWORLD_MAX_HEALTH.sentinel
+    const maxHp = config.id.startsWith("underworld-ambush") ? 3 : config.type === "centinela" ? UNDERWORLD_MAX_HEALTH.sentinel
       : config.type === "gargola" ? UNDERWORLD_MAX_HEALTH.gargola
       : config.type === "testigo" ? UNDERWORLD_MAX_HEALTH.testigo : 0;
     let warning = null, charge = null, chargeVisual = null;
@@ -80,6 +107,8 @@ export function createUnderworldActors(root, { onEvent, onDamage } = {}) {
   });
   const byId = new Map(actors.map((actor) => [actor.id, actor]));
   let lastPlayer = null;
+  let lastProgress = null;
+  let ferrymanRide = null;
   const interactions = [
     { id: "alma", label: "Hablar con el Alma Errante", ...ALMA_WAYPOINTS[0], reach: 2.8 },
     { id: "barquero", label: "Hablar con el Barquero", x: BARQUERO_POSITION.x, z: BARQUERO_POSITION.z, reach: 2.8 },
@@ -136,10 +165,12 @@ export function createUnderworldActors(root, { onEvent, onDamage } = {}) {
   }
 
   function active(actor, progress, player) {
-    if (actor.type === "centinela") return Boolean(progress?.bridgeCrossed);
-    if (actor.type === "gargola") return Boolean(progress?.bridgeCrossed &&
+    if (actor.id.startsWith("underworld-ambush")) return Boolean(progress?.mechanismSolved);
+    if (actor.type === "centinela") return Boolean(progress?.mechanismSolved && progress?.ambushHealth?.every((health) => health === 0));
+    if (actor.type === "gargola") return Boolean(progress?.mechanismSolved && progress?.ambushHealth?.every((health) => health === 0) &&
       (progress.enemies?.some((health) => health === 0) || player?.z < -39));
-    if (actor.type === "testigo") return Boolean(progress?.bridgeCrossed &&
+    if (actor.type === "testigo") return Boolean(progress?.mechanismSolved &&
+      progress?.ambushHealth?.every((health) => health === 0) &&
       progress.enemies?.every((health) => health === 0) && progress.gargolaHealth === 0);
     return true;
   }
@@ -159,13 +190,15 @@ export function createUnderworldActors(root, { onEvent, onDamage } = {}) {
     actor.hitAge = .3;
     actor.hitCooldown = .38;
     if (actor.type === "centinela") onEvent?.("enemy-hit", Number(actor.id.at(-1)));
-    if (actor.type === "gargola") onEvent?.("gargola-hit");
-    if (actor.type === "testigo") onEvent?.("testigo-hit");
+    if (actor.id.startsWith("underworld-ambush")) onEvent?.("ambush-hit", Number(actor.id.at(-1)));
+    else if (actor.type === "gargola") onEvent?.("gargola-hit");
+    if (actor.type === "testigo" && !lastProgress?.shieldActive) onEvent?.("testigo-hit");
   }
 
   function update(dt, elapsed, progress, player, paused, reducedMotion = false) {
     if (!progress || !player) return;
     lastPlayer = player;
+    lastProgress = progress;
     const step = paused ? 0 : Math.min(dt, .05);
     for (const actor of actors) {
       const alive = !actor.hp || actor.hp(progress) > 0 || (actor.type === "testigo" && !progress.testigoDefeatLineSeen);
@@ -182,6 +215,12 @@ export function createUnderworldActors(root, { onEvent, onDamage } = {}) {
       if (!actor.group.visible || paused || !actor.mixer) continue;
       actor.mixer.update(step);
       if (actor.type === "alma") {
+        if (progress.ferryCompleted) {
+          actor.group.position.set(-4.8, .025 + Math.sin(elapsed * 1.6) * .018, -33.15);
+          actor.group.rotation.y = Math.atan2(player.x - actor.group.position.x, player.z - actor.group.position.z);
+          play(actor, "idle");
+          continue;
+        }
         actor.group.position.y = .025 + Math.sin(elapsed * 1.6) * .018;
         if (actor.patrolPause > 0) {
           actor.patrolPause = Math.max(0, actor.patrolPause - step);
@@ -217,6 +256,11 @@ export function createUnderworldActors(root, { onEvent, onDamage } = {}) {
         continue;
       }
       if (actor.type === "barquero") {
+        if (ferrymanRide) actor.group.position.set(ferrymanRide.x, .22, ferrymanRide.z - 1.15);
+        else if (progress.ferryCompleted) actor.group.position.set(4.55, 0, -34.5);
+        else actor.group.position.set(BARQUERO_POSITION.x, 0, BARQUERO_POSITION.z);
+        interactions[1].x = actor.group.position.x;
+        interactions[1].z = actor.group.position.z;
         const dx = player.x - actor.group.position.x;
         const dz = player.z - actor.group.position.z;
         const target = Math.hypot(dx, dz) < 7
@@ -241,7 +285,7 @@ export function createUnderworldActors(root, { onEvent, onDamage } = {}) {
       if (actor.vanishAge > 0) {
         actor.vanishAge = Math.max(0, actor.vanishAge - step);
         actor.warning.visible = actor.vanishAge > 0;
-        actor.warning.scale.setScalar(1 + (1.15 - actor.vanishAge) * .65);
+        actor.warning.scale.setScalar(1 + ((actor.type === "testigo" ? .8 : 1.15) - actor.vanishAge) * .65);
         actor.warning.material.opacity = .4 + .22 * Math.sin(elapsed * 15);
         if (actor.vanishAge === 0) {
           actor.model.visible = true;
@@ -268,8 +312,8 @@ export function createUnderworldActors(root, { onEvent, onDamage } = {}) {
         if (actor.castAge === 0) { actor.charge.visible = false; play(actor, "walk"); }
         continue;
       }
-      if (actor.attackAge === 0 && actor.teleportCooldown === 0 && distance > 2.4 && distance < actor.detect) {
-        const destination = chooseEnemyReappearance(actor, player, progress.visionActive, canStandInUnderworld);
+      if (actor.attackAge === 0 && actor.teleportCooldown === 0 && distance > (actor.type === "testigo" ? 6 : 2.4) && distance < actor.detect) {
+        const destination = chooseEnemyReappearance(actor, player, progress.visionActive, (x, z, vision, clearance) => canStandInUnderworld(x, z, vision, clearance, progress));
         actor.teleportCooldown = actor.type === "testigo" ? 5.7 : actor.type === "gargola" ? 6.6 : 8;
         if (destination) {
           actor.group.position.set(destination.x, 0, destination.z);
@@ -278,7 +322,7 @@ export function createUnderworldActors(root, { onEvent, onDamage } = {}) {
           actor.warning.visible = true;
           actor.charge.visible = false;
           actor.castAge = 0;
-          actor.vanishAge = 1.15;
+          actor.vanishAge = actor.type === "testigo" ? .8 : 1.15;
           continue;
         }
       }
@@ -311,15 +355,8 @@ export function createUnderworldActors(root, { onEvent, onDamage } = {}) {
         cast?.reset().fadeIn(.12).play();
         actor.action = cast;
       } else if (distance < actor.detect && distance > actor.range * .8) {
-        const dx = (player.x - actor.group.position.x) / distance;
-        const dz = (player.z - actor.group.position.z) / distance;
-        const nextX = actor.group.position.x + dx * actor.speed * step;
-        const nextZ = actor.group.position.z + dz * actor.speed * step;
-        if (canStandInUnderworld(nextX, nextZ, progress.visionActive, 1.35)) {
-          actor.group.position.x = nextX;
-          actor.group.position.z = nextZ;
-        }
-        play(actor, "walk");
+        const moved = advanceUnderworldChase(actor.group.position, player, actor.speed, step, progress.visionActive, progress);
+        play(actor, moved ? "walk" : "idle");
       } else {
         const phase = elapsed * .42 + actor.homeX * .8;
         const goalX = actor.homeX + Math.sin(phase) * 1.05;
@@ -330,7 +367,7 @@ export function createUnderworldActors(root, { onEvent, onDamage } = {}) {
         if (length > .06) {
           const nextX = actor.group.position.x + dx / length * actor.speed * .48 * step;
           const nextZ = actor.group.position.z + dz / length * actor.speed * .48 * step;
-          if (canStandInUnderworld(nextX, nextZ, progress.visionActive, 1.35)) {
+          if (canStandInUnderworld(nextX, nextZ, progress.visionActive, 1.35, progress)) {
             actor.group.position.x = nextX;
             actor.group.position.z = nextZ;
           }
@@ -347,5 +384,8 @@ export function createUnderworldActors(root, { onEvent, onDamage } = {}) {
   }
 
   function dispose() { for (const actor of actors) actor.mixer?.stopAllAction(); combat.dispose(); }
-  return { interactions, loadAssets, getTargets, registerImpact, update, dispose };
+  return { interactions, loadAssets, getTargets, registerImpact, update, dispose,
+    setFerrymanRide: (position) => { ferrymanRide = position; },
+    getActorPosition: (id) => byId.get(id)?.group.position,
+  };
 }

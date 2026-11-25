@@ -1,6 +1,6 @@
 ﻿// Reuse the existing device budgets and adaptive sampler; no Halloween save/settings are read.
 import { GRAPHICS_PROFILES, createAdaptiveGraphicsQuality, graphicsPixelRatio } from "../../apps/neonboy-halloween/halloweenGraphicsQuality.js";
-export { createAdaptiveGraphicsQuality };
+export { createAdaptiveGraphicsQuality, graphicsPixelRatio };
 export function initialCathedralTier(device = globalThis.navigator) {
   const mobile = /Android|iPhone|iPad/i.test(device?.userAgent || "") || (device?.maxTouchPoints > 1 && /Mac/i.test(device?.platform || ""));
   if (!mobile) return "high";

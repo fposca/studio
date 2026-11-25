@@ -72,16 +72,50 @@
   .neon-underworld .underworld-conversation-overlay .record-store-conversation { max-height: 72vh; }
 }
 
-.neon-underworld .studio-header button.underworld-dev-reset {
+.neon-underworld .studio-header button.underworld-reset-button {
   border-color: #af718f; color: #f6cae3; background: #241327e8;
   font-size: 10px; letter-spacing: .02em;
 }
-.neon-underworld .studio-header button.underworld-dev-reset:hover { background: #5a2a4b; }
-.neon-underworld .studio-header button.underworld-dev-reset:focus-visible {
+.neon-underworld .studio-header button.underworld-reset-button:hover { background: #5a2a4b; }
+.neon-underworld .studio-header button.underworld-reset-button:focus-visible,
+.neon-underworld .underworld-reset-actions button:focus-visible {
   outline: 2px solid #8fe7f1; outline-offset: 2px;
 }
+.neon-underworld .underworld-reset-backdrop {
+  position: absolute; inset: 0; z-index: 60; display: grid; place-items: center;
+  padding: 18px; background: #090711db; backdrop-filter: blur(9px);
+}
+.neon-underworld .underworld-reset-card {
+  width: min(460px, 100%); padding: clamp(22px, 5vw, 32px);
+  border: 1px solid #b67aaa; border-radius: 12px;
+  color: #ffe8e2; background: linear-gradient(145deg, #2a152c, #130f1d 72%);
+  box-shadow: 0 24px 70px #000c, 0 0 35px #d8479b36;
+  font-family: var(--store-font);
+}
+.neon-underworld .underworld-reset-card small {
+  color: #eda5c9; font-size: 10px; font-weight: 800; letter-spacing: .14em;
+}
+.neon-underworld .underworld-reset-card h2 {
+  margin: 12px 0; color: #ffe4ce; font-size: clamp(25px, 5vw, 36px);
+}
+.neon-underworld .underworld-reset-card p {
+  margin: 0 0 22px; color: #dac5d1; line-height: 1.5;
+}
+.neon-underworld .underworld-reset-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.neon-underworld .underworld-reset-actions button {
+  min-height: 42px; padding: 9px 16px; border: 1px solid #a96894; border-radius: 5px;
+  color: #ffecdf; background: #2a1b30; font: inherit; font-weight: 700; cursor: pointer;
+}
+.neon-underworld .underworld-reset-actions button:last-child {
+  border-color: #ed8a9c; background: #79364f;
+}
+.neon-underworld .underworld-reset-actions button:hover { filter: brightness(1.2); }
 @media (max-width: 700px) {
-  .neon-underworld .studio-header button.underworld-dev-reset {
-    position: absolute; top: 135px; right: 10px; padding: 7px 9px;
+  .neon-underworld .studio-header > .studio-header-actions {
+    width: 55vw; max-width: 55vw; flex-direction: row; flex-wrap: wrap;
+    justify-content: flex-end; gap: 4px;
+  }
+  .neon-underworld .studio-header-actions button {
+    width: auto; padding: 7px 8px; font-size: 9px;
   }
 }

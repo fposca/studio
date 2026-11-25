@@ -1,11 +1,13 @@
-export const OFFICE_LOGO_TEXT = "Interbanking es la plataforma digital de servicios financieros B2B líder en Argentina, diseñada para unificar la gestión bancaria de pequeñas, medianas y grandes empresas. Fundada en 1996, actúa como una cámara compensadora de fondos de alto valor y un ecosistema financiero multicanal que conecta a más de 220.000 empresas con 58 bancos de todo el país.";
+import { DEMO_COMPANY } from "./branding/brand.js";
+
+export const OFFICE_LOGO_TEXT = DEMO_COMPANY.description;
 
 export const OFFICE_ROXY = Object.freeze({ id: "office-roxy", name: "Roxy", role: "Recursos Humanos", avatar: "RX" });
 
 export const OFFICE_DIALOGUE = Object.freeze({
   welcome: {
     id: "welcome",
-    kicker: "INTERBANKING · RECURSOS HUMANOS",
+    kicker: `${DEMO_COMPANY.name} · RECURSOS HUMANOS`,
     text: "¡Hola, Fernando! Bienvenido a la oficina. Soy Roxy, de Recursos Humanos. ¿En qué puedo ayudarte?",
     options: [
       { id: "first-day", label: "¿Qué me recomendás para mi primer día?", spoken: "Hola, es mi primer día en la oficina. ¿Qué me recomendás?", next: "first-day" },
@@ -35,10 +37,12 @@ export const OFFICE_DIALOGUE = Object.freeze({
   },
 });
 
-export function getOfficeDialogueNode(nodeId, avatar) {
+export function getOfficeDialogueNode(nodeId, avatar, customName = "Alex") {
   const node = OFFICE_DIALOGUE[nodeId];
-  if (nodeId !== "welcome" || avatar !== "victoria") return node;
-  return { ...node, text: node.text.replace("Fernando", "Victoria").replace("Bienvenido", "Bienvenida") };
+  if (nodeId !== "welcome" || avatar === "fernando") return node;
+  const name = avatar === "victoria" ? "Victoria" : customName;
+  return { ...node, text: node.text.replace("Fernando", name)
+    .replace("Bienvenido", avatar === "victoria" ? "Bienvenida" : "Bienvenido") };
 }
 
 export const OFFICE_ALFREDO = Object.freeze({ id: "office-alfredo", name: "Alfredo", role: "Seguridad del edificio", avatar: "AS" });

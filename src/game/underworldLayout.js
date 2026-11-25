@@ -20,11 +20,12 @@ export const UNDERWORLD_INTERACTIONS = [
 ];
 
 // Navigation uses a simple walkable proxy. The imported citadel remains visual only.
-export function canStandInUnderworld(x, z, visionActive, pylonClearance = 1.08) {
+export function canStandInUnderworld(x, z, visionActive, pylonClearance = 1.08, progress = null) {
   if (Math.abs(x) > 7.5 || z > 13.2 || z < UNDERWORLD_PORTAL_STOP_Z) return false;
   if (UNDERWORLD_PYLONS.some((pillar) => Math.hypot(x - pillar.x, z - pillar.z) < pylonClearance)) return false;
-  if (z > -14.8) return Math.abs(x) < (z > 5 ? 5.6 : 3.15);
-  if (z > -31) return visionActive && Math.abs(x) < 1.65;
+  if (progress && !progress.ferryCompleted && z < -31.4 && !progress.completed) return false;
+  if (z > -14.8) return Math.abs(x) < (z > 5 ? 5.6 : 3.15) || (z > -12.7 && z < -9.8 && x > 0 && x < 3.65);
+  if (z > -31) return Boolean(visionActive || progress?.mechanismSolved || progress?.completed) && Math.abs(x) < 1.65;
   if (z > -45.5) return Math.abs(x) < 6.7;
   return Math.abs(x) < 3.5;
 }

@@ -1,5 +1,25 @@
 import { test, expect } from "@playwright/test";
 
+test("map orders three doors before chapters 11 to 14", async ({ page }) => {
+  await page.goto("/discografia/?direct=1");
+  await page.getByRole("button", { name: "MAPA" }).click();
+  const map = page.getByRole("dialog", { name: "Mapa de NeonBoy Universe" });
+  const routes = map.locator(".universe-map-route-link");
+  expect((await routes.allTextContents()).map((label) => label.trim())).toEqual([
+    "PUERTA 01 · LA NAVE PERDIDA",
+    "PUERTA 02 · EL PARTENÓN MALDITO",
+    "PUERTA 03 · LA REALIDAD FRACTURADA",
+    "CAPÍTULO 11 · PUENTE DE LAS ALMAS",
+    "CAPÍTULO 12 · LA CATEDRAL DE LOS CONDENADOS",
+    "CAPÍTULO 13 · EL TRONO DEL ABISMO",
+    "CAP\u00cdTULO 14 \u00b7 BUENOS AIRES 2049",
+  ]);
+  await routes.nth(5).click();
+  await expect(map.getByRole("heading", { name: "El Trono del Abismo" })).toBeVisible();
+  await expect(map.locator(".universe-map-status")).toContainText("BLOQUEADO");
+  expect(await map.locator(".universe-map-routes").evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
+});
+
 test("the universe map keeps the 3D store mounted and only enters the record shop", async ({ page }) => {
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -8,6 +28,7 @@ test("the universe map keeps the 3D store mounted and only enters the record sho
   const shop = page.getByRole("region", { name: "Tienda de discos Neonboy" });
   const scene = shop.locator(".record-store-3d");
   await expect(scene).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+  await shop.getByRole("button", { name: /Abrir panel de m/ }).click();
   await shop.getByRole("tab", { name: "Discos" }).click();
   await shop.getByRole("button", { name: "Disco Gloom", exact: true }).click();
   await page.evaluate(() => { window.__storeCanvasBeforeMap = document.querySelector(".record-store-3d canvas"); });
@@ -23,7 +44,7 @@ test("the universe map keeps the 3D store mounted and only enters the record sho
   await expect(map.getByText("BLOQUEADO", { exact: true })).toBeVisible();
   await expect(map.getByRole("button", { name: "Entrar a la Tienda de Discos" })).toHaveCount(0);
   await map.getByRole("button", { name: "Seleccionar Inframundo" }).click();
-  await expect(map.getByText("SECRETO", { exact: true })).toBeVisible();
+  await expect(map.getByText("BLOQUEADO", { exact: true })).toBeVisible();
 
   await page.keyboard.press("Escape");
   await expect(map).toHaveCount(0);

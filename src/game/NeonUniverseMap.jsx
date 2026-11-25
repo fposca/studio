@@ -4,6 +4,26 @@ import mapImage from "../assets/neonboy-animaciones/imagenes/Mapa nocturno de ci
 import { NEON_UNIVERSE_SCENARIOS, NEON_UNIVERSE_STATUS, getScenarioStatus } from "./neonUniverseScenarios.js";
 import "./neonUniverseMap.css";
 
+const ROUTE_GROUPS = [
+  { title: "DIMENSIONES PERDIDAS", destinations: [
+    { id: "lost-ship", label: "PUERTA 01 · LA NAVE PERDIDA" },
+    { id: "parthenon", label: "PUERTA 02 · EL PARTENÓN MALDITO" },
+    { id: "matrix", label: "PUERTA 03 · LA REALIDAD FRACTURADA" },
+  ] },
+  { title: "INFRAMUNDO", destinations: [
+    { id: "underworld", label: "CAPÍTULO 11 · PUENTE DE LAS ALMAS" },
+    { id: "cathedral", label: "CAPÍTULO 12 · LA CATEDRAL DE LOS CONDENADOS" },
+    { id: "abyss-throne", label: "CAPÍTULO 13 · EL TRONO DEL ABISMO" },
+  ] },
+  { title: "FUTURO", destinations: [
+    { id: "buenos-aires-2049", label: "CAP\u00cdTULO 14 \u00b7 BUENOS AIRES 2049" },
+  ] },
+  { title: "REGRESO A 1999", destinations: [
+    { id: "chapter15-studio", label: "CAPÍTULO 15 · EL ESTUDIO ALTERADO" },
+    { id: "chapter15-store", label: "CAPÍTULO 15 · LA DISQUERÍA ALTERADA" },
+  ] },
+];
+
 export default function NeonUniverseMap({ onClose, onEnter, unlockedScenarios = [] }) {
   const [selectedId, setSelectedId] = useState("record-store");
   const closeButtonRef = useRef(null);
@@ -47,15 +67,21 @@ export default function NeonUniverseMap({ onClose, onEnter, unlockedScenarios = 
           <p>{selected.description}</p>
           {selected.id === "cathedral" && selectedStatus === "available" && <div className="chapter10-map-note" role="status"><strong>CAPÍTULO 12 DISPONIBLE</strong>LA CATEDRAL DE LOS CONDENADOS<br />TRAS LA PUERTA ROJA DEL PUENTE</div>}
           {selected.id === "underworld" && selectedStatus === "available" && <div className="chapter10-map-note" role="status"><strong>CAPÍTULO 11 DISPONIBLE</strong>PUENTE DE LAS ALMAS<br />LA CIUDADELA AGUARDA DEL OTRO LADO</div>}
-          {unlockedScenarios.includes("lost-ship") && <button type="button" className="universe-map-dimensional-link" onClick={() => setSelectedId("lost-ship")}>
-            DIMENSIONES PERDIDAS · PUERTA 01
-          </button>}
-          {unlockedScenarios.includes("parthenon") && <button type="button" className="universe-map-dimensional-link" onClick={() => setSelectedId("parthenon")}>
-            DIMENSIONES PERDIDAS · PUERTA 02
-          </button>}
-          {unlockedScenarios.includes("cathedral") && <button type="button" className="universe-map-dimensional-link" onClick={() => setSelectedId("cathedral")}>INFRAMUNDO · CAPÍTULO 12</button>}
-          {unlockedScenarios.includes("abyss-throne") && <button type="button" className="universe-map-dimensional-link" onClick={() => setSelectedId("abyss-throne")}>DESTINO SIGUIENTE · EL TRONO DEL ABISMO</button>}
-          {unlockedScenarios.includes("matrix") && <button type="button" className="universe-map-dimensional-link" onClick={() => setSelectedId("matrix")}>DIMENSIONES PERDIDAS · PUERTA 03</button>}
+          <nav className="universe-map-routes" aria-label="Recorrido de escenarios">
+            {ROUTE_GROUPS.map((group) => <div className="universe-map-route-group" key={group.title}>
+              <span>{group.title}</span>
+              <div>{group.destinations.map((route) => {
+                const scenario = NEON_UNIVERSE_SCENARIOS.find((item) => item.id === route.id);
+                const status = getScenarioStatus(scenario, unlockedScenarios);
+                return <button type="button" key={route.id}
+                  className={"universe-map-route-link is-" + status + (selectedId === route.id ? " is-selected" : "")}
+                  aria-pressed={selectedId === route.id} onClick={() => setSelectedId(route.id)}>
+                  <span>{route.label}</span>
+                  {status === "available" ? <ArrowRight size={13} aria-hidden="true" /> : <LockKeyhole size={12} aria-hidden="true" />}
+                </button>;
+              })}</div>
+            </div>)}
+          </nav>
           <div className="universe-map-detail-bottom">
             {selectedStatus === "available" && selected.destination
               ? <button type="button" className="universe-map-enter" onClick={() => onEnter(selected.destination)}>Entrar a {selected.id === "record-store" ? "la " : ""}{selected.name} <ArrowRight size={17} /></button>

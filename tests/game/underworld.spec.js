@@ -11,7 +11,7 @@ test("chapter 11 loads optimized actors and lets NeonBoy talk to the ferryman", 
         signalReconstructed: true, underworldUnlocked: true, chapterCompleted: true,
       },
       underworldProgress: { arrivalRead: true, visionActive: true, bridgeCrossed: true, enemies: [3, 3] },
-      positions: { underworld: { x: -2.6, z: 5.6, yaw: Math.PI, viewYaw: 0 } },
+      positions: { underworld: { x: 3, z: -10.2, yaw: Math.PI, viewYaw: 0 } },
     };
     localStorage.setItem("neonboy.universe.saves.v1", JSON.stringify({ version: 1,
       slots: { autosave: { savedAt: Date.now(), data } } }));

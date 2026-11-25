@@ -1,3 +1,4 @@
+import { GUIDE_REVEAL_IDS } from "./halloweenGuidance.js";
 export const HALLOWEEN_SAVE_KEY = "neonboy-halloween-save-v2";
 export const HALLOWEEN_LEGACY_SAVE_KEY = "neonboy-halloween-saves-v1";
 export const HALLOWEEN_SAVE_SLOTS = 1;
@@ -17,6 +18,7 @@ export function normalizeHalloweenProgress(value = {}) {
   const player = value.player || {};
   return {
     chest: { keyOwned, open: keyOwned && chest.open === true, collected },
+    guideSeen: strings(value.guideSeen).filter(id => GUIDE_REVEAL_IDS.includes(id)),
     demonHealth: clampInt(value.demonHealth ?? 3, 0, 3),
     judgeDefeated,
     hearts: clampInt(value.hearts ?? 3, 1, 3),

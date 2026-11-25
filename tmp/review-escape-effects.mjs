@@ -1,0 +1,28 @@
+import {chromium} from '@playwright/test';
+import {mkdir} from 'node:fs/promises';
+await mkdir('tmp/escape-effects-review',{recursive:true});
+const browser=await chromium.launch({channel:'chrome',headless:true,args:['--enable-webgl','--ignore-gpu-blocklist']});
+const page=await browser.newPage({viewport:{width:1280,height:800}});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+await page.goto('http://127.0.0.1:5174');await page.setContent('<body style="margin:0;background:#07121b"></body>');
+console.log(await page.evaluate(async()=>{
+ const T=await import('/@fs/C:/Users/posca/OneDrive/Escritorio/videoimg/node_modules/.vite/deps/three.js');
+ const {createEscapeEffects}=await import('/@fs/C:/Users/posca/OneDrive/Escritorio/videoimg/src/game/buenosAiresEscapeEffects.js');
+ const {createEscapeState}=await import('/@fs/C:/Users/posca/OneDrive/Escritorio/videoimg/src/game/buenosAiresEscapeLogic.js');
+ const renderer=new T.WebGLRenderer({antialias:true});renderer.setSize(1280,800);renderer.setPixelRatio(1);renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;document.body.appendChild(renderer.domElement);
+ const scene=new T.Scene();scene.background=new T.Color(0x091521);scene.add(new T.HemisphereLight(0xbedfff,0x243449,3));
+ const key=new T.DirectionalLight(0xbceaff,4);key.position.set(-5,9,7);scene.add(key);
+ const floor=new T.Mesh(new T.PlaneGeometry(80,80),new T.MeshStandardMaterial({color:0x172431,roughness:.8}));floor.rotation.x=-Math.PI/2;scene.add(floor);
+ const camera=new T.PerspectiveCamera(43,1280/800,.1,100);camera.position.set(8,6,13);camera.lookAt(0,2.7,0);
+ const fx=createEscapeEffects(scene),car=new T.Group();car.position.set(-3,1.3,2);
+ const state=createEscapeState('high');state.time=60;state.pulse=.75;state.barriers=[{due:60.15,side:1}];state.bolts=[{born:58,due:61.2,lateral:0,vertical:0,drone:0}];
+ fx.triggerPulse(car.position);fx.update(state,car);
+ const drones=fx.root.children.filter(o=>o.name.startsWith('Interceptor / turbinas'));
+ drones.forEach((o,i)=>{o.visible=i<2;o.position.set(-3.3+i*3,1.6,i? -2:2);o.rotation.set(0,i?Math.PI+.3:-.35,.05);o.scale.setScalar(1.3);});
+ const barrier=fx.root.children.find(o=>o.name.startsWith('Barrera /'));barrier.position.set(3.1,3.55,-1.5);barrier.rotation.y=-.3;
+ const bolt=fx.root.children.find(o=>o.name==='Interceptor / plasma y estela');bolt.position.set(-.9,2.8,1);bolt.rotation.y=.2;
+ renderer.render(scene,camera);window.review={renderer,scene,camera,fx,car,state};return {draws:renderer.info.render.calls,triangles:renderer.info.render.triangles};
+}));
+await page.screenshot({path:'tmp/escape-effects-review/assemblies.png'});
+console.log('ERRORS',JSON.stringify(errors));await browser.close();
+if(errors.some(e=>/shader|WebGL|TypeError|ReferenceError/i.test(e)))process.exitCode=1;

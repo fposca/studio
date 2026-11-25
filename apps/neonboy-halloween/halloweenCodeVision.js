@@ -15,6 +15,7 @@ ${VARYINGS}
 uniform sampler2D halloweenGlyphs;
 uniform float halloweenTime;
 uniform float halloweenDemonHit;
+uniform float halloweenGuideFocus;
 uniform vec2 halloweenOrigin;
 float halloweenHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 `;
@@ -79,6 +80,10 @@ const SURFACE_CODE = `
     outgoingLight = codeBase + codeInk * codeGlyph * codeIntensity;
     outgoingLight += vec3(.01, .10, .035) * codeScan;
     #ifdef HALLOWEEN_DEMON_CODE
+      // A steady tutorial accent identifies the target without simulating a hit.
+      vec3 guideCode = vec3(.12, .018, .045) * (.65 + codeFacing);
+      guideCode += vec3(1.0, .22, .48) * (codeGlyph * .8 + codeRim * .85);
+      outgoingLight = mix(outgoingLight, guideCode, halloweenGuideFocus);
       vec3 errorInk = mix(vec3(1.0, .025, .38), vec3(.94, 1.0, 1.0), codeErrorBand);
       float errorTrace = 1.0 - smoothstep(.015, max(.045, fwidth(codeGrid.y)), abs(fract(codeGrid.y) - .5));
       vec3 brokenCode = codeBase + errorInk * (codeGlyph * 1.65 + errorTrace * .22 + codeRim * .3);
@@ -114,6 +119,7 @@ export function createHalloweenCodeVision(scene, { atlas = createGlyphAtlas() } 
     halloweenPlayerPose: { value: new THREE.Vector4() },
     halloweenDemonPose: { value: new THREE.Vector4() },
     halloweenDemonHit: { value: 0 },
+    halloweenGuideFocus: { value: 0 },
   };
   const background = scene.background;
   const fog = scene.fog;
@@ -188,7 +194,11 @@ export function createHalloweenCodeVision(scene, { atlas = createGlyphAtlas() } 
       if (next === active) return;
       register();
       active = next;
-      if (!active) { demonHitRemaining = 0; uniforms.halloweenDemonHit.value = 0; }
+      if (!active) {
+        demonHitRemaining = 0;
+        uniforms.halloweenDemonHit.value = 0;
+        uniforms.halloweenGuideFocus.value = 0;
+      }
       for (const [object, original] of originals) {
         if (active) applyCode(object, original);
         else object.material = original;
@@ -196,6 +206,7 @@ export function createHalloweenCodeVision(scene, { atlas = createGlyphAtlas() } 
       scene.background = active ? codeBackground : background;
       scene.fog = active ? codeFog : fog;
     },
+    setGuideFocus(enabled) { uniforms.halloweenGuideFocus.value = active && enabled ? 1 : 0; },
     hitDemon() { if (active) demonHitRemaining = .85; },
     update(dt, player, reducedMotion = false, demonRoot = null, reduceFlashing = false) {
       demonHitRemaining = Math.max(0, demonHitRemaining - dt);

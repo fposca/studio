@@ -136,6 +136,12 @@ test("demon code damage fades independently and resets when Matrix closes", () =
   assert.equal(player.material.defines?.HALLOWEEN_DEMON_CODE, undefined);
   const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.standard.vertexShader, fragmentShader: THREE.ShaderLib.standard.fragmentShader };
   demon.material.onBeforeCompile(shader);
+  effect.setGuideFocus(true);
+  effect.update(.1, { x: 0, z: 0 }, false, demon);
+  assert.equal(shader.uniforms.halloweenGuideFocus.value, 1);
+  assert.equal(shader.uniforms.halloweenDemonHit.value, 0);
+  effect.setGuideFocus(false);
+  assert.equal(shader.uniforms.halloweenGuideFocus.value, 0);
   effect.hitDemon();
   effect.update(.1, { x: 0, z: 0 }, false, demon);
   assert.ok(shader.uniforms.halloweenDemonHit.value > .8);
@@ -144,7 +150,9 @@ test("demon code damage fades independently and resets when Matrix closes", () =
   effect.hitDemon();
   effect.update(.1, { x: 0, z: 0 }, true, demon);
   assert.ok(shader.uniforms.halloweenDemonHit.value < .45);
+  effect.setGuideFocus(true);
   effect.setActive(false);
+  assert.equal(shader.uniforms.halloweenGuideFocus.value, 0);
   assert.equal(shader.uniforms.halloweenDemonHit.value, 0);
   assert.equal(demon.material, original);
   effect.dispose();
